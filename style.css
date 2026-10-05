@@ -196,7 +196,7 @@ html { font-size: 106.25%; }
 .globe { position: absolute; top: 12px; left: 16px; font-size: 1.2rem; }
 
 /* Wereldkaart: de zee is de achtergrond, elk land is een eigen vorm die je kunt aantikken */
-.map-wrap { position: relative; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius); background: var(--card); box-shadow: var(--shadow); margin-bottom: 12px; }
+.map-wrap { overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius); background: var(--card); box-shadow: var(--shadow); margin-bottom: 12px; }
 #map-host { display: grid; place-items: center; }
 .map-status { margin: 0; padding: 16px; text-align: center; }
 /* De kaart regelt slepen en zoomen zelf, dus de browser mag er de pagina niet mee verschuiven */
@@ -209,8 +209,9 @@ html { font-size: 106.25%; }
 /* De tint van de letterkleur, niet van de knopkleur: die is in elk thema donker genoeg om tegen de zee af te steken */
 .map path.has { fill: var(--accent-soft); fill: color-mix(in srgb, var(--accent-ink) 42%, var(--card)); }
 .map path.sel { fill: var(--accent-ink); stroke: var(--text); stroke-width: 1.6; }
-.map-tools { position: absolute; top: 8px; right: 8px; display: flex; flex-direction: column; gap: 6px; }
-.map-tools .icon-btn { border: 1px solid var(--border); background: var(--card); box-shadow: var(--shadow); font-size: 1.2rem; font-weight: 700; line-height: 1; }
+/* De knoppen staan onder de kaart en niet erop: zo ligt er nooit een land onder een knop */
+.map-tools { display: flex; justify-content: flex-end; gap: 8px; padding: 6px 8px; border-top: 1px solid var(--border); }
+.map-tools .icon-btn { font-size: 1.2rem; font-weight: 700; line-height: 1; }
 /* Het gekozen land onder de kaart; altijd even hoog, zodat de pagina niet verspringt */
 .country-card { display: flex; align-items: center; gap: 12px; min-height: 76px; }
 .country-card .grow { flex: 1; min-width: 0; overflow-wrap: anywhere; }
