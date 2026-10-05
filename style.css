@@ -195,30 +195,26 @@ html { font-size: 106.25%; }
 .settings { position: absolute; top: 12px; right: 16px; font-size: 1.2rem; }
 .globe { position: absolute; top: 12px; left: 16px; font-size: 1.2rem; }
 
-/* Wereldkaart: een hoekige tekening van de werelddelen, met vlaggetjes als knoppen eroverheen */
-.map-wrap { position: relative; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius); background: var(--card); box-shadow: var(--shadow); }
-.map { display: block; width: 100%; height: auto; }
-.land polygon { fill: var(--accent-soft); stroke: var(--accent-ink); stroke-width: 1; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
-.land[data-action] { cursor: pointer; }
-.land[data-action]:hover polygon, .land[data-action]:focus-visible polygon { fill: var(--accent); }
-.land:focus { outline: none; }
-/* Op de ingezoomde kaart zijn de andere werelddelen vaag */
-.land:not(.active):not([data-action]) polygon { fill: var(--border); stroke: var(--border); }
-.marker {
-  position: absolute;
-  transform: translate(-50%, -50%);
-  width: 36px;
-  height: 36px;
-  padding: 0;
-  border: 2px solid var(--accent-ink);
-  border-radius: 50%;
-  background: var(--card);
-  box-shadow: var(--shadow);
-  font-size: 1.2rem;
-  line-height: 1;
-  cursor: pointer;
-}
-.marker:active { transform: translate(-50%, -50%) scale(0.92); }
+/* Wereldkaart: de zee is de achtergrond, elk land is een eigen vorm die je kunt aantikken */
+.map-wrap { position: relative; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius); background: var(--card); box-shadow: var(--shadow); margin-bottom: 12px; }
+#map-host { display: grid; place-items: center; }
+.map-status { margin: 0; padding: 16px; text-align: center; }
+/* De kaart regelt slepen en zoomen zelf, dus de browser mag er de pagina niet mee verschuiven */
+.map { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; }
+.map:active { cursor: grabbing; }
+/* Gebieden die geen land zijn (zoals Groenland) zijn grijs en niet aan te tikken */
+.map path { fill: var(--border); fill-rule: evenodd; stroke: var(--card); stroke-width: 0.7; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.map path[data-code] { cursor: pointer; }
+.map path.none { fill: var(--border); fill: color-mix(in srgb, var(--muted) 38%, var(--card)); }
+.map path.has { fill: var(--accent-soft); fill: color-mix(in srgb, var(--accent) 42%, var(--card)); }
+.map path.sel { fill: var(--accent); stroke: var(--text); stroke-width: 1.6; }
+.map-tools { position: absolute; top: 8px; right: 8px; display: flex; flex-direction: column; gap: 6px; }
+.map-tools .icon-btn { border: 1px solid var(--border); background: var(--card); box-shadow: var(--shadow); font-size: 1.2rem; font-weight: 700; line-height: 1; }
+/* Het gekozen land onder de kaart; altijd even hoog, zodat de pagina niet verspringt */
+.country-card { display: flex; align-items: center; gap: 12px; min-height: 76px; }
+.country-card .grow { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.country-card .btn { flex: none; width: auto; min-height: 44px; margin: 0; padding: 8px 20px; }
+.chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-text); font-weight: 700; }
 .rank { flex: none; width: 1.3rem; font-weight: 700; color: var(--muted); text-align: center; }
 .icon-btn.done:disabled { opacity: 1; background: none; color: var(--accent-ink); font-weight: 700; }
 

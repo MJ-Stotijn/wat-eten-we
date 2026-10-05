@@ -136,11 +136,7 @@ const CATALOG = [
 ];
 // Zoveel gerechten uit de lijst zie je voordat je om meer vraagt.
 const CATALOG_PREVIEW = 12;
-// De wereldkaart (de gegevens staan in world.js). De breedtegraden zijn wat uitgerekt, zodat de kaart op
-// een smal scherm niet te plat wordt. WORLD_BOX is het stuk wereld dat je ziet: [west, oost, zuid, noord].
-const MAP_STRETCH = 1.5;
-const WORLD_BOX = [-170, 180, -56, 84];
-// De afkortingen waarmee de gerechten per land zijn genoteerd.
+// De afkortingen waarmee de gerechten per land zijn genoteerd (in world-dishes.js).
 const DISH_TYPE = { l: 'vlees', v: 'vis', g: 'vega' };
 const DISH_TIME = { s: 'snel', n: 'normaal', u: 'uitgebreid' };
 const DISH_MEAL = { o: 'ontbijt', m: 'middag', a: 'avond' };
@@ -627,7 +623,7 @@ function flag(code) {
   return String.fromCodePoint(...[...code].map(letter => 0x1F1E6 + letter.charCodeAt(0) - 65));
 }
 
-// Een gerecht uit world.js uitgeschreven: naam, omschrijving, soort, bereidingstijd en maaltijden.
+// Een gerecht uit world-dishes.js uitgeschreven: naam, omschrijving, soort, bereidingstijd en maaltijden.
 // Zegt de naam niets over het plaatje (veel buitenlandse namen), dan komt het plaatje uit de omschrijving.
 function worldDish(row) {
   const [name, text, type, time, meals] = row.split('|');
@@ -638,37 +634,27 @@ function worldDish(row) {
   };
 }
 
-function worldCountry() {
-  return WORLD[view.region].countries.find(country => country[0] === view.code);
+// De gerechten van een land; van een land zonder gerechten een lege lijst.
+function countryDishes(code) {
+  return WORLD_DISHES[code] || [];
 }
 
-// Een plek op aarde als punt op de kaart.
-function mapPoint(lon, lat) {
-  return [lon + 180, (90 - lat) * MAP_STRETCH];
+// "10 gerechten", "1 gerecht".
+function dishCount(count) {
+  return `${count} ${count === 1 ? 'gerecht' : 'gerechten'}`;
 }
 
-// De kaart als tekening. Zonder werelddeel zie je de hele wereld en tik je een werelddeel aan; met een
-// werelddeel is daarop ingezoomd en staan de landen er als vlaggetjes op.
-function mapHtml(regionKey) {
-  const [west, east, south, north] = regionKey ? WORLD[regionKey].box : WORLD_BOX;
-  const [x0, y0] = mapPoint(west, north);
-  const [x1, y1] = mapPoint(east, south);
-  const width = x1 - x0;
-  const height = y1 - y0;
-  const shapes = key => LAND[key].map(points =>
-    `<polygon points="${points.map(([lon, lat]) => mapPoint(lon, lat).map(n => n.toFixed(1)).join(',')).join(' ')}"/>`).join('');
-  const land = Object.keys(LAND).map(key => regionKey
-    ? `<g class="land${key === regionKey ? ' active' : ''}">${shapes(key)}</g>`
-    : `<g class="land" data-action="world-region" data-region="${key}" role="button" tabindex="0" aria-label="${WORLD[key].name}">${shapes(key)}</g>`).join('');
-  const markers = regionKey ? WORLD[regionKey].countries.map(([code, name, lon, lat]) => {
-    const [x, y] = mapPoint(lon, lat);
-    return `<button class="marker" data-action="world-country" data-code="${code}" aria-label="${name}"
-      style="left:${((x - x0) / width * 100).toFixed(1)}%;top:${((y - y0) / height * 100).toFixed(1)}%">${flag(code)}</button>`;
-  }).join('') : '';
+// Het vak onder de kaart met het gekozen land en de knop naar de gerechten van dat land.
+function countryCardHtml() {
+  const code = worldMap.selected;
+  if (!code) return '<div class="card country-card muted">Tik op een land op de kaart, of zoek het hieronder.</div>';
+  const count = countryDishes(code).length;
   return `
-    <div class="map-wrap">
-      <svg class="map" viewBox="${x0} ${y0} ${width} ${height}"${regionKey ? ' aria-hidden="true"' : ' role="group" aria-label="Wereldkaart"'}>${land}</svg>
-      ${markers}
+    <div class="card country-card">
+      <span class="icon" aria-hidden="true">${flag(code)}</span>
+      <span class="grow"><strong>${COUNTRIES[code][0]}</strong><br>
+        <span class="small muted">${count ? dishCount(count) : 'Hier heb ik nog geen gerechten van'}</span></span>
+      ${count ? `<button class="btn primary" data-action="open-country" data-code="${code}">Bekijk</button>` : ''}
     </div>`;
 }
 
@@ -982,8 +968,7 @@ window.addEventListener('popstate', () => {
   if (!state.onboarded || view.name === 'home') return;
   if (view.name === 'ask' && view.step > 0) ACTIONS['ask-back']();
   else if (view.name === 'log') go('week', { offset: view.offset, day: view.day });
-  else if (view.name === 'country') go('world', { region: view.region });
-  else if (view.name === 'world' && view.region) go('world');
+  else if (view.name === 'country') go('world');
   else go('home');
 });
 
@@ -1014,6 +999,10 @@ function render() {
   if (!state.onboarded) view.name = state.welcomed ? 'onboarding' : 'welcome';
   app.innerHTML = VIEWS[view.name]();
   if (document.getElementById('catalog')) filterCatalog();
+  if (document.getElementById('map-host')) {
+    mountWorldMap();
+    filterCountries();
+  }
   nav.hidden = !state.onboarded;
   const tab = NAV_TAB[view.name] || 'home';
   for (const button of nav.querySelectorAll('button')) {
@@ -1457,34 +1446,52 @@ const VIEWS = {
       </ul>`;
   },
 
-  // De wereldkaart: eerst de hele wereld, na het aantikken van een werelddeel de landen daarvan.
+  // De wereldkaart, met eronder het gekozen land en een lijst om een land te zoeken. De kaart zelf zet
+  // mountWorldMap() erin; welke landen in de lijst staan, regelt filterCountries().
   world() {
-    const region = WORLD[view.region];
-    if (!region) return `
-      <h1>Wereldkeuken</h1>
-      <p class="muted">Tik op een werelddeel en kies daarna een land. Van elk land zie je tien bekende gerechten.</p>
-      ${mapHtml(null)}
-      <div class="chips" style="margin-top:14px">${Object.entries(WORLD).map(([key, { name, countries }]) => `
-        <button class="chip" data-action="world-region" data-region="${key}">${name} <span class="small muted">(${countries.length})</span></button>`).join('')}
-      </div>
-      <button class="btn link" data-action="nav" data-view="home">Terug naar het begin</button>`;
+    const status = {
+      loading: '<p class="map-status muted">De kaart wordt geladen…</p>',
+      failed: `<div class="map-status"><p>De kaart laden is niet gelukt. Heb je internet?</p>
+        <button class="chip" data-action="map-retry">Probeer het opnieuw</button></div>`,
+    };
+    const names = Object.entries(COUNTRIES).sort((a, b) => a[1][0].localeCompare(b[1][0], 'nl'));
     return `
-      <h1>${region.name}</h1>
-      <p class="muted">Tik op een vlag om de gerechten van dat land te zien.</p>
-      ${mapHtml(view.region)}
-      <div class="chips" style="margin-top:14px">${region.countries.map(([code, name]) => `
-        <button class="chip" data-action="world-country" data-code="${code}"><span aria-hidden="true">${flag(code)}</span> ${name}</button>`).join('')}
+      <h1>Wereldkeuken</h1>
+      <p class="muted">Tik op een land om de bekendste gerechten van dat land te zien. Je kunt de kaart verschuiven en inzoomen.</p>
+      <div class="map-wrap">
+        <div id="map-host" style="aspect-ratio:${MAP_RATIO.toFixed(3)}">${status[worldMap.status] || status.loading}</div>
+        <div class="map-tools">
+          <button class="icon-btn" data-action="map-zoom" data-factor="1.8" aria-label="Inzoomen">+</button>
+          <button class="icon-btn" data-action="map-zoom" data-factor="0.55" aria-label="Uitzoomen">−</button>
+          <button class="icon-btn" data-action="map-region" data-region="" aria-label="Hele wereld tonen">🌍</button>
+        </div>
       </div>
-      <button class="btn link" data-action="nav" data-view="world">← Hele wereld</button>`;
+      ${countryCardHtml()}
+      <h2>Zoek een land</h2>
+      <input type="search" data-input="country-search" value="${esc(worldMap.query)}" placeholder="Typ de naam van een land" aria-label="Zoek een land">
+      <div class="chips">${Object.entries(REGIONS).map(([key, [name]]) => `
+        <button class="chip" data-action="map-region" data-region="${key}" aria-pressed="${key === worldMap.region}">${name}</button>`).join('')}
+      </div>
+      <div class="chips" id="country-list">${names.map(([code, [name, region]]) => `
+        <button class="chip" data-action="open-country" data-code="${code}" data-region="${region}" data-name="${esc(searchKey(name))}"><span aria-hidden="true">${flag(code)}</span> ${name}</button>`).join('')}
+      </div>
+      <p class="small muted" id="country-empty" hidden></p>
+      <p class="small muted">Kaartgegevens: Natural Earth.</p>
+      <button class="btn link" data-action="nav" data-view="home">Terug naar het begin</button>`;
   },
 
-  // Tien bekende gerechten van één land, elk met een plus om het bij de favorieten te zetten.
+  // De bekende gerechten van één land, elk met een plus om het bij de favorieten te zetten.
   country() {
-    const [code, name, , , rows] = worldCountry();
+    const code = view.code;
+    const rows = countryDishes(code);
     const have = new Set(state.dishes.map(d => d.name.toLowerCase()));
+    if (!rows.length) return `
+      <div class="hero"><div class="emoji">${flag(code)}</div><h1>${COUNTRIES[code][0]}</h1>
+        <p class="muted">Van dit land heb ik nog geen gerechten.</p></div>
+      <button class="btn link" data-action="nav" data-view="world">← Terug naar de kaart</button>`;
     return `
-      <div class="hero"><div class="emoji">${flag(code)}</div><h1>${name}</h1>
-        <p class="muted">Tien bekende gerechten. Tik op de plus om er een bij je favorieten te zetten.</p></div>
+      <div class="hero"><div class="emoji">${flag(code)}</div><h1>${COUNTRIES[code][0]}</h1>
+        <p class="muted">${rows.length === 10 ? 'Tien bekende gerechten' : `Bekende gerechten (${rows.length})`}. Tik op de plus om er een bij je favorieten te zetten.</p></div>
       ${hasAllergy() || state.diet.length ? '<div class="notice">Van de meeste van deze gerechten ken ik de allergenen en de diëten niet. Zet je er een bij je favorieten, vul die dan zelf in bij het gerecht. Tot die tijd stel ik het niet voor.</div>' : ''}
       <ol class="list">${rows.map((row, i) => {
         const dish = worldDish(row);
@@ -1497,7 +1504,7 @@ const VIEWS = {
       }).join('')}
       </ol>
       <p class="small muted">Dit is mijn eigen keuze van bekende gerechten, geen officiële ranglijst.</p>
-      <button class="btn link" data-action="world-region" data-region="${view.region}">← Terug naar ${WORLD[view.region].name}</button>`;
+      <button class="btn link" data-action="nav" data-view="world">← Terug naar de kaart</button>`;
   },
 
   discover() {
@@ -1657,14 +1664,34 @@ const ACTIONS = {
     render();
   },
 
-  'world-region'(el) { go('world', { region: el.dataset.region }); },
+  'map-zoom'(el) {
+    if (worldMap.status === 'ready') zoomMap(Number(el.dataset.factor));
+  },
 
-  'world-country'(el) { go('country', { region: view.region, code: el.dataset.code }); },
+  // Zoomt in op een werelddeel en zet de landen daarvan in de lijst; zonder werelddeel zie je de hele wereld.
+  'map-region'(el) {
+    worldMap.region = el.dataset.region || null;
+    worldMap.query = '';
+    showRegionOnMap(worldMap.region);
+    render();
+  },
+
+  'map-retry'() {
+    worldMap.status = 'idle';
+    render();
+  },
+
+  // Opent de gerechten van een land. De kaart onthoudt het land, voor als je teruggaat.
+  'open-country'(el) {
+    worldMap.selected = el.dataset.code;
+    showCountryOnMap(el.dataset.code);
+    go('country', { code: el.dataset.code });
+  },
 
   // Zet een gerecht uit de wereldkeuken bij de favorieten. Staat het ook in de lijst met bekende gerechten,
   // dan komen de gegevens daarvandaan; anders zijn calorieën, diëten en allergenen nog onbekend.
   'world-add'(el) {
-    const dish = worldDish(worldCountry()[4][el.dataset.index]);
+    const dish = worldDish(countryDishes(view.code)[el.dataset.index]);
     if (state.dishes.some(d => d.name.toLowerCase() === dish.name.toLowerCase())) return;
     const listed = CATALOG.find(item => item[0].toLowerCase() === dish.name.toLowerCase());
     state.dishes.push(listed ? catalogEntry(listed) : {
@@ -2020,15 +2047,6 @@ document.addEventListener('submit', event => {
   FORMS[form.dataset.form](form);
 });
 
-// De werelddelen op de kaart zijn geen gewone knoppen; met Enter of de spatiebalk werken ze toch zo.
-document.addEventListener('keydown', event => {
-  if (event.key !== 'Enter' && event.key !== ' ') return;
-  const el = event.target.closest('g[role="button"][data-action]');
-  if (!el) return;
-  event.preventDefault();
-  ACTIONS[el.dataset.action](el);
-});
-
 // Tussen tabbladen wissel je ook met de pijltjestoetsen, zoals bij tabbladen gebruikelijk is.
 document.addEventListener('keydown', event => {
   if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
@@ -2040,11 +2058,15 @@ document.addEventListener('keydown', event => {
   next.click();
 });
 
-// Het zoekveld filtert tijdens het typen, zonder het scherm opnieuw te tekenen (dat zou het typen onderbreken).
+// Een zoekveld filtert tijdens het typen, zonder het scherm opnieuw te tekenen (dat zou het typen onderbreken).
 document.addEventListener('input', event => {
-  if (event.target.dataset.input !== 'catalog-search') return;
-  view.catalogQuery = event.target.value;
-  filterCatalog();
+  if (event.target.dataset.input === 'catalog-search') {
+    view.catalogQuery = event.target.value;
+    filterCatalog();
+  } else if (event.target.dataset.input === 'country-search') {
+    worldMap.query = event.target.value;
+    filterCountries();
+  }
 });
 
 document.addEventListener('change', event => {
