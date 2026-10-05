@@ -12,26 +12,27 @@ const MEALS = { ontbijt: 'Ontbijt', middag: 'Middageten', avond: 'Avondeten' };
 const DAYS = ['Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag', 'Zaterdag', 'Zondag'];
 const MAX_WEEKS_BACK = 52;
 const MAX_HISTORY = 2000;
-const WEEK_MS = 7 * 86400000;
 
-// Beloningen. Elke genoteerde maaltijd kan drie keer punten opleveren: gezond, uitgebreid gekookt en afwisseling.
-const POINTS = 10;
-// Vanaf hoeveel punten je een niveau hebt.
-const LEVELS = [
-  [0, '🥄', 'Beginner'], [100, '🍳', 'Thuiskok'], [250, '🥘', 'Fijnproever'], [500, '🦸', 'Keukenheld'],
-  [1000, '🧑‍🍳', 'Chef-kok'], [2000, '🏅', 'Meesterchef'], [4000, '🌟', 'Sterrenkok'],
-];
-// scope 'total' telt alles wat je ooit noteerde, 'week' telt binnen één week (maandag t/m zondag).
+// Badges. Een genoteerde maaltijd kan op drie manieren meetellen; elke manier heeft een eigen groep badges.
+const GROUPS = {
+  healthy: ['🥗', 'Gezond eten', 'Voor maaltijden die je als gezond hebt aangevinkt.'],
+  slow: ['⏲️', 'Uitgebreid koken', 'Voor gerechten die 45 minuten of langer kosten.'],
+  fresh: ['🌈', 'Afwisselen', 'Voor verschillende gerechten in je week.'],
+};
+// scope 'total' telt alles wat je noteerde, 'week' telt binnen één week (maandag t/m zondag).
 const BADGES = [
-  { id: 'gezond1', icon: '🥗', name: 'Groene start', text: 'Eet je eerste gezonde maaltijd', scope: 'total', key: 'healthy', goal: 1 },
-  { id: 'gezond2', icon: '💪', name: 'Gezonde week', text: 'Eet 5 gezonde maaltijden in één week', scope: 'week', key: 'healthy', goal: 5 },
-  { id: 'gezond3', icon: '🏆', name: 'Gezond leven', text: 'Eet 30 gezonde maaltijden', scope: 'total', key: 'healthy', goal: 30 },
-  { id: 'tijd1', icon: '⏲️', name: 'Mouwen opgestroopt', text: 'Kook je eerste uitgebreide maaltijd', scope: 'total', key: 'slow', goal: 1 },
-  { id: 'tijd2', icon: '🍲', name: 'Met liefde gekookt', text: 'Kook 5 uitgebreide maaltijden', scope: 'total', key: 'slow', goal: 5 },
-  { id: 'tijd3', icon: '🔥', name: 'Keukenmarathon', text: 'Kook 20 uitgebreide maaltijden', scope: 'total', key: 'slow', goal: 20 },
-  { id: 'variatie1', icon: '🎨', name: 'Proeverij', text: 'Eet 5 verschillende gerechten in één week', scope: 'week', key: 'distinct', goal: 5 },
-  { id: 'variatie2', icon: '🌈', name: 'Elke dag anders', text: 'Eet 10 verschillende gerechten in één week', scope: 'week', key: 'distinct', goal: 10 },
-  { id: 'variatie3', icon: '🌍', name: 'Alleseter', text: 'Eet vlees, vis en vegetarisch in één week', scope: 'week', key: 'types', goal: 3 },
+  { id: 'gezond1', group: 'healthy', icon: '🥗', name: 'Groene start', text: 'Eet je eerste gezonde maaltijd', scope: 'total', key: 'healthy', goal: 1 },
+  { id: 'gezond2', group: 'healthy', icon: '💪', name: 'Gezonde week', text: 'Eet 5 gezonde maaltijden in één week', scope: 'week', key: 'healthy', goal: 5 },
+  { id: 'gezond3', group: 'healthy', icon: '🏆', name: 'Gezond leven', text: 'Eet 30 gezonde maaltijden', scope: 'total', key: 'healthy', goal: 30 },
+  { id: 'gezond4', group: 'healthy', icon: '👑', name: 'Gezondheidskampioen', text: 'Eet 100 gezonde maaltijden', scope: 'total', key: 'healthy', goal: 100 },
+  { id: 'tijd1', group: 'slow', icon: '⏲️', name: 'Mouwen opgestroopt', text: 'Kook je eerste uitgebreide maaltijd', scope: 'total', key: 'slow', goal: 1 },
+  { id: 'tijd2', group: 'slow', icon: '🍲', name: 'Met liefde gekookt', text: 'Kook 5 uitgebreide maaltijden', scope: 'total', key: 'slow', goal: 5 },
+  { id: 'tijd3', group: 'slow', icon: '🔥', name: 'Keukenmarathon', text: 'Kook 20 uitgebreide maaltijden', scope: 'total', key: 'slow', goal: 20 },
+  { id: 'tijd4', group: 'slow', icon: '🧑‍🍳', name: 'Meesterkok', text: 'Kook 50 uitgebreide maaltijden', scope: 'total', key: 'slow', goal: 50 },
+  { id: 'variatie1', group: 'fresh', icon: '🎨', name: 'Proeverij', text: 'Eet 5 verschillende gerechten in één week', scope: 'week', key: 'distinct', goal: 5 },
+  { id: 'variatie2', group: 'fresh', icon: '🌈', name: 'Elke dag anders', text: 'Eet 10 verschillende gerechten in één week', scope: 'week', key: 'distinct', goal: 10 },
+  { id: 'variatie3', group: 'fresh', icon: '🌍', name: 'Alleseter', text: 'Eet vlees, vis en vegetarisch in één week', scope: 'week', key: 'types', goal: 3 },
+  { id: 'variatie4', group: 'fresh', icon: '🧭', name: 'Ontdekker', text: 'Eet 25 verschillende gerechten', scope: 'total', key: 'distinct', goal: 25 },
 ];
 // De kleuren van elk thema staan in style.css onder dezelfde naam.
 const THEMES = {
@@ -85,7 +86,7 @@ let meal = defaultMeal();
 
 function emptyState() {
   return {
-    dishes: [], history: [], shopping: [], badges: {}, archivedPoints: 0,
+    dishes: [], history: [], shopping: [], badges: {},
     onboarded: false, welcomed: false, name: '', theme: 'standaard',
   };
 }
@@ -160,7 +161,7 @@ function sanitize(data) {
         name: old ? dish.name : h.name.trim().slice(0, 60),
         type: old ? dish.type : Object.hasOwn(TYPES, h.type) ? h.type : null,
         kcal: old ? dish.kcal : cleanKcal(h.kcal),
-        // Notities van voor de beloningen nemen deze twee over van het gerecht, als dat er nog is.
+        // Notities van voor de badges nemen deze twee over van het gerecht, als dat er nog is.
         healthy: typeof h.healthy === 'boolean' ? h.healthy : dish ? dish.healthy : false,
         time: Object.hasOwn(TIMES, h.time) ? h.time : dish && !('time' in h) ? dish.time : null,
         meal: Object.hasOwn(MEALS, h.meal) ? h.meal : 'avond',
@@ -171,7 +172,6 @@ function sanitize(data) {
     badges: Object.fromEntries(BADGES
       .filter(b => data.badges && typeof data.badges[b.id] === 'string' && !isNaN(new Date(data.badges[b.id]).getTime()))
       .map(b => [b.id, new Date(data.badges[b.id]).toISOString()])),
-    archivedPoints: Number.isFinite(data.archivedPoints) && data.archivedPoints > 0 ? Math.round(data.archivedPoints) : 0,
     shopping: list(data.shopping)
       .filter(i => i && typeof i.text === 'string' && i.text.trim())
       .map(i => ({ id: newId(), text: i.text.trim().slice(0, 80), done: i.done === true, dish: typeof i.dish === 'string' ? i.dish : '' })),
@@ -272,7 +272,7 @@ function openMeal(day) {
 }
 
 // Het gerecht wordt vastgelegd zoals het nu is (naam, soort, calorieën, gezond, bereidingstijd), zodat het
-// overzicht en de punten blijven kloppen als het later verandert of verdwijnt.
+// overzicht en de badges blijven kloppen als het later verandert of verdwijnt.
 // `picked` is waar voor een keuze via het vragenmenu.
 function logEntry(source, day, mealKey, picked) {
   const date = day === dayKey(new Date()) ? new Date() : new Date(`${day}T12:00:00`);
@@ -289,21 +289,16 @@ function logEntry(source, day, mealKey, picked) {
     picked,
   };
   state.history.push(entry);
-  if (state.history.length > MAX_HISTORY) {
-    // De oudste notities vervallen, maar hun punten blijven meetellen.
-    const scores = scoreHistory();
-    const dropped = state.history.slice(0, state.history.length - MAX_HISTORY);
-    state.archivedPoints += dropped.reduce((sum, h) => sum + scores.get(h.id).total, 0);
-    state.history = state.history.slice(-MAX_HISTORY);
-  }
+  state.history = state.history.slice(-MAX_HISTORY);
   return entry;
 }
 
-function entryHtml(entry, removable, score) {
+function entryHtml(entry, removable, marks) {
+  const icons = marksHtml(marks);
   return `
     <li><span class="icon" aria-hidden="true">${TYPE_ICON[entry.type] || '🍽️'}</span>
     <span class="grow"><strong>${esc(entry.name)}</strong><br>
-      <span class="small muted">${MEALS[entry.meal]}${entry.kcal == null ? '' : ` · ${entry.kcal} kcal`}${score && score.total ? ` · ⭐ ${score.total}` : ''}</span></span>
+      <span class="small muted">${MEALS[entry.meal]}${entry.kcal == null ? '' : ` · ${entry.kcal} kcal`}${icons ? ` · ${icons}` : ''}</span></span>
     ${removable ? `<button class="icon-btn" data-action="remove-entry" data-id="${entry.id}" aria-label="Verwijder ${esc(entry.name)}">✕</button>` : ''}</li>`;
 }
 
@@ -317,47 +312,50 @@ function weekKey(date) {
   return dayKey(d);
 }
 
-// Punten per notitie. Afwisseling krijg je als je hetzelfde gerecht in de zeven dagen ervoor niet at.
-function scoreHistory() {
+// Waarvoor elke notitie meetelt. Afwisselen geldt voor de eerste keer dat je een gerecht in een week eet.
+function entryMarks() {
   const sorted = state.history
     .map((entry, index) => ({ entry, index, time: new Date(entry.date).getTime() }))
     .sort((a, b) => a.time - b.time || a.index - b.index);
-  const scores = new Map();
-  sorted.forEach((item, n) => {
-    const name = item.entry.name.toLowerCase();
-    let repeat = false;
-    for (let k = n - 1; k >= 0 && item.time - sorted[k].time <= WEEK_MS; k--) {
-      if (sorted[k].entry.name.toLowerCase() === name) { repeat = true; break; }
-    }
-    const healthy = item.entry.healthy ? POINTS : 0;
-    const time = item.entry.time === 'uitgebreid' ? POINTS : 0;
-    const variety = repeat ? 0 : POINTS;
-    scores.set(item.entry.id, { healthy, time, variety, total: healthy + time + variety });
-  });
-  return scores;
+  const seen = new Set();
+  const marks = new Map();
+  for (const { entry } of sorted) {
+    const key = `${weekKey(entry.date)}|${entry.name.toLowerCase()}`;
+    marks.set(entry.id, { healthy: entry.healthy, slow: entry.time === 'uitgebreid', fresh: !seen.has(key) });
+    seen.add(key);
+  }
+  return marks;
 }
 
-function totalPoints(scores = scoreHistory()) {
-  let total = state.archivedPoints;
-  for (const score of scores.values()) total += score.total;
-  return total;
-}
-
-function levelIndex(points) {
-  let index = 0;
-  LEVELS.forEach(([from], i) => { if (points >= from) index = i; });
-  return index;
-}
-
-// Wat een gerecht zou opleveren als je het nu eet.
-function dishPoints(dish) {
-  const since = Date.now() - WEEK_MS;
+// Waarvoor een gerecht zou meetellen als je het nu eet.
+function dishMarks(dish) {
+  const week = weekKey(new Date());
   const name = dish.name.toLowerCase();
-  const repeat = state.history.some(h => h.name.toLowerCase() === name && new Date(h.date).getTime() >= since);
-  return (dish.healthy ? POINTS : 0) + (dish.time === 'uitgebreid' ? POINTS : 0) + (repeat ? 0 : POINTS);
+  return {
+    healthy: dish.healthy,
+    slow: dish.time === 'uitgebreid',
+    fresh: !state.history.some(h => h.name.toLowerCase() === name && weekKey(h.date) === week),
+  };
 }
 
-// Tellingen voor de medailles: in totaal, in de beste week ooit en in de huidige week.
+// De plaatjes van de groepen waarvoor iets meetelt, met een omschrijving voor schermlezers.
+function marksHtml(marks) {
+  const keys = Object.keys(GROUPS).filter(key => marks && marks[key]);
+  if (!keys.length) return '';
+  const label = `Telt mee voor ${new Intl.ListFormat('nl').format(keys.map(key => GROUPS[key][1].toLowerCase()))}`;
+  return `<span role="img" aria-label="${label}">${keys.map(key => GROUPS[key][0]).join(' ')}</span>`;
+}
+
+function countEntries(entries) {
+  return {
+    healthy: entries.filter(h => h.healthy).length,
+    slow: entries.filter(h => h.time === 'uitgebreid').length,
+    distinct: new Set(entries.map(h => h.name.toLowerCase())).size,
+    types: new Set(entries.map(h => h.type).filter(Boolean)).size,
+  };
+}
+
+// Tellingen voor de badges: in totaal, in de beste week ooit en in de huidige week.
 function rewardStats() {
   const weeks = new Map();
   for (const entry of state.history) {
@@ -365,19 +363,13 @@ function rewardStats() {
     if (!weeks.has(key)) weeks.set(key, []);
     weeks.get(key).push(entry);
   }
-  const count = entries => ({
-    healthy: entries.filter(h => h.healthy).length,
-    slow: entries.filter(h => h.time === 'uitgebreid').length,
-    distinct: new Set(entries.map(h => h.name.toLowerCase())).size,
-    types: new Set(entries.map(h => h.type).filter(Boolean)).size,
-  });
-  const perWeek = [...weeks.values()].map(count);
+  const perWeek = [...weeks.values()].map(countEntries);
   const best = {};
   for (const key of ['healthy', 'slow', 'distinct', 'types']) best[key] = Math.max(0, ...perWeek.map(week => week[key]));
-  return { total: count(state.history), best, now: count(weeks.get(weekKey(new Date())) || []) };
+  return { total: countEntries(state.history), best, now: countEntries(weeks.get(weekKey(new Date())) || []) };
 }
 
-// Kent medailles toe die net zijn gehaald en geeft die terug. Een verdiende medaille blijft van jou.
+// Kent badges toe die net zijn gehaald en geeft die terug. Een verdiende badge blijft van jou.
 function checkBadges() {
   const stats = rewardStats();
   const fresh = BADGES.filter(b => !state.badges[b.id] && (b.scope === 'total' ? stats.total : stats.best)[b.key] >= b.goal);
@@ -385,26 +377,18 @@ function checkBadges() {
   return fresh;
 }
 
-// Wat een nieuwe notitie heeft opgeleverd: punten, medailles en misschien een hoger niveau.
-function rewardFor(entry, pointsBefore) {
-  const scores = scoreHistory();
-  const level = levelIndex(totalPoints(scores));
-  return {
-    score: scores.get(entry.id),
-    badges: checkBadges().map(b => b.id),
-    level: level > levelIndex(pointsBefore) ? level : null,
-  };
+// Wat een nieuwe notitie heeft opgeleverd: waarvoor ze meetelt en welke badges erbij kwamen.
+function rewardFor(entry) {
+  return { marks: entryMarks().get(entry.id), badges: checkBadges().map(b => b.id) };
 }
 
 function rewardHtml(reward) {
   if (!reward) return '';
-  const { score } = reward;
-  const reasons = [score.healthy && 'gezond eten', score.time && 'uitgebreid koken', score.variety && 'afwisseling'].filter(Boolean);
+  const reasons = Object.keys(GROUPS).filter(key => reward.marks[key]).map(key => `${GROUPS[key][0]} ${GROUPS[key][1].toLowerCase()}`);
   return `
-    ${score.total ? `<div class="notice reward"><strong>⭐ +${score.total} punten</strong> voor ${new Intl.ListFormat('nl').format(reasons)}</div>` : ''}
-    ${reward.level == null ? '' : `<div class="notice reward">🎉 Nieuw niveau: <strong>${LEVELS[reward.level][1]} ${LEVELS[reward.level][2]}</strong></div>`}
     ${reward.badges.map(id => BADGES.find(b => b.id === id)).map(b =>
-      `<div class="notice reward">🏅 Nieuwe medaille: <strong>${b.icon} ${b.name}</strong></div>`).join('')}`;
+      `<div class="notice reward">🏅 Nieuwe badge: <strong>${b.icon} ${b.name}</strong></div>`).join('')}
+    ${reasons.length ? `<div class="notice reward">Telt mee voor ${new Intl.ListFormat('nl').format(reasons)}</div>` : ''}`;
 }
 
 // ---------- Gerechten kiezen ----------
@@ -439,13 +423,12 @@ function buildQueue(answers) {
 
 function choose(id, note) {
   const today = dayKey(new Date());
-  const pointsBefore = totalPoints();
   // Een nieuwe keuze voor dezelfde maaltijd vervangt de vorige keuze van vandaag.
   // Wat je zelf in het weekoverzicht hebt genoteerd, blijft staan.
   const replaced = state.history.filter(h => h.picked && h.meal === meal && dayKey(h.date) === today);
   state.history = state.history.filter(h => !replaced.includes(h));
   const entry = logEntry(dishById(id), today, meal, true);
-  const reward = rewardFor(entry, pointsBefore);
+  const reward = rewardFor(entry);
   save();
   go('chosen', { id, note, entryId: entry.id, replaced, reward });
 }
@@ -512,7 +495,8 @@ document.addEventListener('visibilitychange', () => {
   }
 });
 
-const NAV_TAB = { week: 'week', log: 'week', favorites: 'favorites', edit: 'favorites', shopping: 'shopping', more: 'more' };
+// Welk tabblad onderin oplicht bij een scherm. De instellingen open je vanaf het startscherm.
+const NAV_TAB = { week: 'week', log: 'week', favorites: 'favorites', edit: 'favorites', shopping: 'shopping', rewards: 'rewards' };
 
 function render() {
   if (!state.onboarded) view.name = state.welcomed ? 'onboarding' : 'welcome';
@@ -557,7 +541,7 @@ function dishFormHtml(dish, full) {
       <div class="checks" style="margin-top:14px">
         <label class="check"><input type="checkbox" name="healthy"${d.healthy ? ' checked' : ''}>🥗 Dit is een gezonde maaltijd</label>
       </div>
-      <p class="small muted" style="margin-top:6px">Gezonde en uitgebreide maaltijden leveren punten op.</p>
+      <p class="small muted" style="margin-top:6px">Gezonde en uitgebreide maaltijden tellen mee voor je badges.</p>
       ${full ? `
         <label for="f-ingredients">Ingrediënten <span class="muted">(één per regel, optioneel)</span></label>
         <textarea id="f-ingredients" name="ingredients" placeholder="500 g gehakt&#10;1 ui">${esc(d.ingredients.join('\n'))}</textarea>
@@ -571,7 +555,7 @@ function dishFormHtml(dish, full) {
 
 function barHtml(item) {
   const dish = dishById(item.id);
-  const points = dishPoints(dish);
+  const icons = marksHtml(dishMarks(dish));
   return `
     <button class="bar${item.exact ? '' : ' near'}" data-action="pick" data-id="${dish.id}">
       <span class="icon" aria-hidden="true">${TYPE_ICON[dish.type]}</span>
@@ -579,7 +563,7 @@ function barHtml(item) {
         <span class="bar-name">${esc(dish.name)}</span><br>
         <span class="bar-meta">${dishMeta(dish)}${item.exact ? '' : '<span class="tag">past bijna</span>'}</span>
       </span>
-      <span class="bar-kcal">${kcalLabel(dish)}${points ? `<span class="bar-points">⭐ +${points}</span>` : ''}</span>
+      <span class="bar-kcal">${kcalLabel(dish)}${icons ? `<span class="bar-marks">${icons}</span>` : ''}</span>
     </button>`;
 }
 
@@ -629,12 +613,11 @@ const VIEWS = {
 
   home() {
     const eaten = entriesOn(dayKey(new Date()));
-    const scores = scoreHistory();
-    const points = totalPoints(scores);
-    const [, levelIcon, levelName] = LEVELS[levelIndex(points)];
+    const marks = entryMarks();
     const none = mealDishes().length === 0;
     const off = none ? ' disabled' : '';
     return `
+      <button class="icon-btn settings" data-action="nav" data-view="more" aria-label="Instellingen">⚙️</button>
       <div class="hero"><div class="emoji">🍽️</div><h1>${greeting()}</h1>
         <p class="muted">Geen idee wat je wilt eten? Ik help je kiezen.</p></div>
       <div class="segments" role="group" aria-label="Maaltijd">${Object.entries(MEALS).map(([value, label]) => `
@@ -647,10 +630,8 @@ const VIEWS = {
         <button class="btn" data-action="surprise"${off}>🎲 Verras me</button>
         <button class="btn" data-action="nav" data-view="group-setup"${off}>👥 Samen kiezen</button>
       </div>
-      <button class="btn" data-action="nav" data-view="rewards">
-        <span aria-hidden="true">${levelIcon}</span> ${levelName} · ⭐ ${points} punten</button>
       ${eaten.length ? `<h2>Vandaag gegeten</h2>
-        <ul class="list">${eaten.map(h => entryHtml(h, false, scores.get(h.id))).join('')}</ul>
+        <ul class="list">${eaten.map(h => entryHtml(h, false, marks.get(h.id))).join('')}</ul>
         <button class="btn link" data-action="nav" data-view="week">Bekijk je hele week</button>` : ''}`;
   },
 
@@ -664,9 +645,9 @@ const VIEWS = {
       return { label, date, key: dayKey(date) };
     });
     const title = offset === 0 ? 'Deze week' : offset === -1 ? 'Vorige week' : `Week van ${shortDate(start)}`;
-    const scores = scoreHistory();
+    const marks = entryMarks();
     const keys = days.map(day => day.key);
-    const weekPoints = state.history.filter(h => keys.includes(dayKey(h.date))).reduce((sum, h) => sum + scores.get(h.id).total, 0);
+    const counts = countEntries(state.history.filter(h => keys.includes(dayKey(h.date))));
     return `
       <h1>Mijn week</h1>
       <p class="muted">Hier zie je wat je hebt gegeten. Wat je kiest, noteer ik vanzelf bij vandaag. Met de plus zet je er zelf iets bij.</p>
@@ -675,7 +656,8 @@ const VIEWS = {
         <div class="center"><strong>${title}</strong><br><span class="small muted">${shortDate(start)} t/m ${shortDate(days[6].date)}</span></div>
         <button class="icon-btn" data-action="week-move" data-step="1" aria-label="Volgende week"${offset >= 0 ? ' disabled' : ''}>›</button>
       </div>
-      <button class="btn link" data-action="nav" data-view="rewards">⭐ ${weekPoints} punten in ${offset === 0 ? 'deze' : 'die'} week</button>
+      <button class="btn link" data-action="nav" data-view="rewards">
+        🥗 ${counts.healthy}× gezond · ⏲️ ${counts.slow}× uitgebreid · 🌈 ${counts.distinct} verschillend</button>
       ${days.map(day => {
         const entries = entriesOn(day.key);
         const future = day.key > today;
@@ -690,7 +672,7 @@ const VIEWS = {
               <span class="bar-kcal">${total}</span>
               ${future ? '' : `<button class="icon-btn" data-action="log-day" data-day="${day.key}" aria-label="Iets noteren bij ${day.label.toLowerCase()}">+</button>`}
             </div>
-            ${entries.length ? `<ul class="list">${entries.map(h => entryHtml(h, true, scores.get(h.id))).join('')}</ul>`
+            ${entries.length ? `<ul class="list">${entries.map(h => entryHtml(h, true, marks.get(h.id))).join('')}</ul>`
               : `<p class="small muted">${future ? 'Deze dag moet nog komen.' : 'Nog niets genoteerd.'}</p>`}
           </section>`;
       }).join('')}`;
@@ -730,52 +712,27 @@ const VIEWS = {
   },
 
   rewards() {
-    const scores = scoreHistory();
-    const points = totalPoints(scores);
-    const level = levelIndex(points);
-    const next = LEVELS[level + 1];
     const stats = rewardStats();
-    const thisWeek = weekKey(new Date());
-    const weekPoints = state.history.filter(h => weekKey(h.date) === thisWeek).reduce((sum, h) => sum + scores.get(h.id).total, 0);
     const earned = BADGES.filter(b => state.badges[b.id]).length;
-    const ways = [
-      ['🥗', 'Gezond eten', 'Een maaltijd die je als gezond hebt aangevinkt'],
-      ['⏲️', 'Uitgebreid koken', 'Een gerecht dat 45 minuten of langer kost'],
-      ['🌈', 'Afwisselen', 'Iets dat je de afgelopen 7 dagen niet at'],
-    ];
     return `
-      <div class="hero"><div class="emoji">${LEVELS[level][1]}</div>
-        <p class="muted">Jouw niveau</p>
-        <h1>${LEVELS[level][2]}</h1>
-        <p><strong>⭐ ${points} punten</strong> · ${weekPoints} deze week</p></div>
-      ${next ? `
-        <div class="progress"><div style="width:${(points - LEVELS[level][0]) / (next[0] - LEVELS[level][0]) * 100}%"></div></div>
-        <p class="small muted center">Nog ${next[0] - points} punten tot ${next[1]} ${next[2]}</p>`
-      : '<p class="small muted center">Je hebt het hoogste niveau bereikt. Petje af!</p>'}
-      <h2>Zo verdien je punten</h2>
-      <ul class="list">${ways.map(([icon, name, text]) => `
-        <li><span class="icon" aria-hidden="true">${icon}</span>
-        <span class="grow"><strong>${name}</strong><br><span class="small muted">${text}</span></span>
-        <span class="bar-kcal">+${POINTS}</span></li>`).join('')}
-      </ul>
-      <p class="small muted">Elke maaltijd in je week telt mee, en één maaltijd kan alle drie opleveren.</p>
-      <h2>Medailles</h2>
-      <p class="small muted">${earned} van ${BADGES.length} verdiend</p>
-      <ul class="list">${BADGES.map(b => {
-        const date = state.badges[b.id];
-        const progress = Math.min(b.goal, (b.scope === 'total' ? stats.total : stats.now)[b.key]);
-        return `
-          <li class="${date ? '' : 'locked'}"><span class="icon" aria-hidden="true">${b.icon}</span>
-          <span class="grow"><strong>${b.name}</strong><br><span class="small muted">${b.text}</span></span>
-          <span class="small muted">${date ? `✓ ${shortDate(new Date(date))}` : `${progress} van ${b.goal}`}</span></li>`;
-      }).join('')}
-      </ul>
-      <h2>Niveaus</h2>
-      <ul class="list">${LEVELS.map(([from, icon, name], i) => `
-        <li class="${i > level ? 'locked' : ''}"><span class="icon" aria-hidden="true">${icon}</span>
-        <span class="grow"><strong>${name}</strong>${i === level ? ' <span class="pill">nu</span>' : ''}</span>
-        <span class="small muted">${from} punten</span></li>`).join('')}
-      </ul>`;
+      <div class="hero"><div class="emoji">🏅</div>
+        <h1>Jouw badges</h1>
+        <p><strong>${earned} van ${BADGES.length} verdiend</strong></p></div>
+      <div class="progress"><div style="width:${earned / BADGES.length * 100}%"></div></div>
+      <p class="muted">Badges verdien je met wat er in je week staat. Eén maaltijd kan voor meerdere badges meetellen.</p>
+      ${Object.entries(GROUPS).map(([group, [icon, name, text]]) => `
+        <h2><span aria-hidden="true">${icon}</span> ${name}</h2>
+        <p class="small muted">${text}</p>
+        <ul class="list">${BADGES.filter(b => b.group === group).map(b => {
+          const date = state.badges[b.id];
+          // Bij een badge voor één week telt wat je deze week al hebt.
+          const progress = Math.min(b.goal, (b.scope === 'total' ? stats.total : stats.now)[b.key]);
+          return `
+            <li class="${date ? '' : 'locked'}"><span class="icon" aria-hidden="true">${b.icon}</span>
+            <span class="grow"><strong>${b.name}</strong><br><span class="small muted">${b.text}</span></span>
+            <span class="small muted">${date ? `✓ ${shortDate(new Date(date))}` : `${progress} van ${b.goal}`}</span></li>`;
+        }).join('')}
+        </ul>`).join('')}`;
   },
 
   'group-setup'() {
@@ -899,7 +856,7 @@ const VIEWS = {
 
   more() {
     return `
-      <h1>Meer</h1>
+      <h1>Instellingen</h1>
       <h2>Je naam</h2>
       <form data-form="name" class="row" style="align-items:flex-start">
         <input name="name" type="text" maxlength="30" autocomplete="given-name" value="${esc(state.name)}" placeholder="Je voornaam" aria-label="Je naam" style="flex:3">
@@ -918,7 +875,8 @@ const VIEWS = {
       <input id="import-file" type="file" accept="application/json,.json" data-change="import" hidden>
       ${view.message ? `<div class="notice">${esc(view.message)}</div>` : ''}
       <h2>Opnieuw beginnen</h2>
-      <button class="btn danger" data-action="reset">${view.confirm ? 'Zeker weten? Alles wordt gewist' : 'Alles wissen'}</button>`;
+      <button class="btn danger" data-action="reset">${view.confirm ? 'Zeker weten? Alles wordt gewist' : 'Alles wissen'}</button>
+      <button class="btn link" data-action="nav" data-view="home">Terug naar het begin</button>`;
   },
 };
 
@@ -1027,7 +985,7 @@ const ACTIONS = {
   // Haalt de notitie van deze keuze weg en zet terug wat ze verving.
   'undo-choice'() {
     state.history = state.history.filter(h => h.id !== view.entryId).concat(view.replaced || []);
-    // Medailles die deze keuze opleverde vervallen, tenzij je ze ook zonder deze keuze had verdiend.
+    // Badges die deze keuze opleverde vervallen, tenzij je ze ook zonder deze keuze had verdiend.
     for (const id of view.reward ? view.reward.badges : []) delete state.badges[id];
     checkBadges();
     save();
@@ -1049,9 +1007,7 @@ const ACTIONS = {
   },
 
   'log-dish'(el) {
-    const pointsBefore = totalPoints();
-    const entry = logEntry(dishById(el.dataset.id), view.day, view.meal, false);
-    const reward = rewardFor(entry, pointsBefore);
+    const reward = rewardFor(logEntry(dishById(el.dataset.id), view.day, view.meal, false));
     save();
     go('week', { offset: view.offset, day: view.day, reward });
   },
@@ -1168,9 +1124,8 @@ const FORMS = {
     if (!name) return fail('Wat heb je gegeten? Vul nog even in wat het was.');
     if (kcal != null && !(kcal >= 0 && kcal <= 5000)) return fail('Dat aantal calorieën klopt niet. Kies een getal tussen 0 en 5000.');
 
-    const pointsBefore = totalPoints();
     const source = { name, kcal, healthy: data.has('healthy'), time: data.has('slow') ? 'uitgebreid' : null };
-    const reward = rewardFor(logEntry(source, view.day, view.meal, false), pointsBefore);
+    const reward = rewardFor(logEntry(source, view.day, view.meal, false));
     save();
     go('week', { offset: view.offset, day: view.day, reward });
   },
@@ -1206,7 +1161,7 @@ const CHANGES = {
       applyTheme();
       go('more', { message: `Back-up teruggezet: ${state.dishes.length} gerechten.` });
     } catch (e) {
-      // Tijdens de eerste start bestaat het scherm "Meer" nog niet.
+      // Tijdens de eerste start bestaat het scherm met instellingen nog niet.
       go(state.onboarded ? 'more' : 'onboarding', { message: 'Dit bestand is geen geldige back-up van deze app.' });
     }
   },
@@ -1233,7 +1188,7 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
 }
 
-// Wie al notities had van voor de beloningen, krijgt de medailles die daarbij horen.
+// Wie al notities had van voor de badges, krijgt de badges die daarbij horen.
 if (checkBadges().length) save();
 applyTheme();
 render();

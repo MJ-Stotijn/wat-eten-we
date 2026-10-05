@@ -13,8 +13,12 @@ $mime = @{
 
 $listener = New-Object System.Net.HttpListener
 $listener.Prefixes.Add("http://localhost:$port/")
+# Dezelfde app staat ook op de poort erna. Een browser geeft die poort eigen opslag,
+# zodat testen daar de gegevens op de gewone poort niet raakt.
+$testPort = $port + 1
+$listener.Prefixes.Add("http://localhost:$testPort/")
 $listener.Start()
-Write-Host "Serving $root on http://localhost:$port/"
+Write-Host "Serving $root on http://localhost:$port/ (testen: http://localhost:$testPort/)"
 
 while ($listener.IsListening) {
   $ctx = $listener.GetContext()
