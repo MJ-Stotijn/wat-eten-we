@@ -136,50 +136,140 @@ const CATALOG = [
 ];
 // Zoveel gerechten uit de lijst zie je voordat je om meer vraagt.
 const CATALOG_PREVIEW = 12;
-// Bij welke diëten de gerechten uit de lijst passen, zoals ze meestal worden gemaakt. Dit is een voorzichtige
-// schatting: bij twijfel (sojasaus, bouillonblokjes, een scheut room) staat het dieet er niet bij.
+// De tabbladen van de instellingen.
+const SETTINGS_TABS = { profiel: 'Profiel', allergie: 'Allergie', dieet: 'Dieet', thema: 'Thema', backup: 'Back-up' };
+// De veertien allergenen die volgens de Europese regels op etiketten moeten staan: sleutel, naam, toelichting.
+const ALLERGENS = {
+  gluten: ['Gluten', 'tarwe, rogge, gerst, haver, spelt'],
+  schaaldieren: ['Schaaldieren', 'garnalen, krab, kreeft'],
+  ei: ['Ei', ''],
+  vis: ['Vis', ''],
+  pinda: ['Pinda\'s', 'aardnoten'],
+  soja: ['Soja', ''],
+  melk: ['Melk', 'ook lactose'],
+  noten: ['Noten', 'amandel, hazelnoot, walnoot, cashew, pistache'],
+  selderij: ['Selderij', ''],
+  mosterd: ['Mosterd', ''],
+  sesam: ['Sesam', ''],
+  sulfiet: ['Sulfiet', 'in wijn, azijn en gedroogd fruit'],
+  lupine: ['Lupine', ''],
+  weekdieren: ['Weekdieren', 'mosselen, oesters, inktvis'],
+};
+// Andere allergieën die vaak voorkomen, als voorzet bij "andere allergie toevoegen".
+const ALLERGY_IDEAS = ['kiwi', 'appel', 'banaan', 'aardbei', 'tomaat', 'wortel', 'knoflook', 'mais', 'peulvruchten'];
+// Welke allergenen er meestal in de gerechten uit de lijst zitten. Dit is ruim ingeschat: ook een allergeen
+// dat via een veelgebruikt ingrediënt meekomt (sojasaus, bouillonblokje, kerriepoeder, mayonaise, boter)
+// staat erbij. Elk gerecht uit de lijst moet hier staan, ook als er niets in zit.
+const CATALOG_ALLERGENS = {
+  'Havermout': ['gluten', 'melk'],
+  'Yoghurt met muesli': ['melk', 'gluten', 'noten', 'sulfiet'],
+  'Kwark met fruit': ['melk'],
+  'Overnight oats': ['gluten', 'melk', 'noten'],
+  'Volkorenbrood met ei': ['gluten', 'ei', 'melk'],
+  'Boterham met kaas': ['gluten', 'melk'],
+  'Boterham met pindakaas': ['gluten', 'pinda'],
+  'Omelet': ['ei', 'melk'],
+  'Roerei met toast': ['ei', 'gluten', 'melk'],
+  'Smoothie met banaan': ['melk'],
+  'Griesmeelpap': ['gluten', 'melk'],
+  'Croissant met jam': ['gluten', 'melk', 'ei'],
+  'Bananenbrood': ['gluten', 'ei', 'melk', 'noten'],
+  'Tosti': ['gluten', 'melk'],
+  'Uitsmijter': ['gluten', 'ei', 'melk'],
+  'Broodje gezond': ['gluten', 'ei', 'melk'],
+  'Tonijnsalade op brood': ['vis', 'gluten', 'ei', 'mosterd'],
+  'Wrap met kip en groenten': ['gluten', 'melk'],
+  'Kipsalade': ['ei', 'mosterd', 'selderij', 'melk'],
+  'Salade met kikkererwten en feta': ['melk', 'mosterd'],
+  'Couscoussalade': ['gluten', 'melk'],
+  'Tomatensoep': ['selderij', 'melk', 'gluten', 'ei'],
+  'Groentesoep met linzen': ['selderij', 'gluten'],
+  'Kippensoep': ['selderij', 'gluten', 'ei'],
+  'Pompoensoep': ['selderij', 'melk', 'gluten'],
+  'Erwtensoep': ['selderij', 'mosterd', 'gluten'],
+  'Pannenkoeken': ['gluten', 'ei', 'melk'],
+  'Poffertjes': ['gluten', 'ei', 'melk'],
+  'Quiche met groenten': ['gluten', 'ei', 'melk'],
+  'Pokébowl met zalm': ['vis', 'soja', 'gluten', 'sesam'],
+  'Spaghetti bolognese': ['gluten', 'selderij', 'melk', 'sulfiet'],
+  'Pasta met champignons': ['gluten', 'melk'],
+  'Pasta pesto met kip': ['gluten', 'noten', 'melk'],
+  'Pasta met zalm en spinazie': ['gluten', 'vis', 'melk'],
+  'Macaroni met ham en kaas': ['gluten', 'melk'],
+  'Lasagne': ['gluten', 'melk', 'ei', 'selderij'],
+  'Groentelasagne': ['gluten', 'melk', 'ei'],
+  'Kip met broccoli en aardappelen': ['melk'],
+  'Gehaktbal met sperziebonen': ['gluten', 'ei', 'melk', 'mosterd'],
+  'Gevulde kipfilet uit de oven': ['melk'],
+  'Kipcurry met rijst': ['schaaldieren', 'vis', 'mosterd', 'selderij'],
+  'Kip kerrie met rijst en boontjes': ['melk', 'gluten', 'mosterd', 'selderij'],
+  'Groentecurry': ['mosterd', 'selderij'],
+  'Pompoencurry': ['mosterd', 'selderij'],
+  'Stamppot boerenkool': ['melk', 'mosterd', 'gluten'],
+  'Hutspot': ['melk', 'gluten'],
+  'Zuurkoolstamppot': ['melk', 'mosterd', 'gluten'],
+  'Andijviestamppot': ['melk', 'gluten'],
+  'Hachee': ['gluten', 'melk', 'selderij', 'sulfiet'],
+  'Stoofvlees met rode kool': ['gluten', 'melk', 'selderij', 'mosterd', 'sulfiet'],
+  'Nasi goreng': ['soja', 'gluten', 'ei', 'schaaldieren', 'pinda'],
+  'Surinaamse nasi met kip': ['soja', 'gluten', 'selderij', 'schaaldieren'],
+  'Bami goreng': ['gluten', 'ei', 'soja', 'schaaldieren', 'pinda'],
+  'Kipsaté met rijst': ['pinda', 'soja', 'gluten'],
+  'Gado gado': ['pinda', 'soja', 'gluten', 'ei', 'schaaldieren'],
+  'Roerbak met kip en groenten': ['soja', 'gluten', 'sesam', 'weekdieren'],
+  'Roerbak met tofu': ['soja', 'gluten', 'sesam'],
+  'Zalm met rijst': ['vis'],
+  'Vis uit de oven met groenten': ['vis'],
+  'Kibbeling met friet': ['vis', 'gluten', 'ei', 'melk', 'mosterd'],
+  'Chili con carne': ['gluten', 'selderij'],
+  'Chili sin carne': ['gluten', 'selderij', 'soja'],
+  'Wraps met gehakt': ['gluten', 'melk'],
+  'Shoarma met pita': ['gluten', 'melk', 'ei', 'mosterd'],
+  'Hamburger met friet': ['gluten', 'ei', 'melk', 'mosterd', 'sesam'],
+  'Pizza': ['gluten', 'melk'],
+  'Risotto met paddenstoelen': ['melk', 'selderij', 'sulfiet', 'gluten'],
+  'Ratatouille met rijst': [],
+  'Ovenschotel met gehakt': ['melk', 'gluten', 'ei'],
+  'Witlof met ham en kaas': ['melk', 'gluten'],
+  'Couscous met kip en groenten': ['gluten', 'selderij'],
+};
+// Bij welke diëten de gerechten uit de lijst passen. Glutenvrij en lactosevrij staan hier niet: die volgen
+// uit de allergenen hierboven (zie catalogDiets), zodat de twee elkaar nooit tegenspreken.
 const CATALOG_DIETS = {
-  'Kwark met fruit': ['glutenvrij', 'eiwitrijk'],
-  'Volkorenbrood met ei': ['lactosevrij'],
-  'Boterham met pindakaas': ['vegan', 'lactosevrij'],
-  'Omelet': ['glutenvrij', 'koolhydraatarm', 'eiwitrijk'],
-  'Smoothie met banaan': ['glutenvrij'],
+  'Kwark met fruit': ['eiwitrijk'],
+  'Boterham met pindakaas': ['vegan'],
+  'Omelet': ['koolhydraatarm', 'eiwitrijk'],
   'Uitsmijter': ['eiwitrijk'],
-  'Tonijnsalade op brood': ['lactosevrij', 'eiwitrijk'],
+  'Tonijnsalade op brood': ['eiwitrijk'],
   'Wrap met kip en groenten': ['eiwitrijk'],
   'Kipsalade': ['koolhydraatarm', 'eiwitrijk'],
-  'Salade met kikkererwten en feta': ['glutenvrij'],
-  'Groentesoep met linzen': ['vegan', 'lactosevrij'],
-  'Kippensoep': ['lactosevrij'],
-  'Erwtensoep': ['lactosevrij', 'eiwitrijk'],
-  'Pokébowl met zalm': ['lactosevrij', 'eiwitrijk'],
+  'Groentesoep met linzen': ['vegan'],
+  'Erwtensoep': ['eiwitrijk'],
+  'Pokébowl met zalm': ['eiwitrijk'],
   'Spaghetti bolognese': ['eiwitrijk'],
   'Pasta pesto met kip': ['eiwitrijk'],
   'Pasta met zalm en spinazie': ['eiwitrijk'],
-  'Kip met broccoli en aardappelen': ['glutenvrij', 'lactosevrij', 'eiwitrijk'],
+  'Kip met broccoli en aardappelen': ['eiwitrijk'],
   'Gehaktbal met sperziebonen': ['eiwitrijk'],
-  'Gevulde kipfilet uit de oven': ['glutenvrij', 'koolhydraatarm', 'eiwitrijk'],
-  'Kipcurry met rijst': ['glutenvrij', 'lactosevrij', 'eiwitrijk'],
+  'Gevulde kipfilet uit de oven': ['koolhydraatarm', 'eiwitrijk'],
+  'Kipcurry met rijst': ['eiwitrijk'],
   'Kip kerrie met rijst en boontjes': ['eiwitrijk'],
-  'Groentecurry': ['vegan', 'glutenvrij', 'lactosevrij'],
-  'Pompoencurry': ['vegan', 'glutenvrij', 'lactosevrij'],
+  'Groentecurry': ['vegan'],
+  'Pompoencurry': ['vegan'],
   'Hachee': ['eiwitrijk'],
   'Stoofvlees met rode kool': ['eiwitrijk'],
-  'Nasi goreng': ['lactosevrij'],
-  'Surinaamse nasi met kip': ['lactosevrij', 'eiwitrijk'],
-  'Bami goreng': ['lactosevrij'],
-  'Kipsaté met rijst': ['lactosevrij', 'eiwitrijk'],
-  'Gado gado': ['lactosevrij'],
-  'Roerbak met kip en groenten': ['lactosevrij', 'eiwitrijk'],
-  'Roerbak met tofu': ['vegan', 'lactosevrij', 'eiwitrijk'],
-  'Zalm met rijst': ['glutenvrij', 'lactosevrij', 'eiwitrijk'],
-  'Vis uit de oven met groenten': ['glutenvrij', 'lactosevrij', 'koolhydraatarm', 'eiwitrijk'],
-  'Chili con carne': ['lactosevrij', 'eiwitrijk'],
-  'Chili sin carne': ['vegan', 'lactosevrij', 'eiwitrijk'],
+  'Surinaamse nasi met kip': ['eiwitrijk'],
+  'Kipsaté met rijst': ['eiwitrijk'],
+  'Roerbak met kip en groenten': ['eiwitrijk'],
+  'Roerbak met tofu': ['vegan', 'eiwitrijk'],
+  'Zalm met rijst': ['eiwitrijk'],
+  'Vis uit de oven met groenten': ['koolhydraatarm', 'eiwitrijk'],
+  'Chili con carne': ['eiwitrijk'],
+  'Chili sin carne': ['vegan', 'eiwitrijk'],
   'Wraps met gehakt': ['eiwitrijk'],
   'Shoarma met pita': ['eiwitrijk'],
-  'Ratatouille met rijst': ['vegan', 'glutenvrij', 'lactosevrij'],
-  'Couscous met kip en groenten': ['lactosevrij', 'eiwitrijk'],
+  'Ratatouille met rijst': ['vegan'],
+  'Couscous met kip en groenten': ['eiwitrijk'],
 };
 const TYPE_ICON = { vlees: '🍖', vis: '🐟', vega: '🥦' };
 // Plaatjes bij gerechten: [plaatje, naam, woorden]. De app kiest het plaatje bij het woord dat een gerecht
@@ -246,6 +336,7 @@ function emptyState() {
   return {
     dishes: [], history: [], shopping: [], badges: {},
     onboarded: false, welcomed: false, name: '', photo: '', theme: 'standaard', diet: [],
+    allergies: [], otherAllergies: [],
   };
 }
 
@@ -316,6 +407,9 @@ function sanitize(data) {
       Object.hasOwn(TIMES, d.time) && Object.hasOwn(TYPES, d.type);
     if (!ok) continue;
     ids.add(d.id);
+    // Een gerecht dat is opgeslagen voordat de app allergenen kende, krijgt de allergenen en de diëten van
+    // het gelijknamige gerecht uit de lijst (als dat bestaat), zodat die twee bij elkaar passen.
+    const fromList = !Array.isArray(d.allergens) && Object.hasOwn(CATALOG_ALLERGENS, d.name.trim());
     dishes.push({
       id: d.id,
       name: d.name.trim().slice(0, 60),
@@ -327,8 +421,8 @@ function sanitize(data) {
       healthy: d.healthy === true,
       // Leeg betekent: de app kiest het plaatje bij de naam.
       icon: ICON_SET.has(d.icon) ? d.icon : '',
-      // Gerechten van voor de diëten krijgen de diëten van het gelijknamige gerecht uit de lijst, als dat bestaat.
-      diets: Array.isArray(d.diets) ? cleanDiets(d.diets, false) : catalogDiets(d.name.trim()),
+      diets: fromList || !Array.isArray(d.diets) ? catalogDiets(d.name.trim()) : cleanDiets(d.diets, false),
+      allergens: fromList ? catalogAllergens(d.name.trim()) : cleanAllergens(d.allergens),
       ingredients: list(d.ingredients).map(i => String(i).trim()).filter(Boolean),
       recipe: typeof d.recipe === 'string' ? d.recipe : '',
     });
@@ -341,6 +435,8 @@ function sanitize(data) {
     photo: cleanPhoto(data.photo),
     theme: Object.hasOwn(THEMES, data.theme) ? data.theme : 'standaard',
     diet: cleanDiets(data.diet, true),
+    allergies: cleanAllergens(data.allergies),
+    otherAllergies: cleanTerms(data.otherAllergies),
     dishes,
     history: list(data.history).map(h => {
       if (!h || isNaN(new Date(h.date).getTime())) return null;
@@ -433,7 +529,36 @@ function cleanDiets(diets, withVegetarian) {
 
 // De diëten van een gerecht uit de lijst; een onbekende naam heeft er geen.
 function catalogDiets(name) {
-  return Object.hasOwn(CATALOG_DIETS, name) ? [...CATALOG_DIETS[name]] : [];
+  if (!Object.hasOwn(CATALOG_ALLERGENS, name)) return [];
+  const diets = Object.hasOwn(CATALOG_DIETS, name) ? [...CATALOG_DIETS[name]] : [];
+  // Glutenvrij en lactosevrij volgen uit de allergenen van het gerecht.
+  if (!CATALOG_ALLERGENS[name].includes('gluten')) diets.push('glutenvrij');
+  if (!CATALOG_ALLERGENS[name].includes('melk')) diets.push('lactosevrij');
+  return cleanDiets(diets, false);
+}
+
+// De allergenen van een gerecht uit de lijst; een onbekende naam heeft er geen.
+function catalogAllergens(name) {
+  return Object.hasOwn(CATALOG_ALLERGENS, name) ? cleanAllergens(CATALOG_ALLERGENS[name]) : [];
+}
+
+// Alleen bekende allergenen, in vaste volgorde.
+function cleanAllergens(allergens) {
+  const list = Array.isArray(allergens) ? allergens : [];
+  return Object.keys(ALLERGENS).filter(key => list.includes(key));
+}
+
+// Zelf toegevoegde allergieën: korte woorden, zonder dubbele.
+function cleanTerms(terms) {
+  const seen = new Set();
+  const clean = [];
+  for (const term of Array.isArray(terms) ? terms : []) {
+    const text = typeof term === 'string' ? term.trim().slice(0, 30) : '';
+    if (text.length < 2 || seen.has(searchKey(text))) continue;
+    seen.add(searchKey(text));
+    clean.push(text);
+  }
+  return clean.slice(0, 12);
 }
 
 // Past een gerecht (met zijn soort en zijn diëten) bij alles wat de gebruiker als dieet heeft ingesteld?
@@ -441,9 +566,28 @@ function fitsDiet(type, diets) {
   return state.diet.every(key => key === 'vegetarisch' ? type === 'vega' : diets.includes(key));
 }
 
-// De gerechten voor de gekozen maaltijd die bij je dieet passen: hieruit kiest de app.
+// Welke allergenen van de gebruiker in een gerecht zitten, als leesbare namen. Aangevinkte allergenen tellen
+// als ze bij het gerecht staan; een zelf toegevoegde allergie telt als het woord in de naam of de
+// ingrediënten van het gerecht voorkomt.
+function userAllergens(dish) {
+  const tagged = state.allergies.filter(key => dish.allergens.includes(key)).map(key => ALLERGENS[key][0].toLowerCase());
+  const text = searchKey([dish.name, ...(dish.ingredients || [])].join(' '));
+  return [...tagged, ...state.otherAllergies.filter(term => text.includes(searchKey(term)))];
+}
+
+// Mag de app dit gerecht voorstellen? Alleen als het bij het dieet past en geen allergeen van de gebruiker bevat.
+function suitable(dish) {
+  return fitsDiet(dish.type, dish.diets) && userAllergens(dish).length === 0;
+}
+
+// Een gerecht uit de lijst in dezelfde vorm als een eigen gerecht, om het op dezelfde manier te beoordelen.
+function catalogDish(item) {
+  return { name: item[0], type: item[3], diets: catalogDiets(item[0]), allergens: catalogAllergens(item[0]), ingredients: [] };
+}
+
+// De gerechten voor de gekozen maaltijd die bij je dieet en je allergieën passen: hieruit kiest de app.
 function mealDishes() {
-  return state.dishes.filter(d => d.meals.includes(meal) && fitsDiet(d.type, d.diets));
+  return state.dishes.filter(d => d.meals.includes(meal) && suitable(d));
 }
 
 // Het plaatje bij het woord dat een tekst het best typeert. In een samenstelling is dat het laatste
@@ -482,7 +626,12 @@ function dishMeta(dish) {
 
 // Voor de lijsten: ook voor welke maaltijden en hoeveel calorieën.
 function dishDetails(dish) {
-  return `${dish.meals.map(m => MEALS[m]).join(', ')}<br>${dishMeta(dish)}${dish.kcal == null ? '' : ' · ' + kcalLabel(dish)}${dish.healthy ? ' · 🥗 Gezond' : ''}${dish.diets.length ? `<br>${dish.diets.map(key => DIETS[key]).join(', ')}` : ''}`;
+  return `${dish.meals.map(m => MEALS[m]).join(', ')}<br>${dishMeta(dish)}${dish.kcal == null ? '' : ' · ' + kcalLabel(dish)}${dish.healthy ? ' · 🥗 Gezond' : ''}${dish.diets.length ? `<br>${dish.diets.map(key => DIETS[key]).join(', ')}` : ''}${allergenLine(dish) ? `<br>${allergenLine(dish)}` : ''}`;
+}
+
+// "Bevat: gluten, melk", of niets als er geen allergenen bij het gerecht staan.
+function allergenLine(dish) {
+  return dish.allergens.length ? `Bevat: ${dish.allergens.map(key => ALLERGENS[key][0].toLowerCase()).join(', ')}` : '';
 }
 
 function kcalLabel(dish) {
@@ -786,8 +935,10 @@ function dishFormHtml(dish, full) {
   const d = dish || {
     name: '', meals: [state.onboarded ? meal : 'avond'], time: 'normaal',
     type: state.diet.includes('vegetarisch') || state.diet.includes('vegan') ? 'vega' : 'vlees',
-    kcal: null, healthy: false, icon: '', diets: cleanDiets(state.diet, false), ingredients: [], recipe: '',
+    kcal: null, healthy: false, icon: '', diets: cleanDiets(state.diet, false), allergens: [], ingredients: [], recipe: '',
   };
+  // De allergenen staan ingeklapt, behalve als ze ertoe doen: bij een gerecht dat er al heeft, of als je zelf een allergie hebt.
+  const showAllergens = d.allergens.length > 0 || state.allergies.length > 0;
   const options = (map, selected) => Object.entries(map)
     .map(([value, label]) => `<option value="${value}"${value === selected ? ' selected' : ''}>${label}</option>`).join('');
   return `
@@ -828,6 +979,11 @@ function dishFormHtml(dish, full) {
         </div>
       </fieldset>
       <p class="small muted" style="margin-top:6px">Vegetarisch hoef je niet aan te vinken: dat volgt uit de soort.</p>
+      <details${showAllergens ? ' open' : ''}>
+        <summary>Allergenen in dit gerecht <span class="muted" style="font-weight:400">(optioneel)</span></summary>
+        <p class="small muted">Vink aan wat erin zit. Heb je zelf een allergie, dan stel ik dit gerecht niet voor als het jouw allergeen bevat.</p>
+        ${allergenChecksHtml('allergens', d.allergens, 'dish')}
+      </details>
       ${full ? `
         <label for="f-ingredients">Ingrediënten <span class="muted">(één per regel, optioneel)</span></label>
         <textarea id="f-ingredients" name="ingredients" placeholder="500 g gehakt&#10;1 ui">${esc(d.ingredients.join('\n'))}</textarea>
@@ -852,7 +1008,7 @@ function catalogHtml(defaultMeal) {
   // Bij een maaltijd staan de gerechten voorop die daar in de eerste plaats voor bedoeld zijn.
   const items = CATALOG.map((item, index) => ({ item, index }))
     .filter(({ item }) => !have.has(item[0].toLowerCase()) && (filter === 'alles' || item[1].includes(filter)) &&
-      fitsDiet(item[3], catalogDiets(item[0])))
+      suitable(catalogDish(item)))
     .sort((a, b) => (b.item[1][0] === filter) - (a.item[1][0] === filter));
   return `
     <div class="segments" role="group" aria-label="Maaltijd">${[['alles', 'Alles'], ...Object.entries(MEALS)].map(([value, label]) => `
@@ -865,8 +1021,26 @@ function catalogHtml(defaultMeal) {
     <button class="btn link" id="catalog-more" data-action="catalog-more" hidden></button>
     <p class="small muted" id="catalog-empty" hidden></p>
     ${state.diet.length ? `<p class="small muted">Je ziet alleen gerechten die passen bij je dieet: ${state.diet.map(key => DIETS[key].toLowerCase()).join(', ')}.</p>` : ''}
-    <p class="small muted">Calorieën, het vinkje "gezond" en de diëten zijn bij deze gerechten een schatting. Je kunt alles later aanpassen.</p>`;
+    ${allergyNames().length ? `<p class="small muted">Gerechten waar meestal ${allergyNames().join(', ')} in zit, laat ik weg. Controleer bij een allergie altijd zelf de ingrediënten.</p>` : ''}
+    <p class="small muted">Calorieën, het vinkje "gezond", de diëten en de allergenen zijn bij deze gerechten een schatting. Je kunt alles later aanpassen.</p>`;
 }
+
+// De allergieën van de gebruiker als leesbare namen: de aangevinkte en de zelf toegevoegde.
+function allergyNames() {
+  return [...state.allergies.map(key => ALLERGENS[key][0].toLowerCase()), ...state.otherAllergies.map(term => esc(term.toLowerCase()))];
+}
+
+// Aanvinkbare allergenen. Voor de gebruiker zelf staat er uitleg bij; bij een gerecht alleen de naam.
+function allergenChecksHtml(name, checked, change) {
+  return `
+    <div class="checks">${Object.entries(ALLERGENS).map(([key, [label, hint]]) => `
+      <label class="check${change === 'dish' ? '' : ' wide'}"><input type="checkbox" name="${name}" value="${key}"${change === 'user' ? ' data-change="set-allergy"' : ''}${checked.includes(key) ? ' checked' : ''}>
+        <span>${label}${change !== 'dish' && hint ? ` <span class="small muted">· ${hint}</span>` : ''}</span></label>`).join('')}
+    </div>`;
+}
+
+// De waarschuwing die overal bij allergieën hoort te staan.
+const ALLERGY_WARNING = 'Belangrijk: wat er bij een gerecht staat, is een schatting van wat er meestal in zit. Recepten en producten verschillen, dus de app kan niet garanderen dat een gerecht veilig voor je is. Controleer altijd zelf de ingrediënten en de etiketten.';
 
 // De ronde profielfoto, of het bordje zolang er geen foto is. Tikken opent de fotokiezer van het apparaat.
 function avatarHtml() {
@@ -929,6 +1103,12 @@ const VIEWS = {
           ${dietChecksHtml(false)}
         </fieldset>
         <p class="small muted" style="margin-top:6px">Dan stel ik alleen gerechten voor die erbij passen. Je kunt dit later aanpassen bij de instellingen.</p>
+        <details>
+          <summary>Heb je een voedselallergie? <span class="muted" style="font-weight:400">(mag je overslaan)</span></summary>
+          <p class="small muted">Vink aan waar je allergisch voor bent. Andere allergieën voeg je later toe bij de instellingen.</p>
+          ${allergenChecksHtml('allergies', state.allergies, 'welcome')}
+          <p class="small muted" style="margin-top:8px">${ALLERGY_WARNING}</p>
+        </details>
         <button class="btn primary big" type="submit">Aan de slag</button>
       </form>`;
   },
@@ -965,8 +1145,9 @@ const VIEWS = {
     const marks = entryMarks();
     const none = mealDishes().length === 0;
     const off = none ? ' disabled' : '';
-    // Zijn er wel gerechten voor deze maaltijd, maar passen ze niet bij het dieet?
+    // Zijn er wel gerechten voor deze maaltijd, maar passen ze niet bij het dieet of de allergieën?
     const dietBlocks = none && state.dishes.some(d => d.meals.includes(meal));
+    const limits = [state.diet.length && 'je dieet', allergyNames().length && 'je allergieën'].filter(Boolean).join(' en ');
     return `
       <button class="icon-btn settings" data-action="nav" data-view="more" aria-label="Instellingen">⚙️</button>
       <div class="hero">${avatarHtml()}<h1>${greeting()}</h1>
@@ -974,7 +1155,7 @@ const VIEWS = {
       <div class="segments" role="group" aria-label="Maaltijd">${Object.entries(MEALS).map(([value, label]) => `
         <button data-action="set-meal" data-meal="${value}" aria-pressed="${value === meal}">${label}</button>`).join('')}
       </div>
-      ${none ? `<div class="notice">Je hebt nog niets voor ${MEALS[meal].toLowerCase()}${dietBlocks ? ' dat bij je dieet past' : ''}. Zullen we er een toevoegen?</div>
+      ${none ? `<div class="notice">Je hebt nog niets voor ${MEALS[meal].toLowerCase()}${dietBlocks ? ` dat bij ${limits} past` : ''}. Zullen we er een toevoegen?</div>
         <button class="btn primary" data-action="discover" data-meal="${meal}">🔎 Gerechten ontdekken</button>
         <button class="btn" data-action="edit-dish">+ Zelf een gerecht toevoegen</button>` : ''}
       <button class="btn primary big" data-action="start-ask"${off}>Help mij kiezen</button>
@@ -1148,7 +1329,8 @@ const VIEWS = {
         <h1>${esc(dish.name)}</h1>
         <p class="muted">${dishMeta(dish)}${dish.kcal == null ? '' : ' · ' + kcalLabel(dish)}</p>
         <p><strong>Eet smakelijk${state.name ? `, ${esc(state.name)}` : ''}! 😋</strong></p>
-        <p class="small muted">Ik heb het bij vandaag genoteerd in je week.</p></div>
+        <p class="small muted">Ik heb het bij vandaag genoteerd in je week.</p>
+        ${dish.allergens.length ? `<p class="small muted">${allergenLine(dish).replace('Bevat:', 'Bevat meestal:')}</p>` : ''}</div>
       ${rewardHtml(view.reward)}
       ${view.note ? `<div class="notice">${esc(view.note)}</div>` : ''}
       ${dish.ingredients.length ? `
@@ -1173,7 +1355,8 @@ const VIEWS = {
       <button class="btn" data-action="edit-dish">+ Zelf een gerecht toevoegen</button>
       <ul class="list">${[...state.dishes].sort((a, b) => a.name.localeCompare(b.name, 'nl')).map(d => `
         <li><span class="icon" aria-hidden="true">${dishIcon(d)}</span>
-        <span class="grow"><strong>${esc(d.name)}</strong><br><span class="small muted">${dishDetails(d)}</span></span>
+        <span class="grow"><strong>${esc(d.name)}</strong><br><span class="small muted">${dishDetails(d)}</span>
+          ${userAllergens(d).length ? `<br><span class="small warn">⚠️ Stel ik niet voor: bevat ${userAllergens(d).map(esc).join(', ')}</span>` : ''}</span>
         <button class="icon-btn" data-action="edit-dish" data-id="${d.id}" aria-label="Pas ${esc(d.name)} aan">✎</button></li>`).join('')}
       </ul>`;
   },
@@ -1217,38 +1400,71 @@ const VIEWS = {
       : '<div class="hero"><div class="emoji">🛒</div><p class="muted">Je lijstje is nog leeg. Kies een gerecht met ingrediënten, of zet er zelf iets op.</p></div>'}`;
   },
 
+  // De instellingen zijn verdeeld over tabbladen; view.tab onthoudt welk tabblad open staat.
   more() {
+    const tab = Object.hasOwn(SETTINGS_TABS, view.tab) ? view.tab : 'profiel';
+    const panels = {
+      profiel: () => `
+        <h2>Profielfoto</h2>
+        <div class="hero" style="padding:0">${avatarHtml()}</div>
+        ${view.photoError ? `<div class="notice">${esc(view.photoError)}</div>` : ''}
+        <button class="btn" data-action="photo-pick">${state.photo ? 'Andere foto kiezen' : 'Foto kiezen'}</button>
+        ${state.photo ? '<button class="btn danger" data-action="photo-remove">Foto verwijderen</button>' : ''}
+        <p class="muted small">Je foto blijft op dit apparaat staan en gaat mee in je back-up.</p>
+        <h2>Je naam</h2>
+        <form data-form="name" class="row" style="align-items:flex-start">
+          <input name="name" type="text" maxlength="30" autocomplete="given-name" value="${esc(state.name)}" placeholder="Je voornaam" aria-label="Je naam" style="flex:3">
+          <button class="btn primary" type="submit">${view.nameSaved ? '✓' : 'OK'}</button>
+        </form>`,
+
+      allergie: () => `
+        <h2>Mijn allergieën</h2>
+        <p class="muted small">Vink aan waar je allergisch voor bent. Gerechten waar dat in zit, stel ik niet meer voor.</p>
+        <fieldset aria-label="Mijn allergieën">${allergenChecksHtml('allergies', state.allergies, 'user')}</fieldset>
+        <h3>Andere allergie</h3>
+        <p class="muted small">Staat jouw allergie er niet bij? Voeg haar toe. Ik sla dan gerechten over waar dat woord in de naam of bij de ingrediënten staat.</p>
+        ${state.otherAllergies.length ? `<ul class="list">${state.otherAllergies.map((term, i) => `
+          <li><span class="grow">${esc(term)}</span>
+          <button class="icon-btn" data-action="remove-allergy" data-index="${i}" aria-label="Verwijder ${esc(term)}">✕</button></li>`).join('')}</ul>` : ''}
+        <form data-form="allergy" class="row" style="align-items:flex-start">
+          <input name="term" type="text" maxlength="30" autocomplete="off" placeholder="Bijvoorbeeld: kiwi" aria-label="Andere allergie" style="flex:3">
+          <button class="btn primary" type="submit" aria-label="Allergie toevoegen">+</button>
+        </form>
+        <div class="chips">${ALLERGY_IDEAS.filter(idea => !state.otherAllergies.some(term => searchKey(term) === idea)).map(idea => `
+          <button class="chip" data-action="add-allergy" data-term="${idea}">+ ${idea}</button>`).join('')}
+        </div>
+        <div class="notice">${ALLERGY_WARNING}</div>`,
+
+      dieet: () => `
+        <h2>Mijn dieet</h2>
+        <fieldset aria-label="Mijn dieet">${dietChecksHtml(true)}</fieldset>
+        <p class="muted small" style="margin-top:6px">Ik stel alleen gerechten voor die passen bij alles wat je hier aanvinkt. Per gerecht geef je bij Favorieten aan bij welk dieet het past.</p>
+        <p class="muted small">Let op: de diëten bij gerechten zijn een schatting en geen garantie. Heb je een allergie? Vink die dan aan op het tabblad Allergie.</p>`,
+
+      thema: () => `
+        <h2>Thema</h2>
+        <div class="themes" role="group" aria-label="Thema">${Object.entries(THEMES).map(([id, name]) => `
+          <button class="theme" data-theme="${id}" data-action="set-theme" aria-pressed="${id === state.theme}">
+            <span class="theme-dot"></span>${name}</button>`).join('')}
+        </div>
+        <p class="muted small">Standaard volgt de lichte of donkere modus van je telefoon.</p>`,
+
+      backup: () => `
+        <h2>Back-up</h2>
+        <p class="muted small">Je gerechten staan alleen op dit apparaat. Maak af en toe een back-up, zodat je niets kwijtraakt.</p>
+        <button class="btn" data-action="export">Back-up opslaan</button>
+        <button class="btn" data-action="import-pick">Back-up terugzetten</button>
+        <input id="import-file" type="file" accept="application/json,.json" data-change="import" hidden>
+        ${view.message ? `<div class="notice">${esc(view.message)}</div>` : ''}
+        <h2>Opnieuw beginnen</h2>
+        <button class="btn danger" data-action="reset">${view.confirm ? 'Zeker weten? Alles wordt gewist' : 'Alles wissen'}</button>`,
+    };
     return `
       <h1>Instellingen</h1>
-      <h2>Profielfoto</h2>
-      <div class="hero" style="padding:0">${avatarHtml()}</div>
-      ${view.photoError ? `<div class="notice">${esc(view.photoError)}</div>` : ''}
-      <button class="btn" data-action="photo-pick">${state.photo ? 'Andere foto kiezen' : 'Foto kiezen'}</button>
-      ${state.photo ? '<button class="btn danger" data-action="photo-remove">Foto verwijderen</button>' : ''}
-      <p class="muted small">Je foto blijft op dit apparaat staan en gaat mee in je back-up.</p>
-      <h2>Je naam</h2>
-      <form data-form="name" class="row" style="align-items:flex-start">
-        <input name="name" type="text" maxlength="30" autocomplete="given-name" value="${esc(state.name)}" placeholder="Je voornaam" aria-label="Je naam" style="flex:3">
-        <button class="btn primary" type="submit">${view.nameSaved ? '✓' : 'OK'}</button>
-      </form>
-      <h2>Mijn dieet</h2>
-      <fieldset aria-label="Mijn dieet">${dietChecksHtml(true)}</fieldset>
-      <p class="muted small" style="margin-top:6px">Ik stel alleen gerechten voor die passen bij alles wat je hier aanvinkt. Per gerecht geef je bij Favorieten aan bij welk dieet het past.</p>
-      <p class="muted small">Let op: de diëten bij gerechten zijn een schatting en geen garantie. Controleer bij een allergie of intolerantie altijd zelf de ingrediënten.</p>
-      <h2>Thema</h2>
-      <div class="themes" role="group" aria-label="Thema">${Object.entries(THEMES).map(([id, name]) => `
-        <button class="theme" data-theme="${id}" data-action="set-theme" aria-pressed="${id === state.theme}">
-          <span class="theme-dot"></span>${name}</button>`).join('')}
+      <div class="segments" role="tablist" aria-label="Onderdelen van de instellingen">${Object.entries(SETTINGS_TABS).map(([key, label]) => `
+        <button role="tab" id="tab-${key}" data-action="settings-tab" data-tab="${key}" aria-selected="${key === tab}" aria-controls="settings-panel">${label}</button>`).join('')}
       </div>
-      <p class="muted small">Standaard volgt de lichte of donkere modus van je telefoon.</p>
-      <h2>Back-up</h2>
-      <p class="muted small">Je gerechten staan alleen op dit apparaat. Maak af en toe een back-up, zodat je niets kwijtraakt.</p>
-      <button class="btn" data-action="export">Back-up opslaan</button>
-      <button class="btn" data-action="import-pick">Back-up terugzetten</button>
-      <input id="import-file" type="file" accept="application/json,.json" data-change="import" hidden>
-      ${view.message ? `<div class="notice">${esc(view.message)}</div>` : ''}
-      <h2>Opnieuw beginnen</h2>
-      <button class="btn danger" data-action="reset">${view.confirm ? 'Zeker weten? Alles wordt gewist' : 'Alles wissen'}</button>
+      <div id="settings-panel" role="tabpanel" aria-labelledby="tab-${tab}">${panels[tab]()}</div>
       <button class="btn link" data-action="nav" data-view="home">Terug naar het begin</button>`;
   },
 };
@@ -1299,7 +1515,7 @@ const ACTIONS = {
     if (state.dishes.some(d => d.name.toLowerCase() === name.toLowerCase())) return;
     state.dishes.push({
       id: newId(), name, meals: [...meals], time, type, kcal, healthy, icon: '',
-      diets: catalogDiets(name), ingredients: [], recipe: '',
+      diets: catalogDiets(name), allergens: catalogAllergens(name), ingredients: [], recipe: '',
     });
     save();
     render();
@@ -1445,6 +1661,25 @@ const ACTIONS = {
 
   'import-pick'() { document.getElementById('import-file').click(); },
 
+  // Een ander tabblad van de instellingen openen; de focus blijft op het gekozen tabblad.
+  'settings-tab'(el) {
+    view = { name: 'more', tab: el.dataset.tab };
+    render();
+    document.getElementById(`tab-${el.dataset.tab}`).focus();
+  },
+
+  'add-allergy'(el) {
+    state.otherAllergies = cleanTerms([...state.otherAllergies, el.dataset.term]);
+    save();
+    render();
+  },
+
+  'remove-allergy'(el) {
+    state.otherAllergies = state.otherAllergies.filter((term, i) => i !== Number(el.dataset.index));
+    save();
+    render();
+  },
+
   'photo-pick'() { document.getElementById('photo-file').click(); },
 
   'photo-remove'() {
@@ -1490,6 +1725,7 @@ const FORMS = {
       name, meals: cleanMeals(meals), time: data.get('time'), type: data.get('type'), kcal,
       healthy: data.has('healthy'), diets: cleanDiets(data.getAll('diets'), false),
       icon: ICON_SET.has(data.get('icon')) ? data.get('icon') : '',
+      allergens: cleanAllergens(data.getAll('allergens')),
     });
     if (data.has('ingredients')) {
       dish.ingredients = data.get('ingredients').split('\n').map(line => line.trim()).filter(Boolean);
@@ -1504,9 +1740,19 @@ const FORMS = {
     const data = new FormData(form);
     state.name = cleanName(data.get('name'));
     state.diet = cleanDiets(data.getAll('diet'), true);
+    state.allergies = cleanAllergens(data.getAll('allergies'));
     state.welcomed = true;
     save();
     go('onboarding');
+  },
+
+  // Een eigen allergie toevoegen, naast de veertien uit de lijst.
+  allergy(form) {
+    const term = new FormData(form).get('term').trim();
+    if (term.length < 2) return;
+    state.otherAllergies = cleanTerms([...state.otherAllergies, term]);
+    save();
+    render();
   },
 
   name(form) {
@@ -1558,8 +1804,17 @@ const CHANGES = {
       if (view.name === 'more') delete view.photoError;
       render();
     } catch (e) {
-      go('more', { photoError: 'Dit bestand kan ik niet als foto gebruiken. Probeer een andere foto.' });
+      go('more', { tab: 'profiel', photoError: 'Dit bestand kan ik niet als foto gebruiken. Probeer een andere foto.' });
     }
+  },
+
+  // Een vinkje bij "Mijn allergieën" in de instellingen werkt meteen.
+  'set-allergy'(el) {
+    const checked = [...app.querySelectorAll('input[name="allergies"]:checked')].map(input => input.value);
+    state.allergies = cleanAllergens(checked);
+    save();
+    render();
+    app.querySelector(`input[name="allergies"][value="${el.value}"]`).focus();
   },
 
   // Een vinkje bij "Mijn dieet" in de instellingen werkt meteen.
@@ -1589,10 +1844,10 @@ const CHANGES = {
       checkBadges();
       save();
       applyTheme();
-      go('more', { message: `Back-up teruggezet: ${state.dishes.length} gerechten.` });
+      go('more', { tab: 'backup', message: `Back-up teruggezet: ${state.dishes.length} gerechten.` });
     } catch (e) {
       // Tijdens de eerste start bestaat het scherm met instellingen nog niet.
-      go(state.onboarded ? 'more' : 'onboarding', { message: 'Dit bestand is geen geldige back-up van deze app.' });
+      go(state.onboarded ? 'more' : 'onboarding', { tab: 'backup', message: 'Dit bestand is geen geldige back-up van deze app.' });
     }
   },
 };
@@ -1607,6 +1862,17 @@ document.addEventListener('submit', event => {
   if (!form) return;
   event.preventDefault();
   FORMS[form.dataset.form](form);
+});
+
+// Tussen tabbladen wissel je ook met de pijltjestoetsen, zoals bij tabbladen gebruikelijk is.
+document.addEventListener('keydown', event => {
+  if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+  const tab = event.target.closest('[role="tab"]');
+  if (!tab) return;
+  const tabs = [...tab.parentElement.querySelectorAll('[role="tab"]')];
+  const next = tabs[(tabs.indexOf(tab) + (event.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length];
+  event.preventDefault();
+  next.click();
 });
 
 // Het zoekveld filtert tijdens het typen, zonder het scherm opnieuw te tekenen (dat zou het typen onderbreken).

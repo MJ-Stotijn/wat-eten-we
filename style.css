@@ -339,6 +339,17 @@ legend { font-weight: 600; margin: 14px 0 6px; padding: 0; }
   cursor: pointer;
 }
 .check input { width: 22px; height: 22px; flex: none; accent-color: var(--accent); }
+/* Een vinkje met uitleg erachter krijgt een hele regel */
+.check.wide { flex-basis: 100%; border-radius: 18px; }
+
+/* Inklapbaar blok, voor onderdelen die niet iedereen nodig heeft */
+details { margin-top: 14px; }
+summary { min-height: 44px; display: flex; align-items: center; gap: 8px; font-weight: 600; cursor: pointer; }
+summary::before { content: "▸"; }
+details[open] > summary::before { content: "▾"; }
+summary::-webkit-details-marker { display: none; }
+h3 { font-size: 1rem; margin: 18px 0 6px; }
+.warn { color: var(--danger); font-weight: 600; }
 
 /* Keuze tussen ontbijt, middageten en avondeten */
 .segments {
@@ -362,7 +373,8 @@ legend { font-weight: 600; margin: 14px 0 6px; padding: 0; }
   color: var(--muted);
   cursor: pointer;
 }
-.segments button[aria-pressed="true"] { background: var(--accent); color: var(--accent-text); font-weight: 700; }
+.segments button[aria-pressed="true"],
+.segments button[aria-selected="true"] { background: var(--accent); color: var(--accent-text); font-weight: 700; }
 
 .error { color: var(--danger); font-weight: 600; margin-top: 8px; }
 
