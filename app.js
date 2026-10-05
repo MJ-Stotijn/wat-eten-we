@@ -9,7 +9,12 @@ const TIME_SHORT = { snel: 'Snel', normaal: 'Gemiddeld', uitgebreid: 'Uitgebreid
 const TIME_RANK = { snel: 0, normaal: 1, uitgebreid: 2 };
 const TYPES = { vlees: 'Vlees', vis: 'Vis', vega: 'Vegetarisch' };
 const MEALS = { ontbijt: 'Ontbijt', middag: 'Middageten', avond: 'Avondeten' };
-const DAYS = ['Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag', 'Zaterdag', 'Zondag'];
+// Diëten. Vegetarisch hangt aan de soort van een gerecht; de andere vink je per gerecht aan.
+const DIETS = {
+  vegetarisch: 'Vegetarisch', vegan: 'Veganistisch', glutenvrij: 'Glutenvrij', lactosevrij: 'Lactosevrij',
+  koolhydraatarm: 'Koolhydraatarm', eiwitrijk: 'Eiwitrijk',
+};
+const DAYS =['Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag', 'Zaterdag', 'Zondag'];
 const MAX_WEEKS_BACK = 52;
 const MAX_HISTORY = 2000;
 
@@ -50,25 +55,132 @@ const QUESTIONS = [
     ['licht', '🥗 Licht (tot 400 kcal)'], ['gemiddeld', '🍝 Gemiddeld (400–700 kcal)'],
     ['stevig', '🍔 Stevig (700+ kcal)'], ['', '🤷 Maakt me niet uit'] ] },
 ];
-// Bekende gerechten om bij de eerste start met één tik toe te voegen. De calorieën en het
+// Bekende gerechten om met één tik aan je favorieten toe te voegen. De calorieën, de bereidingstijd en het
 // laatste veld (gezond of niet) zijn een schatting; de gebruiker kan ze aanpassen.
-const SUGGESTIONS = [
+// De lijst is samengesteld uit overzichten op internet van wat er in Nederland veel wordt gegeten.
+const CATALOG = [
+  // Ontbijt
   ['Havermout', ['ontbijt'], 'snel', 'vega', 300, true],
   ['Yoghurt met muesli', ['ontbijt'], 'snel', 'vega', 350, true],
+  ['Kwark met fruit', ['ontbijt'], 'snel', 'vega', 250, true],
+  ['Overnight oats', ['ontbijt'], 'snel', 'vega', 350, true],
+  ['Volkorenbrood met ei', ['ontbijt', 'middag'], 'snel', 'vega', 330, true],
   ['Boterham met kaas', ['ontbijt', 'middag'], 'snel', 'vega', 300, false],
+  ['Boterham met pindakaas', ['ontbijt', 'middag'], 'snel', 'vega', 350, false],
   ['Omelet', ['ontbijt', 'middag'], 'snel', 'vega', 300, true],
+  ['Roerei met toast', ['ontbijt'], 'snel', 'vega', 350, false],
+  ['Smoothie met banaan', ['ontbijt'], 'snel', 'vega', 250, true],
+  ['Griesmeelpap', ['ontbijt'], 'snel', 'vega', 300, false],
+  ['Croissant met jam', ['ontbijt'], 'snel', 'vega', 400, false],
+  ['Bananenbrood', ['ontbijt'], 'uitgebreid', 'vega', 300, false],
+  // Middageten
   ['Tosti', ['middag'], 'snel', 'vega', 400, false],
-  ['Tomatensoep', ['middag'], 'normaal', 'vega', 250, true],
+  ['Uitsmijter', ['middag'], 'snel', 'vlees', 450, false],
+  ['Broodje gezond', ['middag'], 'snel', 'vlees', 400, true],
+  ['Tonijnsalade op brood', ['middag'], 'snel', 'vis', 400, true],
+  ['Wrap met kip en groenten', ['middag'], 'snel', 'vlees', 450, true],
   ['Kipsalade', ['middag'], 'snel', 'vlees', 400, true],
-  ['Spaghetti bolognese', ['avond'], 'normaal', 'vlees', 650, false],
-  ['Stamppot boerenkool', ['avond'], 'normaal', 'vlees', 700, true],
-  ['Nasi goreng', ['avond'], 'normaal', 'vlees', 650, false],
-  ['Zalm met rijst', ['avond'], 'normaal', 'vis', 550, true],
-  ['Groentecurry', ['avond'], 'normaal', 'vega', 500, true],
-  ['Lasagne', ['avond'], 'uitgebreid', 'vlees', 750, false],
-  ['Pizza', ['avond'], 'normaal', 'vega', 800, false],
+  ['Salade met kikkererwten en feta', ['middag', 'avond'], 'snel', 'vega', 420, true],
+  ['Couscoussalade', ['middag'], 'snel', 'vega', 400, true],
+  ['Tomatensoep', ['middag'], 'normaal', 'vega', 250, true],
+  ['Groentesoep met linzen', ['middag'], 'normaal', 'vega', 230, true],
+  ['Kippensoep', ['middag'], 'normaal', 'vlees', 250, true],
+  ['Pompoensoep', ['middag'], 'normaal', 'vega', 250, true],
+  ['Erwtensoep', ['middag', 'avond'], 'uitgebreid', 'vlees', 500, false],
   ['Pannenkoeken', ['middag', 'avond'], 'normaal', 'vega', 600, false],
+  ['Poffertjes', ['middag'], 'normaal', 'vega', 450, false],
+  ['Quiche met groenten', ['middag', 'avond'], 'uitgebreid', 'vega', 500, false],
+  ['Pokébowl met zalm', ['middag', 'avond'], 'normaal', 'vis', 600, true],
+  // Avondeten
+  ['Spaghetti bolognese', ['avond'], 'normaal', 'vlees', 650, false],
+  ['Pasta met champignons', ['avond'], 'normaal', 'vega', 550, false],
+  ['Pasta pesto met kip', ['avond'], 'snel', 'vlees', 650, false],
+  ['Pasta met zalm en spinazie', ['avond'], 'normaal', 'vis', 600, true],
+  ['Macaroni met ham en kaas', ['avond'], 'normaal', 'vlees', 650, false],
+  ['Lasagne', ['avond'], 'uitgebreid', 'vlees', 750, false],
+  ['Groentelasagne', ['avond'], 'uitgebreid', 'vega', 600, true],
+  ['Kip met broccoli en aardappelen', ['avond'], 'normaal', 'vlees', 550, true],
+  ['Gehaktbal met sperziebonen', ['avond'], 'normaal', 'vlees', 650, false],
+  ['Gevulde kipfilet uit de oven', ['avond'], 'normaal', 'vlees', 550, false],
+  ['Kipcurry met rijst', ['avond'], 'normaal', 'vlees', 600, true],
+  ['Kip kerrie met rijst en boontjes', ['avond'], 'normaal', 'vlees', 600, true],
+  ['Groentecurry', ['avond'], 'normaal', 'vega', 500, true],
+  ['Pompoencurry', ['avond'], 'normaal', 'vega', 450, true],
+  ['Stamppot boerenkool', ['avond'], 'normaal', 'vlees', 700, true],
+  ['Hutspot', ['avond'], 'normaal', 'vlees', 600, true],
+  ['Zuurkoolstamppot', ['avond'], 'normaal', 'vlees', 650, true],
+  ['Andijviestamppot', ['avond'], 'normaal', 'vlees', 600, true],
+  ['Hachee', ['avond'], 'uitgebreid', 'vlees', 550, false],
+  ['Stoofvlees met rode kool', ['avond'], 'uitgebreid', 'vlees', 650, false],
+  ['Nasi goreng', ['avond'], 'normaal', 'vlees', 650, false],
+  ['Surinaamse nasi met kip', ['avond'], 'uitgebreid', 'vlees', 700, false],
+  ['Bami goreng', ['avond'], 'normaal', 'vlees', 650, false],
+  ['Kipsaté met rijst', ['avond'], 'normaal', 'vlees', 700, false],
+  ['Gado gado', ['avond'], 'normaal', 'vega', 550, true],
+  ['Roerbak met kip en groenten', ['avond'], 'snel', 'vlees', 500, true],
+  ['Roerbak met tofu', ['avond'], 'snel', 'vega', 450, true],
+  ['Zalm met rijst', ['avond'], 'normaal', 'vis', 550, true],
+  ['Vis uit de oven met groenten', ['avond'], 'normaal', 'vis', 450, true],
+  ['Kibbeling met friet', ['avond'], 'normaal', 'vis', 800, false],
+  ['Chili con carne', ['avond'], 'normaal', 'vlees', 600, true],
+  ['Chili sin carne', ['avond'], 'normaal', 'vega', 500, true],
+  ['Wraps met gehakt', ['avond'], 'normaal', 'vlees', 650, false],
+  ['Shoarma met pita', ['avond'], 'snel', 'vlees', 700, false],
+  ['Hamburger met friet', ['avond'], 'normaal', 'vlees', 900, false],
+  ['Pizza', ['avond'], 'normaal', 'vega', 800, false],
+  ['Risotto met paddenstoelen', ['avond'], 'normaal', 'vega', 600, false],
+  ['Ratatouille met rijst', ['avond'], 'normaal', 'vega', 400, true],
+  ['Ovenschotel met gehakt', ['avond'], 'uitgebreid', 'vlees', 650, false],
+  ['Witlof met ham en kaas', ['avond'], 'uitgebreid', 'vlees', 550, false],
+  ['Couscous met kip en groenten', ['avond'], 'normaal', 'vlees', 550, true],
 ];
+// Zoveel gerechten uit de lijst zie je voordat je om meer vraagt.
+const CATALOG_PREVIEW = 12;
+// Bij welke diëten de gerechten uit de lijst passen, zoals ze meestal worden gemaakt. Dit is een voorzichtige
+// schatting: bij twijfel (sojasaus, bouillonblokjes, een scheut room) staat het dieet er niet bij.
+const CATALOG_DIETS = {
+  'Kwark met fruit': ['glutenvrij', 'eiwitrijk'],
+  'Volkorenbrood met ei': ['lactosevrij'],
+  'Boterham met pindakaas': ['vegan', 'lactosevrij'],
+  'Omelet': ['glutenvrij', 'koolhydraatarm', 'eiwitrijk'],
+  'Smoothie met banaan': ['glutenvrij'],
+  'Uitsmijter': ['eiwitrijk'],
+  'Tonijnsalade op brood': ['lactosevrij', 'eiwitrijk'],
+  'Wrap met kip en groenten': ['eiwitrijk'],
+  'Kipsalade': ['koolhydraatarm', 'eiwitrijk'],
+  'Salade met kikkererwten en feta': ['glutenvrij'],
+  'Groentesoep met linzen': ['vegan', 'lactosevrij'],
+  'Kippensoep': ['lactosevrij'],
+  'Erwtensoep': ['lactosevrij', 'eiwitrijk'],
+  'Pokébowl met zalm': ['lactosevrij', 'eiwitrijk'],
+  'Spaghetti bolognese': ['eiwitrijk'],
+  'Pasta pesto met kip': ['eiwitrijk'],
+  'Pasta met zalm en spinazie': ['eiwitrijk'],
+  'Kip met broccoli en aardappelen': ['glutenvrij', 'lactosevrij', 'eiwitrijk'],
+  'Gehaktbal met sperziebonen': ['eiwitrijk'],
+  'Gevulde kipfilet uit de oven': ['glutenvrij', 'koolhydraatarm', 'eiwitrijk'],
+  'Kipcurry met rijst': ['glutenvrij', 'lactosevrij', 'eiwitrijk'],
+  'Kip kerrie met rijst en boontjes': ['eiwitrijk'],
+  'Groentecurry': ['vegan', 'glutenvrij', 'lactosevrij'],
+  'Pompoencurry': ['vegan', 'glutenvrij', 'lactosevrij'],
+  'Hachee': ['eiwitrijk'],
+  'Stoofvlees met rode kool': ['eiwitrijk'],
+  'Nasi goreng': ['lactosevrij'],
+  'Surinaamse nasi met kip': ['lactosevrij', 'eiwitrijk'],
+  'Bami goreng': ['lactosevrij'],
+  'Kipsaté met rijst': ['lactosevrij', 'eiwitrijk'],
+  'Gado gado': ['lactosevrij'],
+  'Roerbak met kip en groenten': ['lactosevrij', 'eiwitrijk'],
+  'Roerbak met tofu': ['vegan', 'lactosevrij', 'eiwitrijk'],
+  'Zalm met rijst': ['glutenvrij', 'lactosevrij', 'eiwitrijk'],
+  'Vis uit de oven met groenten': ['glutenvrij', 'lactosevrij', 'koolhydraatarm', 'eiwitrijk'],
+  'Chili con carne': ['lactosevrij', 'eiwitrijk'],
+  'Chili sin carne': ['vegan', 'lactosevrij', 'eiwitrijk'],
+  'Wraps met gehakt': ['eiwitrijk'],
+  'Shoarma met pita': ['eiwitrijk'],
+  'Ratatouille met rijst': ['vegan', 'glutenvrij', 'lactosevrij'],
+  'Couscous met kip en groenten': ['lactosevrij', 'eiwitrijk'],
+};
 const TYPE_ICON = { vlees: '🍖', vis: '🐟', vega: '🥦' };
 
 const app = document.getElementById('app');
@@ -87,7 +199,7 @@ let meal = defaultMeal();
 function emptyState() {
   return {
     dishes: [], history: [], shopping: [], badges: {},
-    onboarded: false, welcomed: false, name: '', theme: 'standaard',
+    onboarded: false, welcomed: false, name: '', theme: 'standaard', diet: [],
   };
 }
 
@@ -138,6 +250,8 @@ function sanitize(data) {
       type: d.type,
       kcal: cleanKcal(d.kcal),
       healthy: d.healthy === true,
+      // Gerechten van voor de diëten krijgen de diëten van het gelijknamige gerecht uit de lijst, als dat bestaat.
+      diets: Array.isArray(d.diets) ? cleanDiets(d.diets, false) : catalogDiets(d.name.trim()),
       ingredients: list(d.ingredients).map(i => String(i).trim()).filter(Boolean),
       recipe: typeof d.recipe === 'string' ? d.recipe : '',
     });
@@ -148,6 +262,7 @@ function sanitize(data) {
     welcomed: data.welcomed === true || dishes.length > 0,
     name: cleanName(data.name),
     theme: Object.hasOwn(THEMES, data.theme) ? data.theme : 'standaard',
+    diet: cleanDiets(data.diet, true),
     dishes,
     history: list(data.history).map(h => {
       if (!h || isNaN(new Date(h.date).getTime())) return null;
@@ -218,8 +333,25 @@ function defaultMeal() {
   return hour < 11 ? 'ontbijt' : hour < 16 ? 'middag' : 'avond';
 }
 
+// Alleen bekende diëten, in vaste volgorde. Bij een gerecht hoort vegetarisch er niet bij: dat volgt uit de soort.
+function cleanDiets(diets, withVegetarian) {
+  const list = Array.isArray(diets) ? diets : [];
+  return Object.keys(DIETS).filter(key => list.includes(key) && (withVegetarian || key !== 'vegetarisch'));
+}
+
+// De diëten van een gerecht uit de lijst; een onbekende naam heeft er geen.
+function catalogDiets(name) {
+  return Object.hasOwn(CATALOG_DIETS, name) ? [...CATALOG_DIETS[name]] : [];
+}
+
+// Past een gerecht (met zijn soort en zijn diëten) bij alles wat de gebruiker als dieet heeft ingesteld?
+function fitsDiet(type, diets) {
+  return state.diet.every(key => key === 'vegetarisch' ? type === 'vega' : diets.includes(key));
+}
+
+// De gerechten voor de gekozen maaltijd die bij je dieet passen: hieruit kiest de app.
 function mealDishes() {
-  return state.dishes.filter(d => d.meals.includes(meal));
+  return state.dishes.filter(d => d.meals.includes(meal) && fitsDiet(d.type, d.diets));
 }
 
 function dishMeta(dish) {
@@ -228,7 +360,7 @@ function dishMeta(dish) {
 
 // Voor de lijsten: ook voor welke maaltijden en hoeveel calorieën.
 function dishDetails(dish) {
-  return `${dish.meals.map(m => MEALS[m]).join(', ')}<br>${dishMeta(dish)}${dish.kcal == null ? '' : ' · ' + kcalLabel(dish)}${dish.healthy ? ' · 🥗 Gezond' : ''}`;
+  return `${dish.meals.map(m => MEALS[m]).join(', ')}<br>${dishMeta(dish)}${dish.kcal == null ? '' : ' · ' + kcalLabel(dish)}${dish.healthy ? ' · 🥗 Gezond' : ''}${dish.diets.length ? `<br>${dish.diets.map(key => DIETS[key]).join(', ')}` : ''}`;
 }
 
 function kcalLabel(dish) {
@@ -496,11 +628,15 @@ document.addEventListener('visibilitychange', () => {
 });
 
 // Welk tabblad onderin oplicht bij een scherm. De instellingen open je vanaf het startscherm.
-const NAV_TAB = { week: 'week', log: 'week', favorites: 'favorites', edit: 'favorites', shopping: 'shopping', rewards: 'rewards' };
+const NAV_TAB = {
+  week: 'week', log: 'week', favorites: 'favorites', edit: 'favorites', discover: 'favorites',
+  shopping: 'shopping', rewards: 'rewards',
+};
 
 function render() {
   if (!state.onboarded) view.name = state.welcomed ? 'onboarding' : 'welcome';
   app.innerHTML = VIEWS[view.name]();
+  if (document.getElementById('catalog')) filterCatalog();
   nav.hidden = !state.onboarded;
   const tab = NAV_TAB[view.name] || 'home';
   for (const button of nav.querySelectorAll('button')) {
@@ -513,7 +649,12 @@ function render() {
 // ---------- Schermen ----------
 
 function dishFormHtml(dish, full) {
-  const d = dish || { name: '', meals: [state.onboarded ? meal : 'avond'], time: 'normaal', type: 'vlees', kcal: null, healthy: false, ingredients: [], recipe: '' };
+  // Een nieuw gerecht begint met jouw dieet aangevinkt, want je voegt meestal toe wat je zelf eet.
+  const d = dish || {
+    name: '', meals: [state.onboarded ? meal : 'avond'], time: 'normaal',
+    type: state.diet.includes('vegetarisch') || state.diet.includes('vegan') ? 'vega' : 'vlees',
+    kcal: null, healthy: false, diets: cleanDiets(state.diet, false), ingredients: [], recipe: '',
+  };
   const options = (map, selected) => Object.entries(map)
     .map(([value, label]) => `<option value="${value}"${value === selected ? ' selected' : ''}>${label}</option>`).join('');
   return `
@@ -542,6 +683,13 @@ function dishFormHtml(dish, full) {
         <label class="check"><input type="checkbox" name="healthy"${d.healthy ? ' checked' : ''}>🥗 Dit is een gezonde maaltijd</label>
       </div>
       <p class="small muted" style="margin-top:6px">Gezonde en uitgebreide maaltijden tellen mee voor je badges.</p>
+      <fieldset>
+        <legend>Past bij dieet <span class="muted" style="font-weight:400">(optioneel)</span></legend>
+        <div class="checks">${Object.entries(DIETS).filter(([key]) => key !== 'vegetarisch').map(([key, label]) => `
+          <label class="check"><input type="checkbox" name="diets" value="${key}"${d.diets.includes(key) ? ' checked' : ''}>${label}</label>`).join('')}
+        </div>
+      </fieldset>
+      <p class="small muted" style="margin-top:6px">Vegetarisch hoef je niet aan te vinken: dat volgt uit de soort.</p>
       ${full ? `
         <label for="f-ingredients">Ingrediënten <span class="muted">(één per regel, optioneel)</span></label>
         <textarea id="f-ingredients" name="ingredients" placeholder="500 g gehakt&#10;1 ui">${esc(d.ingredients.join('\n'))}</textarea>
@@ -551,6 +699,59 @@ function dishFormHtml(dish, full) {
       <p></p>
       <button class="btn primary" type="submit">${dish ? 'Opslaan' : 'Gerecht toevoegen'}</button>
     </form>`;
+}
+
+// Zonder hoofdletters en accenten, zodat "creme" ook "crème" vindt.
+function searchKey(text) {
+  return text.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+}
+
+// Bekende gerechten die je nog niet hebt, met een zoekveld en een keuze per maaltijd.
+// Welke er te zien zijn, regelt filterCatalog() na het tekenen.
+function catalogHtml(defaultMeal) {
+  const have = new Set(state.dishes.map(d => d.name.toLowerCase()));
+  const filter = view.catalogMeal || defaultMeal;
+  // Bij een maaltijd staan de gerechten voorop die daar in de eerste plaats voor bedoeld zijn.
+  const items = CATALOG.map((item, index) => ({ item, index }))
+    .filter(({ item }) => !have.has(item[0].toLowerCase()) && (filter === 'alles' || item[1].includes(filter)) &&
+      fitsDiet(item[3], catalogDiets(item[0])))
+    .sort((a, b) => (b.item[1][0] === filter) - (a.item[1][0] === filter));
+  return `
+    <div class="segments" role="group" aria-label="Maaltijd">${[['alles', 'Alles'], ...Object.entries(MEALS)].map(([value, label]) => `
+      <button data-action="catalog-meal" data-meal="${value}" aria-pressed="${value === filter}">${label}</button>`).join('')}
+    </div>
+    <input type="search" data-input="catalog-search" value="${esc(view.catalogQuery || '')}" placeholder="Zoek een gerecht" aria-label="Zoek een gerecht">
+    <div class="chips" id="catalog">${items.map(({ item, index }) => `
+      <button class="chip" data-action="add-suggestion" data-index="${index}" data-name="${esc(searchKey(item[0]))}"><span aria-hidden="true">${TYPE_ICON[item[3]]}</span> ${item[0]}</button>`).join('')}
+    </div>
+    <button class="btn link" id="catalog-more" data-action="catalog-more" hidden></button>
+    <p class="small muted" id="catalog-empty" hidden></p>
+    ${state.diet.length ? `<p class="small muted">Je ziet alleen gerechten die passen bij je dieet: ${state.diet.map(key => DIETS[key].toLowerCase()).join(', ')}.</p>` : ''}
+    <p class="small muted">Calorieën, het vinkje "gezond" en de diëten zijn bij deze gerechten een schatting. Je kunt alles later aanpassen.</p>`;
+}
+
+// Aanvinkbare diëten voor de gebruiker zelf, op het welkomstscherm en bij de instellingen.
+function dietChecksHtml(change) {
+  return `
+    <div class="checks">${Object.entries(DIETS).map(([key, label]) => `
+      <label class="check"><input type="checkbox" name="diet" value="${key}"${change ? ' data-change="set-diet"' : ''}${state.diet.includes(key) ? ' checked' : ''}>${label}</label>`).join('')}
+    </div>`;
+}
+
+function filterCatalog() {
+  const query = searchKey(view.catalogQuery || '').trim();
+  const chips = [...app.querySelectorAll('#catalog .chip')];
+  const matches = chips.filter(chip => chip.dataset.name.includes(query));
+  const limit = query || view.catalogAll ? Infinity : CATALOG_PREVIEW;
+  for (const chip of chips) chip.hidden = true;
+  for (const chip of matches.slice(0, limit)) chip.hidden = false;
+  const more = document.getElementById('catalog-more');
+  more.hidden = matches.length <= limit;
+  const rest = matches.length - CATALOG_PREVIEW;
+  more.textContent = `Toon nog ${rest} ${rest === 1 ? 'gerecht' : 'gerechten'}`;
+  const empty = document.getElementById('catalog-empty');
+  empty.hidden = matches.length > 0;
+  empty.textContent = query ? 'Niets gevonden. Je kunt het gerecht ook zelf toevoegen.' : 'Je hebt alle gerechten uit deze lijst al.';
 }
 
 function barHtml(item) {
@@ -575,7 +776,11 @@ const VIEWS = {
       <form data-form="welcome">
         <label for="f-yourname">Hoe mag ik je noemen? <span class="muted">(mag je overslaan)</span></label>
         <input id="f-yourname" name="name" type="text" maxlength="30" autocomplete="given-name" placeholder="Je voornaam">
-        <p></p>
+        <fieldset>
+          <legend>Volg je een dieet? <span class="muted" style="font-weight:400">(mag je overslaan)</span></legend>
+          ${dietChecksHtml(false)}
+        </fieldset>
+        <p class="small muted" style="margin-top:6px">Dan stel ik alleen gerechten voor die erbij passen. Je kunt dit later aanpassen bij de instellingen.</p>
         <button class="btn primary big" type="submit">Aan de slag</button>
       </form>`;
   },
@@ -585,18 +790,14 @@ const VIEWS = {
     const left = MIN_DISHES - count;
     const cheer = count === 0 ? 'Begin met je eerste gerecht.' : count < 3 ? 'Goed begin!' : count < 5 ? 'Lekker bezig!'
       : count === 5 ? 'Nog eentje!' : 'Top, je kunt beginnen!';
-    const have = new Set(state.dishes.map(d => d.name.toLowerCase()));
-    const chips = SUGGESTIONS.map(([name], i) => have.has(name.toLowerCase()) ? ''
-      : `<button class="chip" data-action="add-suggestion" data-index="${i}">+ ${name}</button>`).join('');
     return `
       <div class="hero"><div class="emoji">🍽️</div><h1>Wat eet jij graag${state.name ? `, ${esc(state.name)}` : ''}?</h1></div>
       <p>Vertel me je favoriete gerechten, minimaal ${MIN_DISHES}. Daarna help ik je elke dag kiezen.</p>
       <p class="small muted">${Math.min(count, MIN_DISHES)} van ${MIN_DISHES} · ${cheer}</p>
       <div class="progress"><div style="width:${Math.min(100, count / MIN_DISHES * 100)}%"></div></div>
-      ${chips ? `<h2>Tik aan wat je lekker vindt</h2>
-        <div class="chips">${chips}</div>
-        <p class="small muted">De calorieën hierbij zijn een schatting. Je kunt alles later aanpassen.</p>
-        <h2>Of voeg zelf een gerecht toe</h2>` : ''}
+      <h2>Tik aan wat je lekker vindt</h2>
+      ${catalogHtml('avond')}
+      <h2>Of voeg zelf een gerecht toe</h2>
       ${dishFormHtml(null, false)}
       ${count ? `<h2>Jouw gerechten</h2>
         <ul class="list">${state.dishes.map(d => `
@@ -616,6 +817,8 @@ const VIEWS = {
     const marks = entryMarks();
     const none = mealDishes().length === 0;
     const off = none ? ' disabled' : '';
+    // Zijn er wel gerechten voor deze maaltijd, maar passen ze niet bij het dieet?
+    const dietBlocks = none && state.dishes.some(d => d.meals.includes(meal));
     return `
       <button class="icon-btn settings" data-action="nav" data-view="more" aria-label="Instellingen">⚙️</button>
       <div class="hero"><div class="emoji">🍽️</div><h1>${greeting()}</h1>
@@ -623,8 +826,9 @@ const VIEWS = {
       <div class="segments" role="group" aria-label="Maaltijd">${Object.entries(MEALS).map(([value, label]) => `
         <button data-action="set-meal" data-meal="${value}" aria-pressed="${value === meal}">${label}</button>`).join('')}
       </div>
-      ${none ? `<div class="notice">Je hebt nog niets voor ${MEALS[meal].toLowerCase()}. Zullen we er een toevoegen?</div>
-        <button class="btn primary" data-action="edit-dish">+ Gerecht toevoegen</button>` : ''}
+      ${none ? `<div class="notice">Je hebt nog niets voor ${MEALS[meal].toLowerCase()}${dietBlocks ? ' dat bij je dieet past' : ''}. Zullen we er een toevoegen?</div>
+        <button class="btn primary" data-action="discover" data-meal="${meal}">🔎 Gerechten ontdekken</button>
+        <button class="btn" data-action="edit-dish">+ Zelf een gerecht toevoegen</button>` : ''}
       <button class="btn primary big" data-action="start-ask"${off}>Help mij kiezen</button>
       <div class="row">
         <button class="btn" data-action="surprise"${off}>🎲 Verras me</button>
@@ -806,7 +1010,9 @@ const VIEWS = {
             ${view.added ? '✓ Op de boodschappenlijst gezet' : '🛒 Zet op de boodschappenlijst'}</button>
         </div>` : ''}
       ${dish.recipe ? `<div class="card"><h2 style="margin-top:0">Bereidingswijze</h2><p class="recipe">${esc(dish.recipe)}</p></div>` : ''}
-      ${hasRecipe ? '' : `<button class="btn" data-action="edit-dish" data-id="${dish.id}">Recept en ingrediënten toevoegen</button>`}
+      ${hasRecipe ? '' : `
+        <a class="btn" href="https://www.google.com/search?q=${encodeURIComponent(`recept ${dish.name}`)}" target="_blank" rel="noopener noreferrer">🔎 Zoek een recept op internet</a>
+        <button class="btn" data-action="edit-dish" data-id="${dish.id}">Recept en ingrediënten toevoegen</button>`}
       <button class="btn primary" data-action="nav" data-view="home">Lekker, dank je!</button>
       <button class="btn link" data-action="undo-choice">Toch liever iets anders</button>`;
   },
@@ -815,12 +1021,21 @@ const VIEWS = {
     return `
       <h1>Favorieten</h1>
       <p class="muted">Je hebt ${state.dishes.length} favorieten. Tik op het potlood om er een aan te passen.</p>
-      <button class="btn primary" data-action="edit-dish">+ Gerecht toevoegen</button>
+      <button class="btn primary" data-action="discover" data-meal="alles">🔎 Gerechten ontdekken</button>
+      <button class="btn" data-action="edit-dish">+ Zelf een gerecht toevoegen</button>
       <ul class="list">${[...state.dishes].sort((a, b) => a.name.localeCompare(b.name, 'nl')).map(d => `
         <li><span class="icon" aria-hidden="true">${TYPE_ICON[d.type]}</span>
         <span class="grow"><strong>${esc(d.name)}</strong><br><span class="small muted">${dishDetails(d)}</span></span>
         <button class="icon-btn" data-action="edit-dish" data-id="${d.id}" aria-label="Pas ${esc(d.name)} aan">✎</button></li>`).join('')}
       </ul>`;
+  },
+
+  discover() {
+    return `
+      <h1>Gerechten ontdekken</h1>
+      <p class="muted">Tik aan wat je lekker vindt, dan zet ik het bij je favorieten. Je hebt er nu ${state.dishes.length}.</p>
+      ${catalogHtml('alles')}
+      <button class="btn primary sticky above-nav" data-action="nav" data-view="favorites">Klaar</button>`;
   },
 
   edit() {
@@ -862,6 +1077,10 @@ const VIEWS = {
         <input name="name" type="text" maxlength="30" autocomplete="given-name" value="${esc(state.name)}" placeholder="Je voornaam" aria-label="Je naam" style="flex:3">
         <button class="btn primary" type="submit">${view.nameSaved ? '✓' : 'OK'}</button>
       </form>
+      <h2>Mijn dieet</h2>
+      <fieldset aria-label="Mijn dieet">${dietChecksHtml(true)}</fieldset>
+      <p class="muted small" style="margin-top:6px">Ik stel alleen gerechten voor die passen bij alles wat je hier aanvinkt. Per gerecht geef je bij Favorieten aan bij welk dieet het past.</p>
+      <p class="muted small">Let op: de diëten bij gerechten zijn een schatting en geen garantie. Controleer bij een allergie of intolerantie altijd zelf de ingrediënten.</p>
       <h2>Thema</h2>
       <div class="themes" role="group" aria-label="Thema">${Object.entries(THEMES).map(([id, name]) => `
         <button class="theme" data-theme="${id}" data-action="set-theme" aria-pressed="${id === state.theme}">
@@ -904,10 +1123,26 @@ const ACTIONS = {
     go('home');
   },
 
+  discover(el) { go('discover', { catalogMeal: el.dataset.meal }); },
+
+  'catalog-meal'(el) {
+    view.catalogMeal = el.dataset.meal;
+    view.catalogAll = false;
+    render();
+  },
+
+  'catalog-more'() {
+    view.catalogAll = true;
+    filterCatalog();
+  },
+
   'add-suggestion'(el) {
-    const [name, meals, time, type, kcal, healthy] = SUGGESTIONS[el.dataset.index];
+    const [name, meals, time, type, kcal, healthy] = CATALOG[el.dataset.index];
     if (state.dishes.some(d => d.name.toLowerCase() === name.toLowerCase())) return;
-    state.dishes.push({ id: newId(), name, meals: [...meals], time, type, kcal, healthy, ingredients: [], recipe: '' });
+    state.dishes.push({
+      id: newId(), name, meals: [...meals], time, type, kcal, healthy,
+      diets: catalogDiets(name), ingredients: [], recipe: '',
+    });
     save();
     render();
   },
@@ -1085,7 +1320,10 @@ const FORMS = {
 
     const existing = view.id ? dishById(view.id) : null;
     const dish = existing || { id: newId(), ingredients: [], recipe: '' };
-    Object.assign(dish, { name, meals: cleanMeals(meals), time: data.get('time'), type: data.get('type'), kcal, healthy: data.has('healthy') });
+    Object.assign(dish, {
+      name, meals: cleanMeals(meals), time: data.get('time'), type: data.get('type'), kcal,
+      healthy: data.has('healthy'), diets: cleanDiets(data.getAll('diets'), false),
+    });
     if (data.has('ingredients')) {
       dish.ingredients = data.get('ingredients').split('\n').map(line => line.trim()).filter(Boolean);
       dish.recipe = data.get('recipe').trim();
@@ -1096,7 +1334,9 @@ const FORMS = {
   },
 
   welcome(form) {
-    state.name = cleanName(new FormData(form).get('name'));
+    const data = new FormData(form);
+    state.name = cleanName(data.get('name'));
+    state.diet = cleanDiets(data.getAll('diet'), true);
     state.welcomed = true;
     save();
     go('onboarding');
@@ -1141,6 +1381,15 @@ const FORMS = {
 };
 
 const CHANGES = {
+  // Een vinkje bij "Mijn dieet" in de instellingen werkt meteen.
+  'set-diet'(el) {
+    const checked = [...app.querySelectorAll('input[name="diet"]:checked')].map(input => input.value);
+    state.diet = cleanDiets(checked, true);
+    save();
+    render();
+    app.querySelector(`input[name="diet"][value="${el.value}"]`).focus();
+  },
+
   'toggle-item'(el) {
     const item = state.shopping.find(i => i.id === el.dataset.id);
     item.done = el.checked;
@@ -1177,6 +1426,13 @@ document.addEventListener('submit', event => {
   if (!form) return;
   event.preventDefault();
   FORMS[form.dataset.form](form);
+});
+
+// Het zoekveld filtert tijdens het typen, zonder het scherm opnieuw te tekenen (dat zou het typen onderbreken).
+document.addEventListener('input', event => {
+  if (event.target.dataset.input !== 'catalog-search') return;
+  view.catalogQuery = event.target.value;
+  filterCatalog();
 });
 
 document.addEventListener('change', event => {
