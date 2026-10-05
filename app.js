@@ -136,6 +136,14 @@ const CATALOG = [
 ];
 // Zoveel gerechten uit de lijst zie je voordat je om meer vraagt.
 const CATALOG_PREVIEW = 12;
+// De wereldkaart (de gegevens staan in world.js). De breedtegraden zijn wat uitgerekt, zodat de kaart op
+// een smal scherm niet te plat wordt. WORLD_BOX is het stuk wereld dat je ziet: [west, oost, zuid, noord].
+const MAP_STRETCH = 1.5;
+const WORLD_BOX = [-170, 180, -56, 84];
+// De afkortingen waarmee de gerechten per land zijn genoteerd.
+const DISH_TYPE = { l: 'vlees', v: 'vis', g: 'vega' };
+const DISH_TIME = { s: 'snel', n: 'normaal', u: 'uitgebreid' };
+const DISH_MEAL = { o: 'ontbijt', m: 'middag', a: 'avond' };
 // De tabbladen van de instellingen.
 const SETTINGS_TABS = { profiel: 'Profiel', allergie: 'Allergie', dieet: 'Dieet', thema: 'Thema', backup: 'Back-up' };
 // De veertien allergenen die volgens de Europese regels op etiketten moeten staan: sleutel, naam, toelichting.
@@ -286,29 +294,35 @@ const ICONS = [
   ['🍚', 'Rijst', ['nasi', 'rijst', 'risotto', 'paella', 'couscous', 'bulgur', 'quinoa']],
   ['🍣', 'Sushi', ['sushi', 'sashimi']],
   ['🍢', 'Saté', ['sate', 'spies']],
-  ['🥙', 'Pita', ['shoarma', 'doner', 'kebab', 'pita', 'falafel', 'gyros', 'kapsalon']],
+  ['🥙', 'Pita', ['shoarma', 'doner', 'kebab', 'pita', 'gyros', 'kapsalon']],
+  ['🧆', 'Gefrituurde hapjes', ['bitterbal', 'kroket', 'falafel', 'croqueta']],
+  ['🥟', 'Deegpakketjes', ['dumpling', 'gyoza', 'wonton', 'deegkussentje', 'deegpakketje', 'deegflap', 'empanada', 'samosa', 'sambusa', 'loempia', 'maultaschen', 'pasteitje']],
   ['🌯', 'Wrap', ['wrap', 'burrito', 'tortilla', 'fajita', 'enchilada', 'quesadilla']],
   ['🌮', 'Taco', ['taco']],
   ['🥗', 'Salade', ['salade', 'gado gado', 'rauwkost', 'bowl', /\bsla\b/]],
   ['🥣', 'Soep of pap', ['soep', 'bouillon', 'havermout', 'yoghurt', 'kwark', 'muesli', 'granola', 'cruesli', 'oats', 'skyr', /pap\b/]],
-  ['🍲', 'Stoofpot', ['stoof', 'hachee', 'goulash', 'ragout', 'jachtschotel']],
+  ['🍲', 'Stoofpot', ['stoof', 'stoofvlees', 'hachee', 'goulash', 'ragout', 'jachtschotel']],
   ['🌶️', 'Chili', ['chili']],
-  ['🥔', 'Aardappel', ['stamppot', 'hutspot', 'aardappel', 'puree', 'rosti', 'gratin']],
+  ['🥔', 'Aardappel', ['stamppot', 'hutspot', 'aardappel', 'rosti', 'gratin']],
   ['🥘', 'Ovenschotel', ['ovenschotel', 'schotel', 'roerbak', 'wok', 'tajine']],
-  ['🥧', 'Hartige taart', ['quiche', 'taart', 'pastei']],
+  ['🥧', 'Hartige taart', ['quiche', 'taart', 'pastei', 'bladerdeeg']],
   ['🥬', 'Bladgroente', ['witlof']],
   ['🍆', 'Groenteschotel', ['ratatouille', 'aubergine', 'moussaka']],
-  ['🐟', 'Vis', ['zalm', 'vis', 'kibbeling', 'tonijn', 'kabeljauw', 'haring', 'makreel', 'forel', 'lekkerbek']],
+  ['🐟', 'Vis', ['zalm', 'vis', 'kibbeling', 'tonijn', 'kabeljauw', 'haring', 'makreel', 'forel', 'lekkerbek', 'sardine', 'sardinha']],
   ['🍤', 'Garnalen', ['garnaal', 'garnalen', 'scampi', 'gamba', 'mossel']],
+  ['🐙', 'Inktvis', ['octopus', 'inktvis', 'calamares']],
   ['🍗', 'Kip', ['kip', 'kalkoen', 'drumstick']],
   ['🥩', 'Stuk vlees', ['biefstuk', 'steak', 'entrecote', 'schnitzel', 'karbonade', 'kotelet', 'speklap', 'rollade']],
-  ['🍖', 'Vlees', ['gehakt', 'worst', 'ribs', 'slavink']],
+  ['🍖', 'Vlees', ['vlees', 'gehakt', 'worst', 'ribs', 'slavink']],
+  ['🧀', 'Kaas', ['kaas', 'fondue', 'raclette']],
   ['🍳', 'Ei', ['omelet', 'roerei', 'spiegelei', 'uitsmijter', 'eieren', 'frittata', /\bei\b/]],
   ['🥪', 'Belegd brood', ['tosti', 'sandwich', 'broodje']],
   ['🍞', 'Brood', ['boterham', 'brood', 'toast', 'beschuit', 'cracker']],
   ['🥐', 'Croissant', ['croissant']],
+  ['🧇', 'Wafel', ['wafel']],
+  ['🍮', 'Toetje', ['pudding', 'pavlova', 'tiramisu']],
   ['🥤', 'Smoothie', ['smoothie', 'shake']],
-  ['🥦', 'Groente', ['broccoli', 'bloemkool', 'groente']],
+  ['🥦', 'Groente', ['broccoli', 'bloemkool', 'groente', 'bonen', 'boontjes']],
   ['🍄', 'Paddenstoelen', ['champignon', 'paddenstoel']],
 ];
 // De profielfoto wordt vierkant en klein opgeslagen, als tekst in de opslag van de browser.
@@ -423,6 +437,8 @@ function sanitize(data) {
       icon: ICON_SET.has(d.icon) ? d.icon : '',
       diets: fromList || !Array.isArray(d.diets) ? catalogDiets(d.name.trim()) : cleanDiets(d.diets, false),
       allergens: fromList ? catalogAllergens(d.name.trim()) : cleanAllergens(d.allergens),
+      // Waar bij een gerecht uit de wereldkeuken: de allergenen zijn nog door niemand ingevuld.
+      unchecked: d.unchecked === true,
       ingredients: list(d.ingredients).map(i => String(i).trim()).filter(Boolean),
       recipe: typeof d.recipe === 'string' ? d.recipe : '',
     });
@@ -575,9 +591,85 @@ function userAllergens(dish) {
   return [...tagged, ...state.otherAllergies.filter(term => text.includes(searchKey(term)))];
 }
 
-// Mag de app dit gerecht voorstellen? Alleen als het bij het dieet past en geen allergeen van de gebruiker bevat.
+// Heeft de gebruiker een allergie opgegeven, aangevinkt of zelf toegevoegd?
+function hasAllergy() {
+  return state.allergies.length > 0 || state.otherAllergies.length > 0;
+}
+
+// Mag de app dit gerecht voorstellen? Alleen als het bij het dieet past en geen allergeen van de gebruiker
+// bevat. Een gerecht uit de wereldkeuken waarvan nog niets is nagekeken, slaat de app over zodra de
+// gebruiker een allergie of een dieet heeft: van zo'n gerecht is alleen de naam zeker.
 function suitable(dish) {
+  if (dish.unchecked && (hasAllergy() || state.diet.length > 0)) return false;
   return fitsDiet(dish.type, dish.diets) && userAllergens(dish).length === 0;
+}
+
+// Waarom de app een gerecht niet voorstelt vanwege een allergie, of niets als dat niet speelt.
+function allergyBlock(dish) {
+  if (dish.unchecked && hasAllergy()) return 'allergenen nog niet ingevuld';
+  if (dish.unchecked && state.diet.length > 0) return 'dieet en allergenen nog niet ingevuld';
+  const found = userAllergens(dish);
+  return found.length ? `bevat ${found.join(', ')}` : '';
+}
+
+// Een gerecht uit de lijst met bekende gerechten, klaar om bij de favorieten te zetten.
+function catalogEntry([name, meals, time, type, kcal, healthy]) {
+  return {
+    id: newId(), name, meals: [...meals], time, type, kcal, healthy, icon: '',
+    diets: catalogDiets(name), allergens: catalogAllergens(name), unchecked: false, ingredients: [], recipe: '',
+  };
+}
+
+// ---------- Wereldkeuken ----------
+
+// Het vlaggetje bij een landcode van twee letters.
+function flag(code) {
+  return String.fromCodePoint(...[...code].map(letter => 0x1F1E6 + letter.charCodeAt(0) - 65));
+}
+
+// Een gerecht uit world.js uitgeschreven: naam, omschrijving, soort, bereidingstijd en maaltijden.
+// Zegt de naam niets over het plaatje (veel buitenlandse namen), dan komt het plaatje uit de omschrijving.
+function worldDish(row) {
+  const [name, text, type, time, meals] = row.split('|');
+  return {
+    name, text, type: DISH_TYPE[type], time: DISH_TIME[time],
+    meals: cleanMeals(meals ? [...meals].map(code => DISH_MEAL[code]) : ['avond']),
+    icon: guessIcon(name) ? '' : guessIcon(text),
+  };
+}
+
+function worldCountry() {
+  return WORLD[view.region].countries.find(country => country[0] === view.code);
+}
+
+// Een plek op aarde als punt op de kaart.
+function mapPoint(lon, lat) {
+  return [lon + 180, (90 - lat) * MAP_STRETCH];
+}
+
+// De kaart als tekening. Zonder werelddeel zie je de hele wereld en tik je een werelddeel aan; met een
+// werelddeel is daarop ingezoomd en staan de landen er als vlaggetjes op.
+function mapHtml(regionKey) {
+  const [west, east, south, north] = regionKey ? WORLD[regionKey].box : WORLD_BOX;
+  const [x0, y0] = mapPoint(west, north);
+  const [x1, y1] = mapPoint(east, south);
+  const width = x1 - x0;
+  const height = y1 - y0;
+  const shapes = key => LAND[key].map(points =>
+    `<polygon points="${points.map(([lon, lat]) => mapPoint(lon, lat).map(n => n.toFixed(1)).join(',')).join(' ')}"/>`).join('');
+  const land = Object.keys(LAND).map(key => regionKey
+    ? `<g class="land${key === regionKey ? ' active' : ''}">${shapes(key)}</g>`
+    : `<g class="land" data-action="world-region" data-region="${key}" role="button" tabindex="0" aria-label="${WORLD[key].name}">${shapes(key)}</g>`).join('');
+  const markers = regionKey ? WORLD[regionKey].countries.map(([code, name, lon, lat]) => {
+    const [x, y] = mapPoint(lon, lat);
+    return `<button class="marker" data-action="world-country" data-code="${code}" aria-label="${name}"
+      style="left:${((x - x0) / width * 100).toFixed(1)}%;top:${((y - y0) / height * 100).toFixed(1)}%">${flag(code)}</button>`;
+  }).join('') : '';
+  return `
+    <div class="map-wrap">
+      <svg class="map" viewBox="${x0} ${y0} ${width} ${height}"${regionKey ? ' aria-hidden="true"' : ' role="group" aria-label="Wereldkaart"'}>${land}</svg>
+      ${markers}
+    </div>`;
 }
 
 // Een gerecht uit de lijst in dezelfde vorm als een eigen gerecht, om het op dezelfde manier te beoordelen.
@@ -631,6 +723,7 @@ function dishDetails(dish) {
 
 // "Bevat: gluten, melk", of niets als er geen allergenen bij het gerecht staan.
 function allergenLine(dish) {
+  if (dish.unchecked) return 'Allergenen onbekend';
   return dish.allergens.length ? `Bevat: ${dish.allergens.map(key => ALLERGENS[key][0].toLowerCase()).join(', ')}` : '';
 }
 
@@ -889,6 +982,8 @@ window.addEventListener('popstate', () => {
   if (!state.onboarded || view.name === 'home') return;
   if (view.name === 'ask' && view.step > 0) ACTIONS['ask-back']();
   else if (view.name === 'log') go('week', { offset: view.offset, day: view.day });
+  else if (view.name === 'country') go('world', { region: view.region });
+  else if (view.name === 'world' && view.region) go('world');
   else go('home');
 });
 
@@ -938,7 +1033,7 @@ function dishFormHtml(dish, full) {
     kcal: null, healthy: false, icon: '', diets: cleanDiets(state.diet, false), allergens: [], ingredients: [], recipe: '',
   };
   // De allergenen staan ingeklapt, behalve als ze ertoe doen: bij een gerecht dat er al heeft, of als je zelf een allergie hebt.
-  const showAllergens = d.allergens.length > 0 || state.allergies.length > 0;
+  const showAllergens = d.allergens.length > 0 || d.unchecked || hasAllergy();
   const options = (map, selected) => Object.entries(map)
     .map(([value, label]) => `<option value="${value}"${value === selected ? ' selected' : ''}>${label}</option>`).join('');
   return `
@@ -981,7 +1076,7 @@ function dishFormHtml(dish, full) {
       <p class="small muted" style="margin-top:6px">Vegetarisch hoef je niet aan te vinken: dat volgt uit de soort.</p>
       <details${showAllergens ? ' open' : ''}>
         <summary>Allergenen in dit gerecht <span class="muted" style="font-weight:400">(optioneel)</span></summary>
-        <p class="small muted">Vink aan wat erin zit. Heb je zelf een allergie, dan stel ik dit gerecht niet voor als het jouw allergeen bevat.</p>
+        <p class="small muted">${d.unchecked ? 'Van dit gerecht zijn de allergenen nog niet ingevuld. ' : ''}Vink aan wat erin zit. Heb je zelf een allergie, dan stel ik dit gerecht niet voor als het jouw allergeen bevat.</p>
         ${allergenChecksHtml('allergens', d.allergens, 'dish')}
       </details>
       ${full ? `
@@ -1149,6 +1244,7 @@ const VIEWS = {
     const dietBlocks = none && state.dishes.some(d => d.meals.includes(meal));
     const limits = [state.diet.length && 'je dieet', allergyNames().length && 'je allergieën'].filter(Boolean).join(' en ');
     return `
+      <button class="icon-btn globe" data-action="nav" data-view="world" aria-label="Wereldkeuken: gerechten per land">🌍</button>
       <button class="icon-btn settings" data-action="nav" data-view="more" aria-label="Instellingen">⚙️</button>
       <div class="hero">${avatarHtml()}<h1>${greeting()}</h1>
         <p class="muted">${manualMeal ? `Je kiest nu voor ${MEALS[meal].toLowerCase()}.` : `Tijd voor ${MEALS[meal].toLowerCase()}!`} Geen idee wat je wilt eten? Ik help je kiezen.</p></div>
@@ -1330,7 +1426,7 @@ const VIEWS = {
         <p class="muted">${dishMeta(dish)}${dish.kcal == null ? '' : ' · ' + kcalLabel(dish)}</p>
         <p><strong>Eet smakelijk${state.name ? `, ${esc(state.name)}` : ''}! 😋</strong></p>
         <p class="small muted">Ik heb het bij vandaag genoteerd in je week.</p>
-        ${dish.allergens.length ? `<p class="small muted">${allergenLine(dish).replace('Bevat:', 'Bevat meestal:')}</p>` : ''}</div>
+        ${allergenLine(dish) ? `<p class="small muted">${allergenLine(dish).replace('Bevat:', 'Bevat meestal:')}</p>` : ''}</div>
       ${rewardHtml(view.reward)}
       ${view.note ? `<div class="notice">${esc(view.note)}</div>` : ''}
       ${dish.ingredients.length ? `
@@ -1356,9 +1452,52 @@ const VIEWS = {
       <ul class="list">${[...state.dishes].sort((a, b) => a.name.localeCompare(b.name, 'nl')).map(d => `
         <li><span class="icon" aria-hidden="true">${dishIcon(d)}</span>
         <span class="grow"><strong>${esc(d.name)}</strong><br><span class="small muted">${dishDetails(d)}</span>
-          ${userAllergens(d).length ? `<br><span class="small warn">⚠️ Stel ik niet voor: bevat ${userAllergens(d).map(esc).join(', ')}</span>` : ''}</span>
+          ${allergyBlock(d) ? `<br><span class="small warn">⚠️ Stel ik niet voor: ${esc(allergyBlock(d))}</span>` : ''}</span>
         <button class="icon-btn" data-action="edit-dish" data-id="${d.id}" aria-label="Pas ${esc(d.name)} aan">✎</button></li>`).join('')}
       </ul>`;
+  },
+
+  // De wereldkaart: eerst de hele wereld, na het aantikken van een werelddeel de landen daarvan.
+  world() {
+    const region = WORLD[view.region];
+    if (!region) return `
+      <h1>Wereldkeuken</h1>
+      <p class="muted">Tik op een werelddeel en kies daarna een land. Van elk land zie je tien bekende gerechten.</p>
+      ${mapHtml(null)}
+      <div class="chips" style="margin-top:14px">${Object.entries(WORLD).map(([key, { name, countries }]) => `
+        <button class="chip" data-action="world-region" data-region="${key}">${name} <span class="small muted">(${countries.length})</span></button>`).join('')}
+      </div>
+      <button class="btn link" data-action="nav" data-view="home">Terug naar het begin</button>`;
+    return `
+      <h1>${region.name}</h1>
+      <p class="muted">Tik op een vlag om de gerechten van dat land te zien.</p>
+      ${mapHtml(view.region)}
+      <div class="chips" style="margin-top:14px">${region.countries.map(([code, name]) => `
+        <button class="chip" data-action="world-country" data-code="${code}"><span aria-hidden="true">${flag(code)}</span> ${name}</button>`).join('')}
+      </div>
+      <button class="btn link" data-action="nav" data-view="world">← Hele wereld</button>`;
+  },
+
+  // Tien bekende gerechten van één land, elk met een plus om het bij de favorieten te zetten.
+  country() {
+    const [code, name, , , rows] = worldCountry();
+    const have = new Set(state.dishes.map(d => d.name.toLowerCase()));
+    return `
+      <div class="hero"><div class="emoji">${flag(code)}</div><h1>${name}</h1>
+        <p class="muted">Tien bekende gerechten. Tik op de plus om er een bij je favorieten te zetten.</p></div>
+      ${hasAllergy() || state.diet.length ? '<div class="notice">Van de meeste van deze gerechten ken ik de allergenen en de diëten niet. Zet je er een bij je favorieten, vul die dan zelf in bij het gerecht. Tot die tijd stel ik het niet voor.</div>' : ''}
+      <ol class="list">${rows.map((row, i) => {
+        const dish = worldDish(row);
+        const added = have.has(dish.name.toLowerCase());
+        return `
+          <li><span class="rank" aria-hidden="true">${i + 1}</span><span class="icon" aria-hidden="true">${dishIcon(dish)}</span>
+          <span class="grow"><strong>${esc(dish.name)}</strong><br><span class="small muted">${esc(dish.text)}</span></span>
+          <button class="icon-btn${added ? ' done' : ''}" data-action="world-add" data-index="${i}"${added ? ' disabled' : ''}
+            aria-label="${added ? `${esc(dish.name)} staat bij je favorieten` : `Zet ${esc(dish.name)} bij je favorieten`}">${added ? '✓' : '+'}</button></li>`;
+      }).join('')}
+      </ol>
+      <p class="small muted">Dit is mijn eigen keuze van bekende gerechten, geen officiële ranglijst.</p>
+      <button class="btn link" data-action="world-region" data-region="${view.region}">← Terug naar ${WORLD[view.region].name}</button>`;
   },
 
   discover() {
@@ -1511,11 +1650,26 @@ const ACTIONS = {
   },
 
   'add-suggestion'(el) {
-    const [name, meals, time, type, kcal, healthy] = CATALOG[el.dataset.index];
-    if (state.dishes.some(d => d.name.toLowerCase() === name.toLowerCase())) return;
-    state.dishes.push({
-      id: newId(), name, meals: [...meals], time, type, kcal, healthy, icon: '',
-      diets: catalogDiets(name), allergens: catalogAllergens(name), ingredients: [], recipe: '',
+    const item = CATALOG[el.dataset.index];
+    if (state.dishes.some(d => d.name.toLowerCase() === item[0].toLowerCase())) return;
+    state.dishes.push(catalogEntry(item));
+    save();
+    render();
+  },
+
+  'world-region'(el) { go('world', { region: el.dataset.region }); },
+
+  'world-country'(el) { go('country', { region: view.region, code: el.dataset.code }); },
+
+  // Zet een gerecht uit de wereldkeuken bij de favorieten. Staat het ook in de lijst met bekende gerechten,
+  // dan komen de gegevens daarvandaan; anders zijn calorieën, diëten en allergenen nog onbekend.
+  'world-add'(el) {
+    const dish = worldDish(worldCountry()[4][el.dataset.index]);
+    if (state.dishes.some(d => d.name.toLowerCase() === dish.name.toLowerCase())) return;
+    const listed = CATALOG.find(item => item[0].toLowerCase() === dish.name.toLowerCase());
+    state.dishes.push(listed ? catalogEntry(listed) : {
+      id: newId(), name: dish.name, meals: dish.meals, time: dish.time, type: dish.type, kcal: null, healthy: false,
+      icon: dish.icon, diets: [], allergens: [], unchecked: true, ingredients: [], recipe: '',
     });
     save();
     render();
@@ -1726,6 +1880,8 @@ const FORMS = {
       healthy: data.has('healthy'), diets: cleanDiets(data.getAll('diets'), false),
       icon: ICON_SET.has(data.get('icon')) ? data.get('icon') : '',
       allergens: cleanAllergens(data.getAll('allergens')),
+      // Wie het formulier opslaat, heeft de allergenen gezien en zo nodig ingevuld.
+      unchecked: false,
     });
     if (data.has('ingredients')) {
       dish.ingredients = data.get('ingredients').split('\n').map(line => line.trim()).filter(Boolean);
@@ -1862,6 +2018,15 @@ document.addEventListener('submit', event => {
   if (!form) return;
   event.preventDefault();
   FORMS[form.dataset.form](form);
+});
+
+// De werelddelen op de kaart zijn geen gewone knoppen; met Enter of de spatiebalk werken ze toch zo.
+document.addEventListener('keydown', event => {
+  if (event.key !== 'Enter' && event.key !== ' ') return;
+  const el = event.target.closest('g[role="button"][data-action]');
+  if (!el) return;
+  event.preventDefault();
+  ACTIONS[el.dataset.action](el);
 });
 
 // Tussen tabbladen wissel je ook met de pijltjestoetsen, zoals bij tabbladen gebruikelijk is.

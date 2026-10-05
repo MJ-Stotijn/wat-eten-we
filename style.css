@@ -191,8 +191,36 @@ html { font-size: 106.25%; }
   padding: 20px 16px calc(96px + env(safe-area-inset-bottom));
 }
 
-/* Het tandwiel naar de instellingen, rechtsboven op het startscherm */
+/* Het tandwiel naar de instellingen rechtsboven en de wereldbol naar de wereldkeuken linksboven */
 .settings { position: absolute; top: 12px; right: 16px; font-size: 1.2rem; }
+.globe { position: absolute; top: 12px; left: 16px; font-size: 1.2rem; }
+
+/* Wereldkaart: een hoekige tekening van de werelddelen, met vlaggetjes als knoppen eroverheen */
+.map-wrap { position: relative; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius); background: var(--card); box-shadow: var(--shadow); }
+.map { display: block; width: 100%; height: auto; }
+.land polygon { fill: var(--accent-soft); stroke: var(--accent-ink); stroke-width: 1; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.land[data-action] { cursor: pointer; }
+.land[data-action]:hover polygon, .land[data-action]:focus-visible polygon { fill: var(--accent); }
+.land:focus { outline: none; }
+/* Op de ingezoomde kaart zijn de andere werelddelen vaag */
+.land:not(.active):not([data-action]) polygon { fill: var(--border); stroke: var(--border); }
+.marker {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 2px solid var(--accent-ink);
+  border-radius: 50%;
+  background: var(--card);
+  box-shadow: var(--shadow);
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.marker:active { transform: translate(-50%, -50%) scale(0.92); }
+.rank { flex: none; width: 1.3rem; font-weight: 700; color: var(--muted); text-align: center; }
+.icon-btn.done:disabled { opacity: 1; background: none; color: var(--accent-ink); font-weight: 700; }
 
 h1 { font-size: 1.7rem; line-height: 1.2; margin: 8px 0 6px; overflow-wrap: anywhere; }
 h2 { font-size: 1.15rem; margin: 24px 0 8px; }
