@@ -25,10 +25,6 @@ const QUESTIONS = [
     ['licht', '🥗 Licht (tot 400 kcal)'], ['gemiddeld', '🍝 Gemiddeld (400–700 kcal)'],
     ['stevig', '🍔 Stevig (700+ kcal)'], ['', '🤷 Maakt me niet uit'] ] },
 ];
-// De tegelpatronen staan in style.css onder dezelfde naam.
-const TILES = {
-  klassiek: 'Klassiek', metro: 'Metro', dambord: 'Dambord', honingraat: 'Honingraat', delfts: 'Delfts', effen: 'Effen',
-};
 // Bekende gerechten om bij de eerste start met één tik toe te voegen. De calorieën zijn een schatting.
 const SUGGESTIONS = [
   ['Havermout', ['ontbijt'], 'snel', 'vega', 300],
@@ -62,7 +58,7 @@ let meal = defaultMeal();
 // ---------- Opslag ----------
 
 function emptyState() {
-  return { dishes: [], history: [], shopping: [], onboarded: false, welcomed: false, name: '', theme: 'standaard', tiles: 'klassiek' };
+  return { dishes: [], history: [], shopping: [], onboarded: false, welcomed: false, name: '', theme: 'standaard' };
 }
 
 function cleanName(name) {
@@ -77,7 +73,6 @@ function greeting() {
 
 function applyTheme() {
   document.documentElement.dataset.theme = state.theme;
-  document.body.dataset.tiles = state.tiles;
   // De balk van de browser of telefoon krijgt de achtergrondkleur van het thema.
   const bg = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
   document.querySelector('meta[name="theme-color"]').content = bg;
@@ -122,7 +117,6 @@ function sanitize(data) {
     welcomed: data.welcomed === true || dishes.length > 0,
     name: cleanName(data.name),
     theme: Object.hasOwn(THEMES, data.theme) ? data.theme : 'standaard',
-    tiles: Object.hasOwn(TILES, data.tiles) ? data.tiles : 'klassiek',
     dishes,
     history: list(data.history)
       .filter(h => h && ids.has(h.dishId) && !isNaN(new Date(h.date).getTime()))
@@ -549,11 +543,6 @@ const VIEWS = {
           <span class="theme-dot"></span>${name}</button>`).join('')}
       </div>
       <p class="muted small">Standaard volgt de lichte of donkere modus van je telefoon.</p>
-      <h2>Achtergrond</h2>
-      <div class="themes" role="group" aria-label="Achtergrond">${Object.entries(TILES).map(([id, name]) => `
-        <button class="theme swatch" data-tiles="${id}" data-action="set-tiles" aria-pressed="${id === state.tiles}">
-          <span>${name}</span></button>`).join('')}
-      </div>
       <h2>Back-up</h2>
       <p class="muted small">Je gerechten staan alleen op dit apparaat. Maak af en toe een back-up, zodat je niets kwijtraakt.</p>
       <button class="btn" data-action="export">Back-up opslaan</button>
@@ -577,13 +566,6 @@ const ACTIONS = {
 
   'set-theme'(el) {
     state.theme = el.dataset.theme;
-    save();
-    applyTheme();
-    render();
-  },
-
-  'set-tiles'(el) {
-    state.tiles = el.dataset.tiles;
     save();
     applyTheme();
     render();
