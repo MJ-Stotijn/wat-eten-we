@@ -9,6 +9,9 @@ const TIME_SHORT = { snel: 'Snel', normaal: 'Gemiddeld', uitgebreid: 'Uitgebreid
 const TIME_RANK = { snel: 0, normaal: 1, uitgebreid: 2 };
 const TYPES = { vlees: 'Vlees', vis: 'Vis', vega: 'Vegetarisch' };
 const MEALS = { ontbijt: 'Ontbijt', middag: 'Middageten', avond: 'Avondeten' };
+const DAYS = ['Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag', 'Zaterdag', 'Zondag'];
+const MAX_WEEKS_BACK = 52;
+const MAX_HISTORY = 2000;
 // De kleuren van elk thema staan in style.css onder dezelfde naam.
 const THEMES = {
   standaard: 'Standaard', tomaat: 'Tomaat', citroen: 'Citroen', munt: 'Munt', lavendel: 'Lavendel',
@@ -106,7 +109,7 @@ function sanitize(data) {
       meals: cleanMeals(d.meals),
       time: d.time,
       type: d.type,
-      kcal: Number.isFinite(d.kcal) && d.kcal >= 0 && d.kcal <= 5000 ? Math.round(d.kcal) : null,
+      kcal: cleanKcal(d.kcal),
       ingredients: list(d.ingredients).map(i => String(i).trim()).filter(Boolean),
       recipe: typeof d.recipe === 'string' ? d.recipe : '',
     });
@@ -118,9 +121,23 @@ function sanitize(data) {
     name: cleanName(data.name),
     theme: Object.hasOwn(THEMES, data.theme) ? data.theme : 'standaard',
     dishes,
-    history: list(data.history)
-      .filter(h => h && ids.has(h.dishId) && !isNaN(new Date(h.date).getTime()))
-      .map(h => ({ dishId: h.dishId, date: new Date(h.date).toISOString(), meal: Object.hasOwn(MEALS, h.meal) ? h.meal : 'avond' })),
+    history: list(data.history).map(h => {
+      if (!h || isNaN(new Date(h.date).getTime())) return null;
+      const dish = dishes.find(d => d.id === h.dishId);
+      // Notities van voor het weekoverzicht hebben geen eigen naam; die komt dan uit het gerecht.
+      const old = typeof h.name !== 'string' || !h.name.trim();
+      if (old && !dish) return null;
+      return {
+        id: newId(),
+        dishId: dish ? dish.id : null,
+        name: old ? dish.name : h.name.trim().slice(0, 60),
+        type: old ? dish.type : Object.hasOwn(TYPES, h.type) ? h.type : null,
+        kcal: old ? dish.kcal : cleanKcal(h.kcal),
+        meal: Object.hasOwn(MEALS, h.meal) ? h.meal : 'avond',
+        date: new Date(h.date).toISOString(),
+        picked: h.picked !== false,
+      };
+    }).filter(Boolean).slice(-MAX_HISTORY),
     shopping: list(data.shopping)
       .filter(i => i && typeof i.text === 'string' && i.text.trim())
       .map(i => ({ id: newId(), text: i.text.trim().slice(0, 80), done: i.done === true, dish: typeof i.dish === 'string' ? i.dish : '' })),
@@ -153,6 +170,10 @@ function kcalCategory(kcal) {
   return 'stevig';
 }
 
+function cleanKcal(kcal) {
+  return Number.isFinite(kcal) && kcal >= 0 && kcal <= 5000 ? Math.round(kcal) : null;
+}
+
 function cleanMeals(meals) {
   const known = Array.isArray(meals) ? Object.keys(MEALS).filter(m => meals.includes(m)) : [];
   return known.length ? known : ['avond'];
@@ -181,8 +202,66 @@ function kcalLabel(dish) {
 }
 
 function daysSinceChosen(dishId) {
-  const last = state.history.filter(h => h.dishId === dishId).pop();
-  return last ? (Date.now() - new Date(last.date).getTime()) / 86400000 : Infinity;
+  const times = state.history.filter(h => h.dishId === dishId).map(h => new Date(h.date).getTime());
+  return times.length ? (Date.now() - Math.max(...times)) / 86400000 : Infinity;
+}
+
+// ---------- Bijhouden wat je hebt gegeten ----------
+
+// De datum op het apparaat van de gebruiker, als JJJJ-MM-DD.
+function dayKey(date) {
+  const d = new Date(date);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// De maandag van een week, `offset` weken vanaf nu. Midden op de dag, zodat zomertijd de datum niet verschuift.
+function weekStart(offset) {
+  const d = new Date();
+  d.setHours(12, 0, 0, 0);
+  d.setDate(d.getDate() - (d.getDay() + 6) % 7 + offset * 7);
+  return d;
+}
+
+function shortDate(date) {
+  return date.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' });
+}
+
+function entriesOn(day) {
+  const order = Object.keys(MEALS);
+  return state.history.filter(h => dayKey(h.date) === day).sort((a, b) => order.indexOf(a.meal) - order.indexOf(b.meal));
+}
+
+// De eerste maaltijd van die dag waar nog niets bij staat.
+function openMeal(day) {
+  const have = new Set(entriesOn(day).map(h => h.meal));
+  return Object.keys(MEALS).find(m => !have.has(m)) || 'avond';
+}
+
+// Naam, soort en calorieën worden vastgelegd zoals ze nu zijn, zodat het overzicht blijft kloppen
+// als het gerecht later verandert of verdwijnt. `picked` is waar voor een keuze via het vragenmenu.
+function logEntry(source, day, mealKey, picked) {
+  const date = day === dayKey(new Date()) ? new Date() : new Date(`${day}T12:00:00`);
+  const entry = {
+    id: newId(),
+    dishId: source.id || null,
+    name: source.name,
+    type: source.type || null,
+    kcal: source.kcal == null ? null : source.kcal,
+    meal: mealKey,
+    date: date.toISOString(),
+    picked,
+  };
+  state.history.push(entry);
+  state.history = state.history.slice(-MAX_HISTORY);
+  return entry;
+}
+
+function entryHtml(entry, removable) {
+  return `
+    <li><span class="icon" aria-hidden="true">${TYPE_ICON[entry.type] || '🍽️'}</span>
+    <span class="grow"><strong>${esc(entry.name)}</strong><br>
+      <span class="small muted">${MEALS[entry.meal]}${entry.kcal == null ? '' : ` · ${entry.kcal} kcal`}</span></span>
+    ${removable ? `<button class="icon-btn" data-action="remove-entry" data-id="${entry.id}" aria-label="Verwijder ${esc(entry.name)}">✕</button>` : ''}</li>`;
 }
 
 // ---------- Gerechten kiezen ----------
@@ -216,10 +295,14 @@ function buildQueue(answers) {
 }
 
 function choose(id, note) {
-  state.history.push({ dishId: id, date: new Date().toISOString(), meal });
-  state.history = state.history.slice(-200);
+  const today = dayKey(new Date());
+  // Een nieuwe keuze voor dezelfde maaltijd vervangt de vorige keuze van vandaag.
+  // Wat je zelf in het weekoverzicht hebt genoteerd, blijft staan.
+  const replaced = state.history.filter(h => h.picked && h.meal === meal && dayKey(h.date) === today);
+  state.history = state.history.filter(h => !replaced.includes(h));
+  const entry = logEntry(dishById(id), today, meal, true);
   save();
-  go('chosen', { id, note });
+  go('chosen', { id, note, entryId: entry.id, replaced });
 }
 
 // ---------- Navigatie ----------
@@ -237,6 +320,11 @@ function go(name, extra = {}) {
   if (title) {
     title.tabIndex = -1;
     title.focus({ preventScroll: true });
+  }
+  // In het weekoverzicht staat de dag waar het om gaat meteen in beeld.
+  if (name === 'week') {
+    const card = app.querySelector(view.day ? `.day[data-day="${view.day}"]` : '.day.today');
+    if (card) card.scrollIntoView({ block: 'nearest' });
   }
   syncHistory();
 }
@@ -264,6 +352,7 @@ window.addEventListener('popstate', () => {
   }
   if (!state.onboarded || view.name === 'home') return;
   if (view.name === 'ask' && view.step > 0) ACTIONS['ask-back']();
+  else if (view.name === 'log') go('week', { offset: view.offset, day: view.day });
   else go('home');
 });
 
@@ -278,7 +367,7 @@ document.addEventListener('visibilitychange', () => {
   }
 });
 
-const NAV_TAB = { favorites: 'favorites', edit: 'favorites', shopping: 'shopping', more: 'more' };
+const NAV_TAB = { week: 'week', log: 'week', favorites: 'favorites', edit: 'favorites', shopping: 'shopping', more: 'more' };
 
 function render() {
   if (!state.onboarded) view.name = state.welcomed ? 'onboarding' : 'welcome';
@@ -389,7 +478,7 @@ const VIEWS = {
   },
 
   home() {
-    const recent = state.history.slice(-3).reverse().filter(h => dishById(h.dishId));
+    const eaten = entriesOn(dayKey(new Date()));
     const none = mealDishes().length === 0;
     const off = none ? ' disabled' : '';
     return `
@@ -405,11 +494,75 @@ const VIEWS = {
         <button class="btn" data-action="surprise"${off}>🎲 Verras me</button>
         <button class="btn" data-action="nav" data-view="group-setup"${off}>👥 Samen kiezen</button>
       </div>
-      ${recent.length ? `<h2>Laatst gekozen</h2>
-        <ul class="list">${recent.map(h => `
-          <li><span class="grow">${esc(dishById(h.dishId).name)}${MEALS[h.meal] ? `<br><span class="small muted">${MEALS[h.meal]}</span>` : ''}</span>
-          <span class="small muted">${new Date(h.date).toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric', month: 'short' })}</span></li>`).join('')}
-        </ul>` : ''}`;
+      ${eaten.length ? `<h2>Vandaag gegeten</h2>
+        <ul class="list">${eaten.map(h => entryHtml(h, false)).join('')}</ul>
+        <button class="btn link" data-action="nav" data-view="week">Bekijk je hele week</button>` : ''}`;
+  },
+
+  week() {
+    const offset = view.offset || 0;
+    const start = weekStart(offset);
+    const today = dayKey(new Date());
+    const days = DAYS.map((label, i) => {
+      const date = new Date(start);
+      date.setDate(start.getDate() + i);
+      return { label, date, key: dayKey(date) };
+    });
+    const title = offset === 0 ? 'Deze week' : offset === -1 ? 'Vorige week' : `Week van ${shortDate(start)}`;
+    return `
+      <h1>Mijn week</h1>
+      <p class="muted">Hier zie je wat je hebt gegeten. Wat je kiest, noteer ik vanzelf bij vandaag. Met de plus zet je er zelf iets bij.</p>
+      <div class="weeknav">
+        <button class="icon-btn" data-action="week-move" data-step="-1" aria-label="Vorige week"${offset <= -MAX_WEEKS_BACK ? ' disabled' : ''}>‹</button>
+        <div class="center"><strong>${title}</strong><br><span class="small muted">${shortDate(start)} t/m ${shortDate(days[6].date)}</span></div>
+        <button class="icon-btn" data-action="week-move" data-step="1" aria-label="Volgende week"${offset >= 0 ? ' disabled' : ''}>›</button>
+      </div>
+      ${days.map(day => {
+        const entries = entriesOn(day.key);
+        const future = day.key > today;
+        const known = entries.filter(h => h.kcal != null);
+        // Een plus achter het totaal betekent dat niet van alles de calorieën bekend zijn.
+        const total = known.length ? `${known.reduce((sum, h) => sum + h.kcal, 0)}${known.length < entries.length ? '+' : ''} kcal` : '';
+        return `
+          <section class="card day${day.key === today ? ' today' : ''}${future ? ' future' : ''}" data-day="${day.key}">
+            <div class="day-head">
+              <h2>${day.label} <span class="small muted">${shortDate(day.date)}</span>${day.key === today ? ' <span class="pill">vandaag</span>' : ''}</h2>
+              <span class="bar-kcal">${total}</span>
+              ${future ? '' : `<button class="icon-btn" data-action="log-day" data-day="${day.key}" aria-label="Iets noteren bij ${day.label.toLowerCase()}">+</button>`}
+            </div>
+            ${entries.length ? `<ul class="list">${entries.map(h => entryHtml(h, true)).join('')}</ul>`
+              : `<p class="small muted">${future ? 'Deze dag moet nog komen.' : 'Nog niets genoteerd.'}</p>`}
+          </section>`;
+      }).join('')}`;
+  },
+
+  log() {
+    const date = new Date(`${view.day}T12:00:00`);
+    const when = view.day === dayKey(new Date()) ? 'vandaag'
+      : `op ${date.toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' })}`;
+    // Eerst de gerechten die bij de gekozen maaltijd horen.
+    const dishes = [...state.dishes].sort((a, b) =>
+      b.meals.includes(view.meal) - a.meals.includes(view.meal) || a.name.localeCompare(b.name, 'nl'));
+    return `
+      <h1>Wat at je ${when}?</h1>
+      <div class="segments" role="group" aria-label="Maaltijd">${Object.entries(MEALS).map(([value, label]) => `
+        <button data-action="log-meal" data-meal="${value}" aria-pressed="${value === view.meal}">${label}</button>`).join('')}
+      </div>
+      <h2>Tik een favoriet aan</h2>
+      <div class="chips">${dishes.map(d => `
+        <button class="chip" data-action="log-dish" data-id="${d.id}"><span aria-hidden="true">${TYPE_ICON[d.type]}</span> ${esc(d.name)}</button>`).join('')}
+      </div>
+      <h2>Of iets anders gegeten?</h2>
+      <form data-form="log" novalidate>
+        <label for="f-logname">Wat was het?</label>
+        <input id="f-logname" name="name" type="text" maxlength="60" autocomplete="off" placeholder="Bijvoorbeeld: friet">
+        <label for="f-logkcal">Calorieën <span class="muted">(optioneel)</span></label>
+        <input id="f-logkcal" name="kcal" type="number" inputmode="numeric" min="0" max="5000" placeholder="Bijvoorbeeld: 550">
+        <p class="error" role="alert" hidden></p>
+        <p></p>
+        <button class="btn primary" type="submit">Noteren</button>
+      </form>
+      <button class="btn link" data-action="log-cancel">Annuleren</button>`;
   },
 
   'group-setup'() {
@@ -472,7 +625,8 @@ const VIEWS = {
         <p class="muted">Je ${MEALS[meal].toLowerCase()} wordt…</p>
         <h1>${esc(dish.name)}</h1>
         <p class="muted">${dishMeta(dish)}${dish.kcal == null ? '' : ' · ' + kcalLabel(dish)}</p>
-        <p><strong>Eet smakelijk${state.name ? `, ${esc(state.name)}` : ''}! 😋</strong></p></div>
+        <p><strong>Eet smakelijk${state.name ? `, ${esc(state.name)}` : ''}! 😋</strong></p>
+        <p class="small muted">Ik heb het bij vandaag genoteerd in je week.</p></div>
       ${view.note ? `<div class="notice">${esc(view.note)}</div>` : ''}
       ${dish.ingredients.length ? `
         <div class="card"><h2 style="margin-top:0">Ingrediënten</h2>
@@ -618,7 +772,7 @@ const ACTIONS = {
   },
 
   // Vanuit de resultaten: alleen uit de passende gerechten. Vanaf het startscherm: uit alles.
-  // Gerechten die je al met "Geen van deze" hebt afgewezen, doen niet meer mee.
+  // Gerechten die je al met "Iets anders" hebt afgewezen, doen niet meer mee.
   surprise() {
     const inResults = view.name === 'results';
     const queue = inResults ? view.queue.slice(view.page * PER_PAGE) : buildQueue({});
@@ -656,10 +810,39 @@ const ACTIONS = {
     render();
   },
 
+  // Haalt de notitie van deze keuze weg en zet terug wat ze verving.
   'undo-choice'() {
-    state.history.pop();
+    state.history = state.history.filter(h => h.id !== view.entryId).concat(view.replaced || []);
     save();
     go('home');
+  },
+
+  'week-move'(el) {
+    const offset = Math.min(0, Math.max(-MAX_WEEKS_BACK, (view.offset || 0) + Number(el.dataset.step)));
+    go('week', { offset });
+  },
+
+  'log-day'(el) {
+    go('log', { day: el.dataset.day, offset: view.offset || 0, meal: openMeal(el.dataset.day) });
+  },
+
+  'log-meal'(el) {
+    view.meal = el.dataset.meal;
+    render();
+  },
+
+  'log-dish'(el) {
+    logEntry(dishById(el.dataset.id), view.day, view.meal, false);
+    save();
+    go('week', { offset: view.offset, day: view.day });
+  },
+
+  'log-cancel'() { go('week', { offset: view.offset, day: view.day }); },
+
+  'remove-entry'(el) {
+    state.history = state.history.filter(h => h.id !== el.dataset.id);
+    save();
+    render();
   },
 
   'edit-dish'(el) { go('edit', { id: el.dataset.id || null }); },
@@ -668,7 +851,10 @@ const ACTIONS = {
     if (state.dishes.length <= MIN_DISHES) return;
     if (!view.confirm) { view.confirm = true; return render(); }
     state.dishes = state.dishes.filter(d => d.id !== view.id);
-    state.history = state.history.filter(h => h.dishId !== view.id);
+    // Wat je ervan hebt gegeten, blijft in je week staan; alleen de koppeling met het gerecht vervalt.
+    for (const h of state.history) {
+      if (h.dishId === view.id) h.dishId = null;
+    }
     save();
     go('favorites');
   },
@@ -745,6 +931,26 @@ const FORMS = {
     save();
     view.nameSaved = true;
     render();
+  },
+
+  // Iets noteren dat niet bij je favorieten staat.
+  log(form) {
+    const data = new FormData(form);
+    const name = data.get('name').trim().slice(0, 60);
+    const kcalText = data.get('kcal').trim();
+    const kcal = kcalText === '' ? null : Math.round(Number(kcalText));
+    const fail = message => {
+      const error = form.querySelector('.error');
+      error.textContent = message;
+      error.hidden = false;
+    };
+
+    if (!name) return fail('Wat heb je gegeten? Vul nog even in wat het was.');
+    if (kcal != null && !(kcal >= 0 && kcal <= 5000)) return fail('Dat aantal calorieën klopt niet. Kies een getal tussen 0 en 5000.');
+
+    logEntry({ name, kcal }, view.day, view.meal, false);
+    save();
+    go('week', { offset: view.offset, day: view.day });
   },
 
   shopping(form) {

@@ -13,10 +13,11 @@
 <body>
   <main id="app"></main>
   <nav id="nav" hidden>
-    <button data-action="nav" data-view="home"><span class="nav-icon">🍽️</span>Kiezen</button>
-    <button data-action="nav" data-view="favorites"><span class="nav-icon">⭐</span>Favorieten</button>
-    <button data-action="nav" data-view="shopping"><span class="nav-icon">🛒</span>Boodschappen</button>
-    <button data-action="nav" data-view="more"><span class="nav-icon">⚙️</span>Meer</button>
+    <button data-action="nav" data-view="home"><span class="nav-icon" aria-hidden="true">🍽️</span>Kiezen</button>
+    <button data-action="nav" data-view="week"><span class="nav-icon" aria-hidden="true">📅</span>Week</button>
+    <button data-action="nav" data-view="favorites"><span class="nav-icon" aria-hidden="true">⭐</span>Favorieten</button>
+    <button data-action="nav" data-view="shopping" aria-label="Boodschappenlijst"><span class="nav-icon" aria-hidden="true">🛒</span>Lijst</button>
+    <button data-action="nav" data-view="more"><span class="nav-icon" aria-hidden="true">⚙️</span>Meer</button>
   </nav>
   <script src="app.js"></script>
 </body>
