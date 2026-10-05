@@ -5,14 +5,15 @@
 /* Standaard: volgt de lichte of donkere modus van het apparaat */
 :root, [data-theme="standaard"] {
   color-scheme: light;
-  --bg: #fff8f1;
+  /* Warmwit: gebroken wit met een zachte, gelige ondertoon */
+  --bg: #f8f4ea;
   --card: #ffffff;
   --text: #2b2118;
-  --muted: #7a6a5c;
+  --muted: #6f6053;
   --border: #eadfd3;
   --accent: #c2410c;
   --accent-text: #ffffff;
-  --accent-ink: #c2410c;
+  --accent-ink: #b23a0a;
   --accent-soft: #ffe8d6;
   --danger: #c92a2a;
 }
