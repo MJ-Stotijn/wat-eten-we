@@ -1,0 +1,494 @@
+/* Thema's. --accent is de vulkleur van knoppen, --accent-ink de accentkleur voor tekst en lijnen.
+   De selectors werken ook op losse elementen, zodat de themakiezer elk thema kan voorvertonen. */
+:root { --radius: 22px; --shadow: 0 2px 12px rgba(0, 0, 0, 0.07); }
+
+/* Standaard: volgt de lichte of donkere modus van het apparaat */
+:root, [data-theme="standaard"] {
+  color-scheme: light;
+  --bg: #fff8f1;
+  --card: #ffffff;
+  --text: #2b2118;
+  --muted: #7a6a5c;
+  --border: #eadfd3;
+  --accent: #c2410c;
+  --accent-text: #ffffff;
+  --accent-ink: #c2410c;
+  --accent-soft: #ffe8d6;
+  --danger: #c92a2a;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]), [data-theme="standaard"] {
+    color-scheme: dark;
+    --bg: #1c1714;
+    --card: #2a231e;
+    --text: #f5ece4;
+    --muted: #b3a497;
+    --border: #40362e;
+    --accent: #ff8a3d;
+    --accent-text: #1c1714;
+    --accent-ink: #ff8a3d;
+    --accent-soft: #3d2a1c;
+    --danger: #ff8787;
+  }
+}
+
+/* Lichte thema's */
+[data-theme="tomaat"] {
+  color-scheme: light;
+  --bg: #fff5f3;
+  --card: #ffffff;
+  --text: #2a1512;
+  --muted: #7a5a55;
+  --border: #f1d5cf;
+  --accent: #c81e1e;
+  --accent-text: #ffffff;
+  --accent-ink: #c81e1e;
+  --accent-soft: #ffe0db;
+  --danger: #a61b1b;
+}
+
+[data-theme="citroen"] {
+  color-scheme: light;
+  --bg: #fffbea;
+  --card: #ffffff;
+  --text: #2b2610;
+  --muted: #6f673f;
+  --border: #eee3b0;
+  --accent: #f6c026;
+  --accent-text: #2b2610;
+  --accent-ink: #7a5c00;
+  --accent-soft: #fdf0bf;
+  --danger: #b42318;
+}
+
+[data-theme="munt"] {
+  color-scheme: light;
+  --bg: #f1fbf9;
+  --card: #ffffff;
+  --text: #10302c;
+  --muted: #4f6f6a;
+  --border: #cde9e4;
+  --accent: #0f766e;
+  --accent-text: #ffffff;
+  --accent-ink: #0f766e;
+  --accent-soft: #d5f2ee;
+  --danger: #b42318;
+}
+
+/* Naar Catppuccin Latte */
+[data-theme="lavendel"] {
+  color-scheme: light;
+  --bg: #eff1f5;
+  --card: #ffffff;
+  --text: #4c4f69;
+  --muted: #5c5f77;
+  --border: #ccd0da;
+  --accent: #8839ef;
+  --accent-text: #ffffff;
+  --accent-ink: #7a2fe0;
+  --accent-soft: #e6ddf8;
+  --danger: #d20f39;
+}
+
+/* Donkere thema's */
+/* Naar Nord */
+[data-theme="blauwe-bes"] {
+  color-scheme: dark;
+  --bg: #2e3440;
+  --card: #3b4252;
+  --text: #eceff4;
+  --muted: #c3ccdb;
+  --border: #4c566a;
+  --accent: #88c0d0;
+  --accent-text: #2e3440;
+  --accent-ink: #88c0d0;
+  --accent-soft: #434c5e;
+  --danger: #f0a0a8;
+}
+
+/* Naar Dracula */
+[data-theme="aubergine"] {
+  color-scheme: dark;
+  --bg: #282a36;
+  --card: #343746;
+  --text: #f8f8f2;
+  --muted: #b9bdd3;
+  --border: #44475a;
+  --accent: #bd93f9;
+  --accent-text: #282a36;
+  --accent-ink: #bd93f9;
+  --accent-soft: #44475a;
+  --danger: #ff7b7b;
+}
+
+/* Naar Tokyo Night */
+[data-theme="nachtmarkt"] {
+  color-scheme: dark;
+  --bg: #1a1b26;
+  --card: #24283b;
+  --text: #c0caf5;
+  --muted: #9aa5ce;
+  --border: #3b4261;
+  --accent: #7aa2f7;
+  --accent-text: #1a1b26;
+  --accent-ink: #7aa2f7;
+  --accent-soft: #2f3549;
+  --danger: #f7768e;
+}
+
+/* Naar Gruvbox */
+[data-theme="mosterd"] {
+  color-scheme: dark;
+  --bg: #282828;
+  --card: #3c3836;
+  --text: #ebdbb2;
+  --muted: #bdae93;
+  --border: #504945;
+  --accent: #fabd2f;
+  --accent-text: #282828;
+  --accent-ink: #fabd2f;
+  --accent-soft: #504945;
+  --danger: #fc8f81;
+}
+
+/* Naar Everforest */
+[data-theme="olijf"] {
+  color-scheme: dark;
+  --bg: #2d353b;
+  --card: #343f44;
+  --text: #d3c6aa;
+  --muted: #aeb6a4;
+  --border: #475258;
+  --accent: #a7c080;
+  --accent-text: #2d353b;
+  --accent-ink: #a7c080;
+  --accent-soft: #3d484d;
+  --danger: #f0959a;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  /* Ronde letters waar het apparaat ze heeft (iPhone, sommige Android-toestellen) */
+  font-family: ui-rounded, "SF Pro Rounded", "Nunito", "Quicksand", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.45;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* In procenten, zodat een grotere letter in de telefooninstellingen wordt gevolgd */
+html { font-size: 106.25%; }
+
+/* Keukentegels als achtergrond. De tekening is een masker, de kleur komt uit het thema,
+   dus elke tegelsoort werkt in elk thema. De achtergrondkleur zelf zit op html. */
+body { background: none; }
+:root {
+  --grout: color-mix(in srgb, var(--text) 9%, var(--bg));
+  --tint: color-mix(in srgb, var(--text) 4%, var(--bg));
+}
+body::before, body::after, .swatch::before, .swatch::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: var(--tile-color, var(--grout));
+  -webkit-mask: var(--tile-mask) 0 0 / var(--tile-size);
+  mask: var(--tile-mask) 0 0 / var(--tile-size);
+}
+body::before, body::after { position: fixed; z-index: -1; }
+/* De tweede laag is alleen voor de versiering van Delfts */
+body::after, .swatch::after {
+  display: none;
+  background: var(--accent-ink);
+  opacity: 0.2;
+  -webkit-mask-image: var(--tile-mask2);
+  mask-image: var(--tile-mask2);
+}
+[data-tiles="delfts"]::after { display: block; }
+body:not([data-tiles])::before, [data-tiles="effen"]::before { display: none; }
+
+[data-tiles="klassiek"] {
+  --tile-size: 56px 56px;
+  --tile-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56'%3E%3Cpath d='M0 1H56M1 0V56' stroke='%23000' stroke-width='2' fill='none'/%3E%3C/svg%3E");
+}
+[data-tiles="metro"] {
+  --tile-size: 96px 80px;
+  --tile-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='80'%3E%3Cpath d='M0 1H96M0 41H96M1 0V40M49 40V80' stroke='%23000' stroke-width='2' fill='none'/%3E%3C/svg%3E");
+}
+[data-tiles="dambord"] {
+  --tile-size: 88px 88px;
+  --tile-color: var(--tint);
+  --tile-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='88' height='88'%3E%3Cpath d='M0 0H44V44H0ZM44 44H88V88H44Z'/%3E%3C/svg%3E");
+}
+[data-tiles="honingraat"] {
+  --tile-size: 56px 96px;
+  --tile-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='96'%3E%3Cpath d='M28 0L56 16V48L28 64L0 48V16ZM28 64V96' stroke='%23000' stroke-width='2' fill='none'/%3E%3C/svg%3E");
+}
+[data-tiles="delfts"] {
+  --tile-size: 64px 64px;
+  --tile-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64'%3E%3Cpath d='M0 1H64M1 0V64' stroke='%23000' stroke-width='2' fill='none'/%3E%3C/svg%3E");
+  --tile-mask2: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64'%3E%3Ccircle cx='1' cy='1' r='8'/%3E%3Ccircle cx='65' cy='1' r='8'/%3E%3Ccircle cx='1' cy='65' r='8'/%3E%3Ccircle cx='65' cy='65' r='8'/%3E%3Cpath d='M33 26l7 7-7 7-7-7z'/%3E%3C/svg%3E");
+}
+
+#app {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 20px 16px calc(96px + env(safe-area-inset-bottom));
+}
+
+h1 { font-size: 1.7rem; line-height: 1.2; margin: 8px 0 6px; overflow-wrap: anywhere; }
+h2 { font-size: 1.15rem; margin: 24px 0 8px; }
+p { margin: 0 0 12px; }
+.muted { color: var(--muted); }
+.small { font-size: 0.88rem; }
+.center { text-align: center; }
+
+button, input, select, textarea { font: inherit; color: inherit; }
+
+.btn {
+  display: block;
+  width: 100%;
+  min-height: 52px;
+  padding: 12px 16px;
+  border: 1.5px solid var(--border);
+  border-radius: 999px;
+  background: var(--card);
+  font-weight: 600;
+  cursor: pointer;
+  margin-bottom: 10px;
+  transition: transform 0.12s;
+}
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); box-shadow: var(--shadow); }
+.btn.big { min-height: 68px; font-size: 1.2rem; }
+.btn.danger { color: var(--danger); }
+.btn.link { border: none; background: none; color: var(--accent-ink); min-height: 44px; }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn:active:not(:disabled) { transform: scale(0.985); }
+
+/* Blijft onderin beeld, zodat je niet hoeft te zoeken naar de knop om verder te gaan */
+.btn.sticky { position: sticky; bottom: 12px; z-index: 2; }
+.btn.sticky:disabled { opacity: 1; background: var(--card); border-color: var(--border); color: var(--muted); box-shadow: var(--shadow); }
+h1:focus { outline: none; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.chip {
+  min-height: 44px;
+  padding: 8px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: 999px;
+  background: var(--card);
+  cursor: pointer;
+}
+.chip:active { transform: scale(0.96); }
+
+.row { display: flex; gap: 10px; }
+.row > * { flex: 1; }
+
+/* De balkjes met gerechten */
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 80px;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+  box-shadow: var(--shadow);
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.12s;
+}
+.bar:active { transform: scale(0.98); }
+.bar-text { flex: 1; min-width: 0; }
+.bar-name { font-weight: 700; font-size: 1.1rem; overflow-wrap: anywhere; }
+.bar-meta { color: var(--muted); font-size: 0.88rem; }
+.bar-kcal { flex: none; font-weight: 700; color: var(--accent-ink); white-space: nowrap; }
+.bar.near { box-shadow: none; border-style: dashed; }
+.tag { display: block; font-style: italic; }
+
+/* Rond vakje met het plaatje van een gerecht */
+.icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  font-size: 1.45rem;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 14px 16px;
+  margin-bottom: 12px;
+}
+
+.notice {
+  background: var(--accent-soft);
+  border-radius: 16px;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  font-size: 0.92rem;
+}
+
+.progress { height: 8px; border-radius: 4px; background: var(--border); overflow: hidden; margin: 8px 0 16px; }
+.progress > div { height: 100%; background: var(--accent); transition: width 0.2s; }
+
+label { display: block; font-weight: 600; margin: 14px 0 6px; }
+label .muted { font-weight: 400; }
+input[type="text"], input[type="number"], select, textarea {
+  width: 100%;
+  min-height: 48px;
+  padding: 10px 12px;
+  border: 1.5px solid var(--border);
+  border-radius: 16px;
+  background: var(--card);
+}
+textarea { min-height: 96px; resize: vertical; }
+input:focus, select:focus, textarea:focus, button:focus-visible { outline: 3px solid var(--accent-ink); outline-offset: 1px; }
+fieldset { border: none; margin: 0; padding: 0; }
+legend { font-weight: 600; margin: 14px 0 6px; padding: 0; }
+.checks { display: flex; flex-wrap: wrap; gap: 8px; }
+.check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 0 auto;
+  min-height: 48px;
+  margin: 0;
+  padding: 8px 12px;
+  border: 1.5px solid var(--border);
+  border-radius: 999px;
+  background: var(--card);
+  font-weight: 400;
+  cursor: pointer;
+}
+.check input { width: 22px; height: 22px; flex: none; accent-color: var(--accent); }
+
+/* Keuze tussen ontbijt, middageten en avondeten */
+.segments {
+  display: flex;
+  margin: 8px 0 16px;
+  padding: 4px;
+  border: 1.5px solid var(--border);
+  /* Rond bij één rij; bij grote letters breken de knoppen af naar meer rijen */
+  border-radius: 28px;
+  background: var(--card);
+  flex-wrap: wrap;
+}
+.segments button {
+  flex: 1 1 auto;
+  min-height: 44px;
+  padding: 6px 4px;
+  border: none;
+  border-radius: 999px;
+  background: none;
+  font-size: 0.9rem;
+  color: var(--muted);
+  cursor: pointer;
+}
+.segments button[aria-pressed="true"] { background: var(--accent); color: var(--accent-text); font-weight: 700; }
+
+.error { color: var(--danger); font-weight: 600; margin-top: 8px; }
+
+.list { list-style: none; margin: 0; padding: 0; }
+.list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+}
+.list .grow { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.list .icon-btn {
+  flex: none;
+  min-width: 44px;
+  min-height: 44px;
+  border: none;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  cursor: pointer;
+}
+.list input[type="checkbox"] { width: 24px; height: 24px; flex: none; accent-color: var(--accent); }
+.done { text-decoration: line-through; color: var(--muted); }
+
+.recipe { white-space: pre-wrap; }
+.hero { text-align: center; padding: 16px 0 8px; }
+.hero .emoji {
+  display: grid;
+  place-items: center;
+  width: 5.6rem;
+  height: 5.6rem;
+  margin: 0 auto 12px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  font-size: 3rem;
+}
+
+/* Beweging: schermen komen zacht in beeld, het gekozen gerecht springt even op */
+@media (prefers-reduced-motion: no-preference) {
+  #app.enter { animation: rise 0.28s ease-out; }
+  .hero .emoji.pop { animation: pop 0.5s cubic-bezier(0.3, 1.6, 0.5, 1); }
+}
+@keyframes rise { from { opacity: 0; transform: translateY(10px); } }
+@keyframes pop { from { transform: scale(0.4) rotate(-12deg); opacity: 0; } }
+
+#nav {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  display: flex;
+  background: var(--card);
+  border-top: 1.5px solid var(--border);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+#nav[hidden] { display: none; }
+#nav button {
+  flex: 1;
+  min-height: 64px;
+  border: none;
+  background: none;
+  /* Begrensd op de schermbreedte, zodat alle vier de knoppen ook bij grote letters in beeld blijven */
+  min-width: 0;
+  padding: 4px 2px;
+  font-size: min(0.78rem, 3.4vw);
+  color: var(--muted);
+  cursor: pointer;
+}
+#nav button.active { color: var(--accent-ink); font-weight: 700; }
+
+/* Themakiezer: elk vakje draagt zijn eigen data-theme en toont dus zijn eigen kleuren */
+.themes { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(7.5rem, 100%), 1fr)); gap: 10px; margin-bottom: 12px; }
+.theme {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 56px;
+  padding: 8px 12px;
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg);
+  color: var(--text);
+  font-weight: 600;
+  font-size: 0.92rem;
+  text-align: left;
+  cursor: pointer;
+}
+.theme[aria-pressed="true"] { border-color: var(--accent-ink); box-shadow: 0 0 0 2px var(--accent-ink); }
+/* Voorvertoning van een tegelsoort: het vakje toont het patroon, de naam staat op een leesbaar plaatje */
+.swatch { position: relative; overflow: hidden; min-height: 76px; justify-content: center; }
+.swatch span { position: relative; z-index: 1; padding: 4px 12px; border-radius: 999px; background: var(--card); }
+.theme-dot { flex: none; width: 22px; height: 22px; border-radius: 50%; background: var(--accent); border: 2px solid var(--card); }
+.nav-icon { display: block; font-size: min(1.35rem, 7vw); }
