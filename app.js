@@ -317,6 +317,7 @@ const ICONS = [
   ['🥐', 'Croissant', ['croissant']],
   ['🧇', 'Wafel', ['wafel']],
   ['🍮', 'Toetje', ['pudding', 'pavlova', 'tiramisu']],
+  ['🍰', 'Gebak', [/gebak\b/, /cake\b/, 'cupcake', 'muffin', 'brownie']],
   ['🥤', 'Smoothie', ['smoothie', 'shake']],
   ['🥦', 'Groente', ['broccoli', 'bloemkool', 'groente', 'bonen', 'boontjes']],
   ['🍄', 'Paddenstoelen', ['champignon', 'paddenstoel']],
@@ -623,14 +624,19 @@ function flag(code) {
   return String.fromCodePoint(...[...code].map(letter => 0x1F1E6 + letter.charCodeAt(0) - 65));
 }
 
+// Woorden waaraan je in de omschrijving van een gerecht uit de wereldkeuken ziet dat het iets zoets is.
+const SWEET_WORDS = /\bzoete?\b(?! aardappel)|honing|siroop|stroop|suiker|\bjam\b|chocolade|karamel|custard|dadel/;
+
 // Een gerecht uit world-dishes.js uitgeschreven: naam, omschrijving, soort, bereidingstijd en maaltijden.
-// Zegt de naam niets over het plaatje (veel buitenlandse namen), dan komt het plaatje uit de omschrijving.
+// Het plaatje staat erbij als de naam de app op het verkeerde been zet. Zegt de naam niets over het plaatje
+// (veel buitenlandse namen), dan komt het uit de omschrijving; zegt ook die niets, dan krijgt zoetigheid gebak.
 function worldDish(row) {
-  const [name, text, type, time, meals] = row.split('|');
+  const [name, text, type, time, meals, icon] = row.split('|');
+  const sweet = type === 'g' && SWEET_WORDS.test(searchKey(text));
   return {
     name, text, type: DISH_TYPE[type], time: DISH_TIME[time],
     meals: cleanMeals(meals ? [...meals].map(code => DISH_MEAL[code]) : ['avond']),
-    icon: guessIcon(name) ? '' : guessIcon(text),
+    icon: icon || (guessIcon(name) ? '' : guessIcon(text) || (sweet ? '🍰' : '')),
   };
 }
 
