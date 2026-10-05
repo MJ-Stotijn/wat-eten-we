@@ -96,7 +96,23 @@ function loadWorldMap() {
       else showRegionOnMap(worldMap.region);
     })
     .catch(() => { worldMap.status = 'failed'; })
-    .finally(() => { if (view.name === 'world') render(); });
+    // Alleen het vak van de kaart wordt bijgewerkt: het hele scherm opnieuw tekenen zou het typen in het
+    // zoekveld onderbreken.
+    .finally(() => {
+      const host = document.getElementById('map-host');
+      if (!host) return;
+      host.innerHTML = mapStatusHtml();
+      mountWorldMap();
+    });
+}
+
+// Wat er in het vak van de kaart staat zolang de kaart er nog niet is.
+function mapStatusHtml() {
+  if (worldMap.status === 'ready') return '';
+  if (worldMap.status === 'failed') return `
+    <div class="map-status"><p>De kaart laden is niet gelukt. Heb je internet?</p>
+      <button class="chip" data-action="map-retry">Probeer het opnieuw</button></div>`;
+  return '<p class="map-status muted">De kaart wordt geladen…</p>';
 }
 
 // Zet het kaartbestand om in een tekening. In het bestand zijn grenzen opgeknipt in "bogen" die buurlanden
@@ -207,7 +223,10 @@ function listenToMap(svg) {
       for (let step = 0; step < (radius ? 8 : 1); step++) {
         const angle = step * Math.PI / 4;
         const target = document.elementFromPoint(clientX + radius * Math.cos(angle), clientY + radius * Math.sin(angle));
-        if (target && svg.contains(target) && target.dataset.code) return target.dataset.code;
+        if (!target || !svg.contains(target)) continue;
+        if (target.dataset.code) return target.dataset.code;
+        // Precies op een gebied dat geen land is (zoals Groenland): dan telt ook het land ernaast niet.
+        if (radius === 0 && target !== svg) return '';
       }
     }
     return '';

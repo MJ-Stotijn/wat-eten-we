@@ -1455,17 +1455,12 @@ const VIEWS = {
   // De wereldkaart, met eronder het gekozen land en een lijst om een land te zoeken. De kaart zelf zet
   // mountWorldMap() erin; welke landen in de lijst staan, regelt filterCountries().
   world() {
-    const status = {
-      loading: '<p class="map-status muted">De kaart wordt geladen…</p>',
-      failed: `<div class="map-status"><p>De kaart laden is niet gelukt. Heb je internet?</p>
-        <button class="chip" data-action="map-retry">Probeer het opnieuw</button></div>`,
-    };
     const names = Object.entries(COUNTRIES).sort((a, b) => a[1][0].localeCompare(b[1][0], 'nl'));
     return `
       <h1>Wereldkeuken</h1>
       <p class="muted">Tik op een land om de bekendste gerechten van dat land te zien. Je kunt de kaart verschuiven en inzoomen.</p>
       <div class="map-wrap">
-        <div id="map-host" style="aspect-ratio:${MAP_RATIO.toFixed(3)}">${status[worldMap.status] || status.loading}</div>
+        <div id="map-host" style="aspect-ratio:${MAP_RATIO.toFixed(3)}">${mapStatusHtml()}</div>
         <div class="map-tools">
           <button class="icon-btn" data-action="map-zoom" data-factor="1.8" aria-label="Inzoomen">+</button>
           <button class="icon-btn" data-action="map-zoom" data-factor="0.55" aria-label="Uitzoomen">−</button>

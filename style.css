@@ -206,8 +206,9 @@ html { font-size: 106.25%; }
 .map path { fill: var(--border); fill-rule: evenodd; stroke: var(--card); stroke-width: 0.7; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
 .map path[data-code] { cursor: pointer; }
 .map path.none { fill: var(--border); fill: color-mix(in srgb, var(--muted) 38%, var(--card)); }
-.map path.has { fill: var(--accent-soft); fill: color-mix(in srgb, var(--accent) 42%, var(--card)); }
-.map path.sel { fill: var(--accent); stroke: var(--text); stroke-width: 1.6; }
+/* De tint van de letterkleur, niet van de knopkleur: die is in elk thema donker genoeg om tegen de zee af te steken */
+.map path.has { fill: var(--accent-soft); fill: color-mix(in srgb, var(--accent-ink) 42%, var(--card)); }
+.map path.sel { fill: var(--accent-ink); stroke: var(--text); stroke-width: 1.6; }
 .map-tools { position: absolute; top: 8px; right: 8px; display: flex; flex-direction: column; gap: 6px; }
 .map-tools .icon-btn { border: 1px solid var(--border); background: var(--card); box-shadow: var(--shadow); font-size: 1.2rem; font-weight: 700; line-height: 1; }
 /* Het gekozen land onder de kaart; altijd even hoog, zodat de pagina niet verspringt */
