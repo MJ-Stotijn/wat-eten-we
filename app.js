@@ -182,6 +182,50 @@ const CATALOG_DIETS = {
   'Couscous met kip en groenten': ['lactosevrij', 'eiwitrijk'],
 };
 const TYPE_ICON = { vlees: '🍖', vis: '🐟', vega: '🥦' };
+// Plaatjes bij gerechten: [plaatje, naam, woorden]. De app kiest het plaatje bij het woord dat een gerecht
+// het best typeert (zie guessIcon); in het formulier kun je er ook zelf een kiezen. De woorden staan
+// zonder hoofdletters en accenten; een patroon wordt gebruikt waar een kort woord anders te vaak raak is.
+const ICONS = [
+  ['🍕', 'Pizza', ['pizza', 'calzone', 'flammkuchen']],
+  ['🍔', 'Hamburger', ['hamburger', 'burger']],
+  ['🍟', 'Friet', ['friet', 'patat']],
+  ['🥞', 'Pannenkoeken', ['pannenkoek', 'poffertje', 'pancake', 'crepe', 'flensje']],
+  ['🍝', 'Pasta', ['spaghetti', 'pasta', 'macaroni', 'lasagne', 'penne', 'tagliatelle', 'ravioli', 'tortellini', 'gnocchi', 'carbonara', 'bolognese']],
+  ['🍜', 'Noedels', ['bami', 'noedel', 'noodle', 'ramen', /\bmie\b/]],
+  ['🍛', 'Curry', ['curry', 'kerrie', 'tikka', 'masala', 'korma', 'rendang']],
+  ['🍚', 'Rijst', ['nasi', 'rijst', 'risotto', 'paella', 'couscous', 'bulgur', 'quinoa']],
+  ['🍣', 'Sushi', ['sushi', 'sashimi']],
+  ['🍢', 'Saté', ['sate', 'spies']],
+  ['🥙', 'Pita', ['shoarma', 'doner', 'kebab', 'pita', 'falafel', 'gyros', 'kapsalon']],
+  ['🌯', 'Wrap', ['wrap', 'burrito', 'tortilla', 'fajita', 'enchilada', 'quesadilla']],
+  ['🌮', 'Taco', ['taco']],
+  ['🥗', 'Salade', ['salade', 'gado gado', 'rauwkost', 'bowl', /\bsla\b/]],
+  ['🥣', 'Soep of pap', ['soep', 'bouillon', 'havermout', 'yoghurt', 'kwark', 'muesli', 'granola', 'cruesli', 'oats', 'skyr', /pap\b/]],
+  ['🍲', 'Stoofpot', ['stoof', 'hachee', 'goulash', 'ragout', 'jachtschotel']],
+  ['🌶️', 'Chili', ['chili']],
+  ['🥔', 'Aardappel', ['stamppot', 'hutspot', 'aardappel', 'puree', 'rosti', 'gratin']],
+  ['🥘', 'Ovenschotel', ['ovenschotel', 'schotel', 'roerbak', 'wok', 'tajine']],
+  ['🥧', 'Hartige taart', ['quiche', 'taart', 'pastei']],
+  ['🥬', 'Bladgroente', ['witlof']],
+  ['🍆', 'Groenteschotel', ['ratatouille', 'aubergine', 'moussaka']],
+  ['🐟', 'Vis', ['zalm', 'vis', 'kibbeling', 'tonijn', 'kabeljauw', 'haring', 'makreel', 'forel', 'lekkerbek']],
+  ['🍤', 'Garnalen', ['garnaal', 'garnalen', 'scampi', 'gamba', 'mossel']],
+  ['🍗', 'Kip', ['kip', 'kalkoen', 'drumstick']],
+  ['🥩', 'Stuk vlees', ['biefstuk', 'steak', 'entrecote', 'schnitzel', 'karbonade', 'kotelet', 'speklap', 'rollade']],
+  ['🍖', 'Vlees', ['gehakt', 'worst', 'ribs', 'slavink']],
+  ['🍳', 'Ei', ['omelet', 'roerei', 'spiegelei', 'uitsmijter', 'eieren', 'frittata', /\bei\b/]],
+  ['🥪', 'Belegd brood', ['tosti', 'sandwich', 'broodje']],
+  ['🍞', 'Brood', ['boterham', 'brood', 'toast', 'beschuit', 'cracker']],
+  ['🥐', 'Croissant', ['croissant']],
+  ['🥤', 'Smoothie', ['smoothie', 'shake']],
+  ['🥦', 'Groente', ['broccoli', 'bloemkool', 'groente']],
+  ['🍄', 'Paddenstoelen', ['champignon', 'paddenstoel']],
+];
+// De profielfoto wordt vierkant en klein opgeslagen, als tekst in de opslag van de browser.
+const PHOTO_SIZE = 256;
+const PHOTO_PATTERN = /^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/;
+// Alle plaatjes die een gerecht mag hebben.
+const ICON_SET = new Set([...ICONS.map(([icon]) => icon), ...Object.values(TYPE_ICON), '🍽️']);
 
 const app = document.getElementById('app');
 const nav = document.getElementById('nav');
@@ -191,16 +235,47 @@ const nav = document.getElementById('nav');
 let idCounter = 0;
 let state = load();
 let view = { name: 'home' };
-// De maaltijd waarvoor je kiest; begint bij wat past bij het tijdstip.
+// De maaltijd waarvoor je kiest volgt de klok. Kies je zelf een andere, dan staat die in manualMeal en
+// geldt ze tot het volgende dagdeel begint of tot de app lang op de achtergrond heeft gestaan.
 let meal = defaultMeal();
+let manualMeal = null;
 
 // ---------- Opslag ----------
 
 function emptyState() {
   return {
     dishes: [], history: [], shopping: [], badges: {},
-    onboarded: false, welcomed: false, name: '', theme: 'standaard', diet: [],
+    onboarded: false, welcomed: false, name: '', photo: '', theme: 'standaard', diet: [],
   };
+}
+
+// Alleen een echte, kleine afbeelding telt als profielfoto; al het andere wordt genegeerd.
+function cleanPhoto(photo) {
+  return typeof photo === 'string' && photo.length < 400000 && PHOTO_PATTERN.test(photo) ? photo : '';
+}
+
+// Snijdt een foto vierkant uit het midden en verkleint hem, zodat hij weinig ruimte inneemt.
+function squarePhoto(file) {
+  return new Promise((resolve, reject) => {
+    if (!file.type.startsWith('image/')) return reject(new Error('geen afbeelding'));
+    const url = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+      URL.revokeObjectURL(url);
+      const side = Math.min(image.naturalWidth, image.naturalHeight);
+      if (!side) return reject(new Error('lege afbeelding'));
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = PHOTO_SIZE;
+      canvas.getContext('2d').drawImage(image,
+        (image.naturalWidth - side) / 2, (image.naturalHeight - side) / 2, side, side, 0, 0, PHOTO_SIZE, PHOTO_SIZE);
+      resolve(canvas.toDataURL('image/jpeg', 0.85));
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('onleesbare afbeelding'));
+    };
+    image.src = url;
+  });
 }
 
 function cleanName(name) {
@@ -250,6 +325,8 @@ function sanitize(data) {
       type: d.type,
       kcal: cleanKcal(d.kcal),
       healthy: d.healthy === true,
+      // Leeg betekent: de app kiest het plaatje bij de naam.
+      icon: ICON_SET.has(d.icon) ? d.icon : '',
       // Gerechten van voor de diëten krijgen de diëten van het gelijknamige gerecht uit de lijst, als dat bestaat.
       diets: Array.isArray(d.diets) ? cleanDiets(d.diets, false) : catalogDiets(d.name.trim()),
       ingredients: list(d.ingredients).map(i => String(i).trim()).filter(Boolean),
@@ -261,6 +338,7 @@ function sanitize(data) {
     // Wie al gerechten heeft, is het welkomstscherm al voorbij.
     welcomed: data.welcomed === true || dishes.length > 0,
     name: cleanName(data.name),
+    photo: cleanPhoto(data.photo),
     theme: Object.hasOwn(THEMES, data.theme) ? data.theme : 'standaard',
     diet: cleanDiets(data.diet, true),
     dishes,
@@ -276,6 +354,7 @@ function sanitize(data) {
         name: old ? dish.name : h.name.trim().slice(0, 60),
         type: old ? dish.type : Object.hasOwn(TYPES, h.type) ? h.type : null,
         kcal: old ? dish.kcal : cleanKcal(h.kcal),
+        icon: ICON_SET.has(h.icon) ? h.icon : '',
         // Notities van voor de badges nemen deze twee over van het gerecht, als dat er nog is.
         healthy: typeof h.healthy === 'boolean' ? h.healthy : dish ? dish.healthy : false,
         time: Object.hasOwn(TIMES, h.time) ? h.time : dish && !('time' in h) ? dish.time : null,
@@ -328,9 +407,22 @@ function cleanMeals(meals) {
   return known.length ? known : ['avond'];
 }
 
+// De maaltijd die bij het tijdstip past: ontbijt van 4 tot 11 uur, middageten tot 16 uur, daarna avondeten.
 function defaultMeal() {
   const hour = new Date().getHours();
-  return hour < 11 ? 'ontbijt' : hour < 16 ? 'middag' : 'avond';
+  return hour >= 4 && hour < 11 ? 'ontbijt' : hour >= 11 && hour < 16 ? 'middag' : 'avond';
+}
+
+// Zet de maaltijd gelijk met de klok, tenzij de gebruiker in dit dagdeel zelf een andere koos.
+// Geeft terug of er iets veranderde. Alleen aangeroepen op het startscherm, zodat de maaltijd
+// niet verspringt terwijl je midden in het kiezen zit.
+function syncMeal() {
+  const slot = defaultMeal();
+  if (manualMeal && manualMeal.slot !== slot) manualMeal = null;
+  const next = manualMeal ? manualMeal.meal : slot;
+  const changed = next !== meal;
+  meal = next;
+  return changed;
 }
 
 // Alleen bekende diëten, in vaste volgorde. Bij een gerecht hoort vegetarisch er niet bij: dat volgt uit de soort.
@@ -352,6 +444,36 @@ function fitsDiet(type, diets) {
 // De gerechten voor de gekozen maaltijd die bij je dieet passen: hieruit kiest de app.
 function mealDishes() {
   return state.dishes.filter(d => d.meals.includes(meal) && fitsDiet(d.type, d.diets));
+}
+
+// Het plaatje bij het woord dat een tekst het best typeert. In een samenstelling is dat het laatste
+// woorddeel ("kipsalade" is een salade); een woord dat in een langer woord zit telt niet mee
+// ("koek" in "pannenkoek").
+function bestIcon(text) {
+  const matches = [];
+  for (const [icon, , words] of ICONS) {
+    for (const word of words) {
+      const start = word instanceof RegExp ? text.search(word) : text.lastIndexOf(word);
+      if (start === -1) continue;
+      const length = word instanceof RegExp ? text.match(word)[0].length : word.length;
+      matches.push({ icon, start, end: start + length });
+    }
+  }
+  const outer = matches.filter(a => !matches.some(b =>
+    b.end - b.start > a.end - a.start && b.start <= a.start && b.end >= a.end));
+  outer.sort((a, b) => b.start - a.start);
+  return outer.length ? outer[0].icon : '';
+}
+
+// Het plaatje dat bij een naam past, of niets. In "zalm met rijst" zegt het deel voor "met" het meest.
+function guessIcon(name) {
+  const text = searchKey(name);
+  return bestIcon(text.split(/ (?:met|op|uit|in|van|en) /)[0]) || bestIcon(text);
+}
+
+// Het plaatje van een gerecht of notitie: zelf gekozen, anders passend bij de naam, anders bij de soort.
+function dishIcon(dish) {
+  return dish.icon || guessIcon(dish.name) || TYPE_ICON[dish.type] || '🍽️';
 }
 
 function dishMeta(dish) {
@@ -397,9 +519,12 @@ function entriesOn(day) {
   return state.history.filter(h => dayKey(h.date) === day).sort((a, b) => order.indexOf(a.meal) - order.indexOf(b.meal));
 }
 
-// De eerste maaltijd van die dag waar nog niets bij staat.
+// De maaltijd waarmee het noteren begint. Vandaag is dat de maaltijd van dit tijdstip, als daar nog
+// niets bij staat; anders de eerste maaltijd van die dag waar nog niets bij staat.
 function openMeal(day) {
   const have = new Set(entriesOn(day).map(h => h.meal));
+  const now = defaultMeal();
+  if (day === dayKey(new Date()) && !have.has(now)) return now;
   return Object.keys(MEALS).find(m => !have.has(m)) || 'avond';
 }
 
@@ -414,6 +539,7 @@ function logEntry(source, day, mealKey, picked) {
     name: source.name,
     type: source.type || null,
     kcal: source.kcal == null ? null : source.kcal,
+    icon: dishIcon(source),
     healthy: source.healthy === true,
     time: source.time || null,
     meal: mealKey,
@@ -428,7 +554,7 @@ function logEntry(source, day, mealKey, picked) {
 function entryHtml(entry, removable, marks) {
   const icons = marksHtml(marks);
   return `
-    <li><span class="icon" aria-hidden="true">${TYPE_ICON[entry.type] || '🍽️'}</span>
+    <li><span class="icon" aria-hidden="true">${dishIcon(entry)}</span>
     <span class="grow"><strong>${esc(entry.name)}</strong><br>
       <span class="small muted">${MEALS[entry.meal]}${entry.kcal == null ? '' : ` · ${entry.kcal} kcal`}${icons ? ` · ${icons}` : ''}</span></span>
     ${removable ? `<button class="icon-btn" data-action="remove-entry" data-id="${entry.id}" aria-label="Verwijder ${esc(entry.name)}">✕</button>` : ''}</li>`;
@@ -569,6 +695,7 @@ function choose(id, note) {
 
 function go(name, extra = {}) {
   view = { name, ...extra };
+  if (name === 'home') syncMeal();
   render();
   window.scrollTo(0, 0);
   // Een nieuw scherm komt zacht in beeld; opnieuw tekenen binnen een scherm niet.
@@ -616,15 +743,21 @@ window.addEventListener('popstate', () => {
   else go('home');
 });
 
-// Blijft de app lang open staan, dan past de maaltijd zich weer aan het tijdstip aan.
+// De maaltijd op het startscherm loopt mee met de klok: elke minuut, en zodra de app weer in beeld komt.
+// Na een half uur op de achtergrond vervalt ook een maaltijd die je zelf had gekozen.
+function tickMeal() {
+  if (!document.hidden && state.onboarded && view.name === 'home' && syncMeal()) render();
+}
+setInterval(tickMeal, 60000);
+
 let hiddenSince = 0;
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
     hiddenSince = Date.now();
-  } else if (hiddenSince && Date.now() - hiddenSince > 30 * 60000 && view.name === 'home') {
-    meal = defaultMeal();
-    render();
+    return;
   }
+  if (hiddenSince && Date.now() - hiddenSince > 30 * 60000) manualMeal = null;
+  tickMeal();
 });
 
 // Welk tabblad onderin oplicht bij een scherm. De instellingen open je vanaf het startscherm.
@@ -653,7 +786,7 @@ function dishFormHtml(dish, full) {
   const d = dish || {
     name: '', meals: [state.onboarded ? meal : 'avond'], time: 'normaal',
     type: state.diet.includes('vegetarisch') || state.diet.includes('vegan') ? 'vega' : 'vlees',
-    kcal: null, healthy: false, diets: cleanDiets(state.diet, false), ingredients: [], recipe: '',
+    kcal: null, healthy: false, icon: '', diets: cleanDiets(state.diet, false), ingredients: [], recipe: '',
   };
   const options = (map, selected) => Object.entries(map)
     .map(([value, label]) => `<option value="${value}"${value === selected ? ' selected' : ''}>${label}</option>`).join('');
@@ -677,6 +810,11 @@ function dishFormHtml(dish, full) {
           <select id="f-type" name="type">${options(TYPES, d.type)}</select>
         </div>
       </div>
+      <label for="f-icon">Plaatje</label>
+      <select id="f-icon" name="icon">
+        <option value="">Automatisch (past bij de naam)</option>
+        ${ICONS.map(([icon, label]) => `<option value="${icon}"${icon === d.icon ? ' selected' : ''}>${icon} ${label}</option>`).join('')}
+      </select>
       <label for="f-kcal">Calorieën per portie <span class="muted">(optioneel)</span></label>
       <input id="f-kcal" name="kcal" type="number" inputmode="numeric" min="0" max="5000" value="${d.kcal == null ? '' : d.kcal}" placeholder="Bijvoorbeeld: 550">
       <div class="checks" style="margin-top:14px">
@@ -722,12 +860,22 @@ function catalogHtml(defaultMeal) {
     </div>
     <input type="search" data-input="catalog-search" value="${esc(view.catalogQuery || '')}" placeholder="Zoek een gerecht" aria-label="Zoek een gerecht">
     <div class="chips" id="catalog">${items.map(({ item, index }) => `
-      <button class="chip" data-action="add-suggestion" data-index="${index}" data-name="${esc(searchKey(item[0]))}"><span aria-hidden="true">${TYPE_ICON[item[3]]}</span> ${item[0]}</button>`).join('')}
+      <button class="chip" data-action="add-suggestion" data-index="${index}" data-name="${esc(searchKey(item[0]))}"><span aria-hidden="true">${guessIcon(item[0]) || TYPE_ICON[item[3]]}</span> ${item[0]}</button>`).join('')}
     </div>
     <button class="btn link" id="catalog-more" data-action="catalog-more" hidden></button>
     <p class="small muted" id="catalog-empty" hidden></p>
     ${state.diet.length ? `<p class="small muted">Je ziet alleen gerechten die passen bij je dieet: ${state.diet.map(key => DIETS[key].toLowerCase()).join(', ')}.</p>` : ''}
     <p class="small muted">Calorieën, het vinkje "gezond" en de diëten zijn bij deze gerechten een schatting. Je kunt alles later aanpassen.</p>`;
+}
+
+// De ronde profielfoto, of het bordje zolang er geen foto is. Tikken opent de fotokiezer van het apparaat.
+function avatarHtml() {
+  return `
+    <button class="avatar" data-action="photo-pick" aria-label="${state.photo ? 'Profielfoto aanpassen' : 'Profielfoto kiezen'}">
+      ${state.photo ? `<img src="${state.photo}" alt="">` : '<span aria-hidden="true">🍽️</span>'}
+      <span class="avatar-badge" aria-hidden="true">📷</span>
+    </button>
+    <input id="photo-file" type="file" accept="image/*" data-change="photo" hidden>`;
 }
 
 // Aanvinkbare diëten voor de gebruiker zelf, op het welkomstscherm en bij de instellingen.
@@ -759,7 +907,7 @@ function barHtml(item) {
   const icons = marksHtml(dishMarks(dish));
   return `
     <button class="bar${item.exact ? '' : ' near'}" data-action="pick" data-id="${dish.id}">
-      <span class="icon" aria-hidden="true">${TYPE_ICON[dish.type]}</span>
+      <span class="icon" aria-hidden="true">${dishIcon(dish)}</span>
       <span class="bar-text">
         <span class="bar-name">${esc(dish.name)}</span><br>
         <span class="bar-meta">${dishMeta(dish)}${item.exact ? '' : '<span class="tag">past bijna</span>'}</span>
@@ -821,8 +969,8 @@ const VIEWS = {
     const dietBlocks = none && state.dishes.some(d => d.meals.includes(meal));
     return `
       <button class="icon-btn settings" data-action="nav" data-view="more" aria-label="Instellingen">⚙️</button>
-      <div class="hero"><div class="emoji">🍽️</div><h1>${greeting()}</h1>
-        <p class="muted">Geen idee wat je wilt eten? Ik help je kiezen.</p></div>
+      <div class="hero">${avatarHtml()}<h1>${greeting()}</h1>
+        <p class="muted">${manualMeal ? `Je kiest nu voor ${MEALS[meal].toLowerCase()}.` : `Tijd voor ${MEALS[meal].toLowerCase()}!`} Geen idee wat je wilt eten? Ik help je kiezen.</p></div>
       <div class="segments" role="group" aria-label="Maaltijd">${Object.entries(MEALS).map(([value, label]) => `
         <button data-action="set-meal" data-meal="${value}" aria-pressed="${value === meal}">${label}</button>`).join('')}
       </div>
@@ -896,7 +1044,7 @@ const VIEWS = {
       </div>
       <h2>Tik een favoriet aan</h2>
       <div class="chips">${dishes.map(d => `
-        <button class="chip" data-action="log-dish" data-id="${d.id}"><span aria-hidden="true">${TYPE_ICON[d.type]}</span> ${esc(d.name)}</button>`).join('')}
+        <button class="chip" data-action="log-dish" data-id="${d.id}"><span aria-hidden="true">${dishIcon(d)}</span> ${esc(d.name)}</button>`).join('')}
       </div>
       <h2>Of iets anders gegeten?</h2>
       <form data-form="log" novalidate>
@@ -995,7 +1143,7 @@ const VIEWS = {
     const dish = dishById(view.id);
     const hasRecipe = dish.ingredients.length || dish.recipe;
     return `
-      <div class="hero"><div class="emoji pop">${TYPE_ICON[dish.type]}</div>
+      <div class="hero"><div class="emoji pop">${dishIcon(dish)}</div>
         <p class="muted">Je ${MEALS[meal].toLowerCase()} wordt…</p>
         <h1>${esc(dish.name)}</h1>
         <p class="muted">${dishMeta(dish)}${dish.kcal == null ? '' : ' · ' + kcalLabel(dish)}</p>
@@ -1024,7 +1172,7 @@ const VIEWS = {
       <button class="btn primary" data-action="discover" data-meal="alles">🔎 Gerechten ontdekken</button>
       <button class="btn" data-action="edit-dish">+ Zelf een gerecht toevoegen</button>
       <ul class="list">${[...state.dishes].sort((a, b) => a.name.localeCompare(b.name, 'nl')).map(d => `
-        <li><span class="icon" aria-hidden="true">${TYPE_ICON[d.type]}</span>
+        <li><span class="icon" aria-hidden="true">${dishIcon(d)}</span>
         <span class="grow"><strong>${esc(d.name)}</strong><br><span class="small muted">${dishDetails(d)}</span></span>
         <button class="icon-btn" data-action="edit-dish" data-id="${d.id}" aria-label="Pas ${esc(d.name)} aan">✎</button></li>`).join('')}
       </ul>`;
@@ -1072,6 +1220,12 @@ const VIEWS = {
   more() {
     return `
       <h1>Instellingen</h1>
+      <h2>Profielfoto</h2>
+      <div class="hero" style="padding:0">${avatarHtml()}</div>
+      ${view.photoError ? `<div class="notice">${esc(view.photoError)}</div>` : ''}
+      <button class="btn" data-action="photo-pick">${state.photo ? 'Andere foto kiezen' : 'Foto kiezen'}</button>
+      ${state.photo ? '<button class="btn danger" data-action="photo-remove">Foto verwijderen</button>' : ''}
+      <p class="muted small">Je foto blijft op dit apparaat staan en gaat mee in je back-up.</p>
       <h2>Je naam</h2>
       <form data-form="name" class="row" style="align-items:flex-start">
         <input name="name" type="text" maxlength="30" autocomplete="given-name" value="${esc(state.name)}" placeholder="Je voornaam" aria-label="Je naam" style="flex:3">
@@ -1104,8 +1258,12 @@ const VIEWS = {
 const ACTIONS = {
   nav(el) { go(el.dataset.view); },
 
+  // Zelf een maaltijd kiezen gaat voor de klok, tot het volgende dagdeel. Terug naar de maaltijd
+  // van dit tijdstip betekent: weer automatisch.
   'set-meal'(el) {
+    const slot = defaultMeal();
     meal = el.dataset.meal;
+    manualMeal = meal === slot ? null : { meal, slot };
     render();
   },
 
@@ -1140,7 +1298,7 @@ const ACTIONS = {
     const [name, meals, time, type, kcal, healthy] = CATALOG[el.dataset.index];
     if (state.dishes.some(d => d.name.toLowerCase() === name.toLowerCase())) return;
     state.dishes.push({
-      id: newId(), name, meals: [...meals], time, type, kcal, healthy,
+      id: newId(), name, meals: [...meals], time, type, kcal, healthy, icon: '',
       diets: catalogDiets(name), ingredients: [], recipe: '',
     });
     save();
@@ -1287,6 +1445,14 @@ const ACTIONS = {
 
   'import-pick'() { document.getElementById('import-file').click(); },
 
+  'photo-pick'() { document.getElementById('photo-file').click(); },
+
+  'photo-remove'() {
+    state.photo = '';
+    save();
+    render();
+  },
+
   reset() {
     if (!view.confirm) { view.confirm = true; return render(); }
     state = emptyState();
@@ -1323,6 +1489,7 @@ const FORMS = {
     Object.assign(dish, {
       name, meals: cleanMeals(meals), time: data.get('time'), type: data.get('type'), kcal,
       healthy: data.has('healthy'), diets: cleanDiets(data.getAll('diets'), false),
+      icon: ICON_SET.has(data.get('icon')) ? data.get('icon') : '',
     });
     if (data.has('ingredients')) {
       dish.ingredients = data.get('ingredients').split('\n').map(line => line.trim()).filter(Boolean);
@@ -1381,6 +1548,20 @@ const FORMS = {
 };
 
 const CHANGES = {
+  // Een gekozen foto wordt verkleind en bewaard. Lukt dat niet, dan staat de melding bij de instellingen.
+  async photo(el) {
+    const file = el.files[0];
+    if (!file) return;
+    try {
+      state.photo = await squarePhoto(file);
+      save();
+      if (view.name === 'more') delete view.photoError;
+      render();
+    } catch (e) {
+      go('more', { photoError: 'Dit bestand kan ik niet als foto gebruiken. Probeer een andere foto.' });
+    }
+  },
+
   // Een vinkje bij "Mijn dieet" in de instellingen werkt meteen.
   'set-diet'(el) {
     const checked = [...app.querySelectorAll('input[name="diet"]:checked')].map(input => input.value);
