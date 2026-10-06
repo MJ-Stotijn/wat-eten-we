@@ -2407,7 +2407,8 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
 }
 
-// De pictogrammen van de menubalk onderin.
+// De verfkleuren van de pictogrammen, en de pictogrammen van de menubalk onderin.
+document.body.insertAdjacentHTML('afterbegin', iconPaintSvg());
 for (const el of nav.querySelectorAll('[data-ic]')) el.innerHTML = iconSvg(el.dataset.ic);
 
 // Wie al notities had van voor de badges, krijgt de badges die daarbij horen.
