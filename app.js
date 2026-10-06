@@ -136,6 +136,8 @@ const CATALOG = [
 ];
 // Zoveel gerechten uit de lijst zie je voordat je om meer vraagt.
 const CATALOG_PREVIEW = 12;
+// Vanaf meer dan zoveel favorieten staat er een zoekveld boven de lijst.
+const SEARCH_FROM = 8;
 // De afkortingen waarmee de gerechten per land zijn genoteerd (in world-dishes.js).
 const DISH_TYPE = { l: 'vlees', v: 'vis', g: 'vega' };
 const DISH_TIME = { s: 'snel', n: 'normaal', u: 'uitgebreid' };
@@ -579,12 +581,25 @@ function fitsDiet(type, diets) {
   return state.diet.every(key => key === 'vegetarisch' ? type === 'vega' : diets.includes(key));
 }
 
+// De recepten uit recipes.js op naam, zonder op hoofdletters te letten, en voor hoeveel personen ze zijn.
+const RECIPE_BY_NAME = new Map(Object.entries(RECIPES).map(([name, recipe]) => [name.toLowerCase(), recipe]));
+const RECIPE_SERVES = 2;
+
+// Het recept van een gerecht: wat je er zelf bij hebt gezet, en anders het recept dat de app al heeft.
+// `own` zegt welke van de twee het is.
+function recipeOf(dish) {
+  const ingredients = dish.ingredients || [];
+  if (ingredients.length || dish.recipe) return { ingredients, recipe: dish.recipe || '', own: true };
+  const [list, recipe] = RECIPE_BY_NAME.get(dish.name.toLowerCase()) || ['', ''];
+  return { ingredients: list ? list.split('|') : [], recipe, own: false };
+}
+
 // Welke allergenen van de gebruiker in een gerecht zitten, als leesbare namen. Aangevinkte allergenen tellen
 // als ze bij het gerecht staan; een zelf toegevoegde allergie telt als het woord in de naam of de
 // ingrediënten van het gerecht voorkomt.
 function userAllergens(dish) {
   const tagged = state.allergies.filter(key => dish.allergens.includes(key)).map(key => ALLERGENS[key][0].toLowerCase());
-  const text = searchKey([dish.name, ...(dish.ingredients || [])].join(' '));
+  const text = searchKey([dish.name, ...recipeOf(dish).ingredients].join(' '));
   return [...tagged, ...state.otherAllergies.filter(term => text.includes(searchKey(term)))];
 }
 
@@ -1080,6 +1095,7 @@ function render() {
   app.dataset.view = view.name;
   app.innerHTML = VIEWS[view.name]();
   if (document.getElementById('catalog')) filterCatalog();
+  if (document.getElementById('favorites-list')) filterFavorites();
   if (document.getElementById('map-host')) {
     mountWorldMap();
     filterCountries();
@@ -1145,15 +1161,16 @@ function dishFormHtml(dish, full) {
       </fieldset>
       <p class="small muted" style="margin-top:6px">Vegetarisch hoef je niet aan te vinken: dat volgt uit de soort.</p>
       <details${showAllergens ? ' open' : ''}>
-        <summary>Allergenen in dit gerecht <span class="muted" style="font-weight:400">(optioneel)</span></summary>
+        <summary><span>Allergenen in dit gerecht <span class="muted" style="font-weight:400">(optioneel)</span></span></summary>
         <p class="small muted">${d.unchecked ? 'Van dit gerecht zijn de allergenen nog niet ingevuld. ' : ''}Vink aan wat erin zit. Heb je zelf een allergie, dan stel ik dit gerecht niet voor als het jouw allergeen bevat.</p>
         ${allergenChecksHtml('allergens', d.allergens, 'dish')}
       </details>
       ${full ? `
         <label for="f-ingredients">Ingrediënten <span class="muted">(één per regel, optioneel)</span></label>
-        <textarea id="f-ingredients" name="ingredients" placeholder="500 g gehakt&#10;1 ui">${esc(d.ingredients.join('\n'))}</textarea>
+        <textarea id="f-ingredients" name="ingredients" placeholder="500 g gehakt&#10;1 ui">${esc(recipeOf(d).ingredients.join('\n'))}</textarea>
         <label for="f-recipe">Bereidingswijze <span class="muted">(optioneel)</span></label>
-        <textarea id="f-recipe" name="recipe">${esc(d.recipe)}</textarea>` : ''}
+        <textarea id="f-recipe" name="recipe">${esc(recipeOf(d).recipe)}</textarea>
+        ${recipeOf(d).own ? '' : `<p class="small muted" style="margin-top:6px">Dit recept (voor ${RECIPE_SERVES} personen) zat al in de app. Je kunt het hier aanpassen.</p>`}` : ''}
       <p class="error" role="alert" hidden></p>
       <p></p>
       <button class="btn primary" type="submit">${dish ? 'Opslaan' : 'Gerecht toevoegen'}</button>
@@ -1241,6 +1258,18 @@ function filterCatalog() {
   empty.textContent = query ? 'Niets gevonden. Je kunt het gerecht ook zelf toevoegen.' : 'Je hebt alle gerechten uit deze lijst al.';
 }
 
+// Laat van je favorieten alleen de gerechten zien die bij het zoekwoord passen.
+function filterFavorites() {
+  const query = searchKey(view.query || '').trim();
+  let shown = 0;
+  for (const row of document.querySelectorAll('#favorites-list > li')) {
+    row.hidden = !row.dataset.name.includes(query);
+    if (!row.hidden) shown++;
+  }
+  const empty = document.getElementById('favorites-empty');
+  if (empty) empty.hidden = shown > 0;
+}
+
 function barHtml(item) {
   const dish = dishById(item.id);
   const icons = marksHtml(dishMarks(dish));
@@ -1269,12 +1298,12 @@ const VIEWS = {
         </fieldset>
         <p class="small muted" style="margin-top:6px">Dan stel ik alleen gerechten voor die erbij passen. Je kunt dit later aanpassen bij de instellingen.</p>
         <details>
-          <summary>Heb je een voedselallergie? <span class="muted" style="font-weight:400">(mag je overslaan)</span></summary>
+          <summary><span>Heb je een voedselallergie? <span class="muted" style="font-weight:400">(mag je overslaan)</span></span></summary>
           <p class="small muted">Vink aan waar je allergisch voor bent. Andere allergieën voeg je later toe bij de instellingen.</p>
           ${allergenChecksHtml('allergies', state.allergies, 'welcome')}
           <p class="small muted" style="margin-top:8px">${ALLERGY_WARNING}</p>
         </details>
-        <button class="btn primary big" type="submit">Aan de slag</button>
+        <button class="btn primary big sticky" type="submit">Aan de slag</button>
       </form>`;
   },
 
@@ -1288,15 +1317,18 @@ const VIEWS = {
       <p>Vertel me je favoriete gerechten, minimaal ${MIN_DISHES}. Daarna help ik je elke dag kiezen.</p>
       <p class="small muted">${Math.min(count, MIN_DISHES)} van ${MIN_DISHES} · ${cheer}</p>
       <div class="progress"><div style="width:${Math.min(100, count / MIN_DISHES * 100)}%"></div></div>
+      ${count ? `
+        <p class="small muted" style="margin-bottom:6px">Jouw gerechten tot nu toe. Tik er een aan om hem weer weg te halen.</p>
+        <div class="chips">${state.dishes.map(d => `
+          <button class="chip picked" data-action="remove-dish" data-id="${d.id}" aria-label="Haal ${esc(d.name)} weg">
+            <span aria-hidden="true">${dishIcon(d)}</span> ${esc(d.name)} <span aria-hidden="true">✕</span></button>`).join('')}
+        </div>` : ''}
       <h2>Tik aan wat je lekker vindt</h2>
       ${catalogHtml('avond')}
-      <h2>Of voeg zelf een gerecht toe</h2>
-      ${dishFormHtml(null, false)}
-      ${count ? `<h2>Jouw gerechten</h2>
-        <ul class="list">${state.dishes.map(d => `
-          <li><span class="grow"><strong>${esc(d.name)}</strong><br><span class="small muted">${dishDetails(d)}</span></span>
-          <button class="icon-btn" data-action="remove-dish" data-id="${d.id}" aria-label="Verwijder ${esc(d.name)}">✕</button></li>`).join('')}
-        </ul>` : ''}
+      <details data-remember="ownOpen"${view.ownOpen ? ' open' : ''}>
+        <summary><span>Staat het er niet bij? Voeg zelf een gerecht toe</span></summary>
+        ${dishFormHtml(null, false)}
+      </details>
       <button class="btn primary sticky" data-action="finish-onboarding"${left > 0 ? ' disabled' : ''}>
         ${left > 0 ? `Nog ${left} ${left === 1 ? 'gerecht' : 'gerechten'} te gaan` : 'Laten we beginnen!'}
       </button>
@@ -1309,13 +1341,16 @@ const VIEWS = {
     const eaten = entriesOn(dayKey(new Date()));
     const marks = entryMarks();
     const none = mealDishes().length === 0;
-    const off = none ? ' disabled' : '';
     // Zijn er wel gerechten voor deze maaltijd, maar passen ze niet bij het dieet of de allergieën?
     const dietBlocks = none && state.dishes.some(d => d.meals.includes(meal));
     const limits = [state.diet.length && 'je dieet', allergyNames().length && 'je allergieën'].filter(Boolean).join(' en ');
+    // Is er niets voor deze maaltijd, dan kun je meteen overstappen naar een maaltijd waar wel iets voor is.
+    const others = none ? Object.keys(MEALS).filter(key => state.dishes.some(d => d.meals.includes(key) && suitable(d))) : [];
     return `
-      <button class="icon-btn globe" data-action="nav" data-view="world" aria-label="Wereldkeuken: gerechten per land">🌍</button>
-      <button class="icon-btn settings" data-action="nav" data-view="more" aria-label="Instellingen">⚙️</button>
+      <div class="topbar">
+        <button class="icon-btn globe" data-action="nav" data-view="world" aria-label="Wereldkeuken: gerechten per land"><span aria-hidden="true">🌍</span> Wereld</button>
+        <button class="icon-btn settings" data-action="nav" data-view="more" aria-label="Instellingen">⚙️</button>
+      </div>
       <div class="hero">${avatarHtml()}<h1>${greeting()}</h1>
         <p class="muted">${manualMeal ? `Je kiest nu voor ${MEALS[meal].toLowerCase()}.` : `Tijd voor ${MEALS[meal].toLowerCase()}!`} Geen idee wat je wilt eten? Ik help je kiezen.</p></div>
       <div class="segments" role="group" aria-label="Maaltijd">${Object.entries(MEALS).map(([value, label]) => `
@@ -1323,12 +1358,13 @@ const VIEWS = {
       </div>
       ${none ? `<div class="notice">Je hebt nog niets voor ${MEALS[meal].toLowerCase()}${dietBlocks ? ` dat bij ${limits} past` : ''}. Zullen we er een toevoegen?</div>
         <button class="btn primary" data-action="discover" data-meal="${meal}">🔎 Gerechten ontdekken</button>
-        <button class="btn" data-action="edit-dish">+ Zelf een gerecht toevoegen</button>` : ''}
-      <button class="btn primary big" data-action="start-ask"${off}>Help mij kiezen</button>
-      <div class="row">
-        <button class="btn" data-action="surprise"${off}>🎲 Verras me</button>
-        <button class="btn" data-action="nav" data-view="group-setup"${off}>👥 Samen kiezen</button>
-      </div>
+        <button class="btn" data-action="edit-dish">+ Zelf een gerecht toevoegen</button>
+        ${others.map(key => `<button class="btn" data-action="set-meal" data-meal="${key}">Of kies nu voor ${MEALS[key].toLowerCase()}</button>`).join('')}` : `
+        <button class="btn primary big" data-action="start-ask">Help mij kiezen</button>
+        <div class="row">
+          <button class="btn" data-action="surprise">🎲 Verras me</button>
+          <button class="btn" data-action="nav" data-view="group-setup">👥 Samen kiezen</button>
+        </div>`}
       ${eaten.length ? `<h2>Vandaag gegeten</h2>
         <ul class="list">${eaten.map(h => entryHtml(h, false, marks.get(h.id))).join('')}</ul>
         <button class="btn link" data-action="nav" data-view="week">Bekijk je hele week</button>` : ''}`;
@@ -1467,11 +1503,15 @@ const VIEWS = {
     if (view.wrapped) notices.push('Dat waren ze allemaal! We beginnen weer vooraan.');
     if (!view.queue[0].exact) notices.push('Niets past precies bij je antwoorden, maar dit komt aardig in de buurt.');
     else if (items.some(item => !item.exact)) notices.push('Staat er “past bijna” bij? Dan klopt het net niet helemaal met je antwoorden.');
+    // Uitleg bij de plaatjes die rechts op de balkjes staan.
+    const marks = items.map(item => dishMarks(dishById(item.id)));
+    const legend = Object.keys(GROUPS).filter(key => marks.some(m => m[key])).map(key => `${GROUPS[key][0]} ${GROUPS[key][1].toLowerCase()}`);
     return `
       <h1>${group ? `Persoon ${group.votes.length + 1} van ${group.count}, kies maar!` : 'Wat lijkt je lekker?'}</h1>
       <p class="muted">Tik op waar je zin in hebt.</p>
       ${notices.map(n => `<div class="notice">${n}</div>`).join('')}
       ${items.map(barHtml).join('')}
+      ${legend.length ? `<p class="small muted center">${legend.join(' · ')}: dat telt mee voor je badges.</p>` : ''}
       ${group ? '' : `
         <div class="row">
           ${view.queue.length > PER_PAGE ? '<button class="btn" data-action="more-results">Iets anders</button>' : ''}
@@ -1490,7 +1530,8 @@ const VIEWS = {
 
   chosen() {
     const dish = dishById(view.id);
-    const hasRecipe = dish.ingredients.length || dish.recipe;
+    const { ingredients, recipe, own } = recipeOf(dish);
+    const hasRecipe = ingredients.length || recipe;
     return `
       <div class="hero"><div class="emoji pop">${dishIcon(dish)}</div>
         <p class="muted">Je ${MEALS[meal].toLowerCase()} wordt…</p>
@@ -1501,16 +1542,18 @@ const VIEWS = {
         ${allergenLine(dish) ? `<p class="small muted">${allergenLine(dish).replace('Bevat:', 'Bevat meestal:')}</p>` : ''}</div>
       ${rewardHtml(view.reward)}
       ${view.note ? `<div class="notice">${esc(view.note)}</div>` : ''}
-      ${dish.ingredients.length ? `
+      ${ingredients.length ? `
         <div class="card"><h2 style="margin-top:0">Ingrediënten</h2>
-          <ul>${dish.ingredients.map(i => `<li>${esc(i)}</li>`).join('')}</ul>
+          ${own ? '' : `<p class="small muted">Voor ${RECIPE_SERVES} personen</p>`}
+          <ul>${ingredients.map(i => `<li>${esc(i)}</li>`).join('')}</ul>
           <button class="btn" data-action="add-to-shopping"${view.added ? ' disabled' : ''}>
             ${view.added ? '✓ Op de boodschappenlijst gezet' : '🛒 Zet op de boodschappenlijst'}</button>
         </div>` : ''}
-      ${dish.recipe ? `<div class="card"><h2 style="margin-top:0">Bereidingswijze</h2><p class="recipe">${esc(dish.recipe)}</p></div>` : ''}
-      ${hasRecipe ? '' : `
-        <a class="btn" href="https://www.google.com/search?q=${encodeURIComponent(`recept ${dish.name}`)}" target="_blank" rel="noopener noreferrer">🔎 Zoek een recept op internet</a>
-        <button class="btn" data-action="edit-dish" data-id="${dish.id}">Recept en ingrediënten toevoegen</button>`}
+      ${recipe ? `<div class="card"><h2 style="margin-top:0">Bereidingswijze</h2>
+        ${own ? `<p class="recipe">${esc(recipe)}</p>` : `<ol class="steps">${recipe.split('\n').map(step => `<li>${esc(step)}</li>`).join('')}</ol>`}</div>` : ''}
+      ${hasRecipe ? '' : '<div class="notice">Van dit gerecht heb ik nog geen recept. Zoek er een op internet, of zet je eigen recept erbij.</div>'}
+      <a class="btn" href="https://www.google.com/search?q=${encodeURIComponent(`recept ${dish.name}`)}" target="_blank" rel="noopener noreferrer">🔎 ${hasRecipe ? 'Zoek een ander recept op internet' : 'Zoek een recept op internet'}</a>
+      <button class="btn" data-action="edit-dish" data-id="${dish.id}">${hasRecipe ? 'Recept aanpassen' : 'Eigen recept toevoegen'}</button>
       <button class="btn primary" data-action="nav" data-view="home">Lekker, dank je!</button>
       <button class="btn link" data-action="undo-choice">Toch liever iets anders</button>`;
   },
@@ -1520,9 +1563,15 @@ const VIEWS = {
       <h1>Favorieten</h1>
       <p class="muted">Je hebt ${state.dishes.length} favorieten. Tik op het potlood om er een aan te passen.</p>
       <button class="btn primary" data-action="discover" data-meal="alles">🔎 Gerechten ontdekken</button>
-      <button class="btn" data-action="edit-dish">+ Zelf een gerecht toevoegen</button>
-      <ul class="list">${[...state.dishes].sort((a, b) => a.name.localeCompare(b.name, 'nl')).map(d => `
-        <li><span class="icon" aria-hidden="true">${dishIcon(d)}</span>
+      <div class="row">
+        <button class="btn" data-action="nav" data-view="world">🌍 Wereldkeuken</button>
+        <button class="btn" data-action="edit-dish">+ Zelf toevoegen</button>
+      </div>
+      ${state.dishes.length > SEARCH_FROM ? `
+        <input type="search" data-input="favorite-search" value="${esc(view.query || '')}" placeholder="Zoek in je favorieten" aria-label="Zoek in je favorieten">
+        <p class="small muted" id="favorites-empty" hidden>Geen favoriet gevonden met die naam.</p>` : ''}
+      <ul class="list" id="favorites-list">${[...state.dishes].sort((a, b) => a.name.localeCompare(b.name, 'nl')).map(d => `
+        <li data-name="${esc(searchKey(d.name))}"><span class="icon" aria-hidden="true">${dishIcon(d)}</span>
         <span class="grow"><strong>${esc(d.name)}</strong><br><span class="small muted">${dishDetails(d)}</span>
           ${allergyBlock(d) ? `<br><span class="small warn">⚠️ Stel ik niet voor: ${esc(allergyBlock(d))}</span>` : ''}</span>
         <button class="icon-btn" data-action="edit-dish" data-id="${d.id}" aria-label="Pas ${esc(d.name)} aan">✎</button></li>`).join('')}
@@ -1568,6 +1617,7 @@ const VIEWS = {
         <p class="muted">Van dit land heb ik nog geen gerechten.</p></div>
       <button class="btn link" data-action="nav" data-view="world">← Terug naar de kaart</button>`;
     return `
+      <button class="btn link back" data-action="nav" data-view="world">← Kaart</button>
       <div class="hero"><div class="emoji">${flag(code)}</div><h1>${COUNTRIES[code][0]}</h1>
         <p class="muted">${rows.length === 10 ? 'Tien bekende gerechten' : `Bekende gerechten (${rows.length})`}. Tik op de plus om er een bij je favorieten te zetten.</p></div>
       ${hasAllergy() || state.diet.length ? '<div class="notice">Van de meeste van deze gerechten ken ik de allergenen en de diëten niet. Zet je er een bij je favorieten, vul die dan zelf in bij het gerecht. Tot die tijd stel ik het niet voor.</div>' : ''}
@@ -1590,7 +1640,8 @@ const VIEWS = {
       <h1>Gerechten ontdekken</h1>
       <p class="muted">Tik aan wat je lekker vindt, dan zet ik het bij je favorieten. Je hebt er nu ${state.dishes.length}.</p>
       ${catalogHtml('alles')}
-      <button class="btn primary sticky above-nav" data-action="nav" data-view="favorites">Klaar</button>`;
+      <button class="btn link" data-action="nav" data-view="world">🌍 Of kijk in de wereldkeuken</button>
+      <button class="btn primary sticky above-nav" data-action="nav" data-view="favorites">Klaar · ${state.dishes.length} favorieten</button>`;
   },
 
   edit() {
@@ -1616,9 +1667,9 @@ const VIEWS = {
       </form>
       ${state.shopping.length ? `
         <ul class="list">${state.shopping.map(i => `
-          <li><input type="checkbox" id="s-${i.id}" data-change="toggle-item" data-id="${i.id}"${i.done ? ' checked' : ''}>
-          <label for="s-${i.id}" class="grow${i.done ? ' done' : ''}" style="margin:0;font-weight:400">${esc(i.text)}
-            ${i.dish ? `<br><span class="small muted">${esc(i.dish)}</span>` : ''}</label></li>`).join('')}
+          <li class="tick"><label><input type="checkbox" id="s-${i.id}" data-change="toggle-item" data-id="${i.id}"${i.done ? ' checked' : ''}>
+            <span class="grow${i.done ? ' done' : ''}">${esc(i.text)}
+              ${i.dish ? `<br><span class="small muted">${esc(i.dish)}</span>` : ''}</span></label></li>`).join('')}
         </ul>
         <button class="btn"${anyDone ? '' : ' disabled'} data-action="clear-done">Afgevinkte verwijderen</button>`
       : '<div class="hero"><div class="emoji">🛒</div><p class="muted">Je lijstje is nog leeg. Kies een gerecht met ingrediënten, of zet er zelf iets op.</p></div>'}`;
@@ -1853,7 +1904,7 @@ const ACTIONS = {
 
   'add-to-shopping'() {
     const dish = dishById(view.id);
-    for (const text of dish.ingredients) {
+    for (const text of recipeOf(dish).ingredients) {
       state.shopping.push({ id: newId(), text, done: false, dish: dish.name });
     }
     save();
@@ -2001,11 +2052,19 @@ const FORMS = {
     });
     if (data.has('ingredients')) {
       dish.ingredients = data.get('ingredients').split('\n').map(line => line.trim()).filter(Boolean);
-      dish.recipe = data.get('recipe').trim();
+      dish.recipe = data.get('recipe').replace(/\r\n/g, '\n').trim();
+      // Is het recept van de app ongewijzigd gebleven, dan blijft het gerecht dat recept volgen.
+      const [list, recipe] = RECIPE_BY_NAME.get(name.toLowerCase()) || [];
+      if (dish.ingredients.join('|') === list && dish.recipe === recipe) {
+        dish.ingredients = [];
+        dish.recipe = '';
+      }
     }
     if (!existing) state.dishes.push(dish);
     save();
-    go(state.onboarded ? 'favorites' : 'onboarding');
+    // Bij de eerste start blijft het formulier open: wie zelf een gerecht toevoegt, voegt er vaak meer toe.
+    if (state.onboarded) go('favorites');
+    else go('onboarding', { ownOpen: true });
   },
 
   welcome(form) {
@@ -2155,6 +2214,9 @@ document.addEventListener('input', event => {
   } else if (event.target.dataset.input === 'country-search') {
     worldMap.query = event.target.value;
     filterCountries();
+  } else if (event.target.dataset.input === 'favorite-search') {
+    view.query = event.target.value;
+    filterFavorites();
   }
 });
 
@@ -2162,6 +2224,13 @@ document.addEventListener('change', event => {
   const el = event.target.closest('[data-change]');
   if (el) CHANGES[el.dataset.change](el);
 });
+
+// Een uitklapblok dat open moet blijven als het scherm opnieuw wordt getekend, onthoudt zijn stand.
+// Het openen en sluiten borrelt niet omhoog, vandaar het afvangen op de weg naar beneden.
+document.addEventListener('toggle', event => {
+  const key = event.target.dataset.remember;
+  if (key) view[key] = event.target.open;
+}, true);
 
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   navigator.serviceWorker.register('sw.js').catch(() => {});

@@ -193,9 +193,13 @@ html { font-size: 106.25%; overflow-x: hidden; }
   padding: 20px 16px calc(96px + env(safe-area-inset-bottom));
 }
 
-/* Het tandwiel naar de instellingen rechtsboven en de wereldbol naar de wereldkeuken linksboven */
-.settings { position: absolute; top: 12px; right: 16px; font-size: 1.2rem; }
-.globe { position: absolute; top: 12px; left: 16px; font-size: 1.2rem; }
+/* Bovenaan het startscherm: de wereldbol naar de wereldkeuken links en het tandwiel naar de instellingen
+   rechts, in een eigen rij zodat ze ook bij grote letters niet over de profielfoto vallen */
+.topbar { display: flex; justify-content: space-between; align-items: center; margin-top: -8px; }
+.topbar + .hero { padding-top: 0; }
+.settings { font-size: 1.2rem; }
+.globe { display: flex; align-items: center; gap: 6px; padding: 0 14px 0 10px; border-radius: 999px; font-size: 0.9rem; font-weight: 600; }
+.globe span { font-size: 1.2rem; }
 
 /* Wereldkaart: de zee is de achtergrond, elk land is een eigen vorm die je kunt aantikken */
 .map-wrap { overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius); background: var(--card); box-shadow: var(--shadow); margin-bottom: 12px; }
@@ -273,9 +277,15 @@ a.btn { display: flex; align-items: center; justify-content: center; text-align:
   cursor: pointer;
 }
 .chip:active { transform: scale(0.96); }
+/* Een gerecht dat je al hebt gekozen (bij de eerste start); aantikken haalt het weer weg */
+.chip.picked { background: var(--accent-soft); border-color: transparent; }
+/* Een terugknop linksboven een scherm */
+.btn.link.back { display: inline-block; width: auto; margin: -8px 0; padding: 0 12px 0 0; }
 
 .row { display: flex; gap: 10px; }
 .row > * { flex: 1; }
+/* Twee knoppen naast elkaar hebben weinig ruimte: met smallere randen past de tekst op één regel */
+.row > .btn { padding-left: 8px; padding-right: 8px; }
 
 /* De balkjes met gerechten */
 .bar {
@@ -418,6 +428,9 @@ h3 { font-size: 1rem; margin: 18px 0 6px; }
   border-radius: 18px;
 }
 .list .grow { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+/* Een regel van het boodschappenlijstje: de hele regel is aan te tikken, niet alleen het vakje */
+.list li.tick { padding: 0; }
+.list li.tick label { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; min-height: 56px; margin: 0; padding: 12px 14px; font-weight: 400; cursor: pointer; }
 .icon-btn {
   flex: none;
   min-width: 44px;
@@ -462,6 +475,9 @@ h3 { font-size: 1rem; margin: 18px 0 6px; }
 .done { text-decoration: line-through; color: var(--muted); }
 
 .recipe { white-space: pre-wrap; }
+/* De stappen van een recept: genummerd, met wat lucht ertussen */
+.steps { margin: 0; padding-left: 1.4rem; }
+.steps li { margin-bottom: 8px; }
 .hero { text-align: center; padding: 16px 0 8px; }
 .hero .emoji {
   display: grid;
