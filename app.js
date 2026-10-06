@@ -925,6 +925,79 @@ function choose(id, note) {
   go('chosen', { id, note, entryId: entry.id, replaced, reward });
 }
 
+// ---------- Beweging ----------
+
+// Zoveel onderdelen van een scherm komen een voor een in beeld; de rest komt tegelijk met het laatste.
+const STAGGER = 12;
+// Zo vaak verspringt het plaatje bij "Verras me" voordat het stilstaat, en zo snel (in milliseconden).
+const SPIN_TURNS = 9;
+const SPIN_SPEED = 90;
+// Aantal snippers bij een nieuwe badge, hun kleuren, en na hoeveel milliseconden ze zijn opgeruimd.
+const CONFETTI = 36;
+const CONFETTI_COLORS = ['var(--accent)', 'var(--accent-ink)', '#f6c026', '#2bb3a3', '#ff6b8b', '#7aa2f7'];
+const CONFETTI_TIME = 3800;
+
+// Geen beweging voor wie daar op het apparaat om heeft gevraagd (zie ook style.css), en ook niet zolang de
+// app niet in beeld is: dan lopen klokjes in de browser te traag om iets vloeiend te laten bewegen.
+function motionOff() {
+  return document.hidden || matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
+// Staat op waar bij een stap terug, zodat het volgende scherm van de andere kant in beeld schuift.
+let backward = false;
+
+// Laat een nieuw scherm in beeld komen: de onderdelen kort na elkaar (zie "Beweging" in style.css).
+// Opnieuw tekenen binnen een scherm doet dat niet; daarom haalt render() de klasse weer weg.
+function enterScreen() {
+  app.dataset.dir = backward ? 'back' : '';
+  backward = false;
+  [...app.children].slice(0, STAGGER).forEach((el, i) => el.style.setProperty('--i', i));
+  app.classList.remove('enter');
+  void app.offsetWidth;
+  app.classList.add('enter');
+}
+
+// Feestelijke snippers over het scherm, bij een nieuwe badge. Ze staan los van het scherm eronder en
+// ruimen zichzelf op.
+function confetti() {
+  if (motionOff()) return;
+  const layer = document.createElement('div');
+  layer.className = 'confetti';
+  layer.setAttribute('aria-hidden', 'true');
+  for (let i = 0; i < CONFETTI; i++) {
+    const piece = document.createElement('i');
+    piece.style.cssText = `left:${Math.random() * 100}%;--color:${CONFETTI_COLORS[i % CONFETTI_COLORS.length]};` +
+      `--fall:${1.6 + Math.random() * 1.4}s;--wait:${Math.random() * 0.6}s;` +
+      `--drift:${Math.random() * 120 - 60}px;--turn:${Math.random() * 900 - 450}deg`;
+    layer.appendChild(piece);
+  }
+  document.body.appendChild(layer);
+  setTimeout(() => layer.remove(), CONFETTI_TIME);
+}
+
+// Bij "Verras me" verspringt het plaatje eerst langs je andere gerechten, als een dobbelsteen die uitrolt.
+// De naam van het gerecht verschijnt pas als het plaatje stilstaat.
+function spinIcon() {
+  const hero = app.querySelector('.hero');
+  const emoji = hero.querySelector('.emoji');
+  const final = emoji.textContent;
+  const icons = [...new Set(state.dishes.map(dishIcon))].filter(icon => icon !== final);
+  if (motionOff() || !icons.length) return;
+  hero.classList.add('spinning');
+  let turn = 0;
+  const timer = setInterval(() => {
+    // Is het scherm intussen opnieuw getekend, dan staat het goede plaatje er al.
+    if (!hero.isConnected) return clearInterval(timer);
+    if (turn < SPIN_TURNS) {
+      emoji.textContent = icons[turn++ % icons.length];
+      return;
+    }
+    clearInterval(timer);
+    emoji.textContent = final;
+    hero.classList.replace('spinning', 'revealed');
+  }, SPIN_SPEED);
+}
+
 // ---------- Navigatie ----------
 
 function go(name, extra = {}) {
@@ -932,10 +1005,8 @@ function go(name, extra = {}) {
   if (name === 'home') syncMeal();
   render();
   window.scrollTo(0, 0);
-  // Een nieuw scherm komt zacht in beeld; opnieuw tekenen binnen een scherm niet.
-  app.classList.remove('enter');
-  void app.offsetWidth;
-  app.classList.add('enter');
+  enterScreen();
+  if (extra.reward && extra.reward.badges.length) confetti();
   // Schermlezers en toetsenbordgebruikers beginnen bij de titel van het nieuwe scherm.
   const title = app.querySelector('h1');
   if (title) {
@@ -972,6 +1043,7 @@ window.addEventListener('popstate', () => {
     return syncHistory();
   }
   if (!state.onboarded || view.name === 'home') return;
+  backward = true;
   if (view.name === 'ask' && view.step > 0) ACTIONS['ask-back']();
   else if (view.name === 'log') go('week', { offset: view.offset, day: view.day });
   else if (view.name === 'country') go('world');
@@ -1003,6 +1075,9 @@ const NAV_TAB = {
 
 function render() {
   if (!state.onboarded) view.name = state.welcomed ? 'onboarding' : 'welcome';
+  // Alleen een nieuw scherm komt met beweging in beeld (zie enterScreen); de opmaak kan per scherm verschillen.
+  app.classList.remove('enter');
+  app.dataset.view = view.name;
   app.innerHTML = VIEWS[view.name]();
   if (document.getElementById('catalog')) filterCatalog();
   if (document.getElementById('map-host')) {
@@ -1370,9 +1445,11 @@ const VIEWS = {
 
   ask() {
     const q = QUESTIONS[view.step];
+    // De balk groeit of krimpt vanaf waar hij bij de vorige vraag stond.
+    const before = view.step + (backward ? 2 : 0);
     return `
       <p class="small muted">Vraag ${view.step + 1} van ${QUESTIONS.length}</p>
-      <div class="progress"><div style="width:${(view.step + 1) / QUESTIONS.length * 100}%"></div></div>
+      <div class="progress"><div style="width:${(view.step + 1) / QUESTIONS.length * 100}%;--from:${before / QUESTIONS.length * 100}%"></div></div>
       <h1>${q.title}</h1>
       <p></p>
       ${q.options.map(([value, label]) => {
@@ -1500,7 +1577,7 @@ const VIEWS = {
         return `
           <li><span class="rank" aria-hidden="true">${i + 1}</span><span class="icon" aria-hidden="true">${dishIcon(dish)}</span>
           <span class="grow"><strong>${esc(dish.name)}</strong><br><span class="small muted">${esc(dish.text)}</span></span>
-          <button class="icon-btn${added ? ' done' : ''}" data-action="world-add" data-index="${i}"${added ? ' disabled' : ''}
+          <button class="icon-btn${added ? ' done' : ''}${i === view.justAdded ? ' pop' : ''}" data-action="world-add" data-index="${i}"${added ? ' disabled' : ''}
             aria-label="${added ? `${esc(dish.name)} staat bij je favorieten` : `Zet ${esc(dish.name)} bij je favorieten`}">${added ? '✓' : '+'}</button></li>`;
       }).join('')}
       </ol>
@@ -1633,8 +1710,13 @@ const ACTIONS = {
   'set-theme'(el) {
     state.theme = el.dataset.theme;
     save();
-    applyTheme();
-    render();
+    const change = () => {
+      applyTheme();
+      render();
+    };
+    // Waar de browser het kan, vloeien de oude kleuren over in de nieuwe.
+    if (document.startViewTransition && !motionOff()) document.startViewTransition(change);
+    else change();
   },
 
   'finish-onboarding'() {
@@ -1666,7 +1748,7 @@ const ACTIONS = {
   },
 
   'map-zoom'(el) {
-    if (worldMap.status === 'ready') zoomMap(Number(el.dataset.factor));
+    if (worldMap.status === 'ready') zoomMapStep(Number(el.dataset.factor));
   },
 
   // Zoomt in op een werelddeel en zet de landen daarvan in de lijst; zonder werelddeel zie je de hele wereld.
@@ -1700,6 +1782,8 @@ const ACTIONS = {
       icon: dish.icon, diets: [], allergens: [], unchecked: true, ingredients: [], recipe: '',
     });
     save();
+    // Het vinkje van het gerecht dat er net bij kwam, springt even op.
+    view.justAdded = Number(el.dataset.index);
     render();
   },
 
@@ -1724,7 +1808,10 @@ const ACTIONS = {
     }
   },
 
-  'ask-back'() { go('ask', { step: view.step - 1, answers: view.answers, group: view.group }); },
+  'ask-back'() {
+    backward = true;
+    go('ask', { step: view.step - 1, answers: view.answers, group: view.group });
+  },
 
   'more-results'() {
     if ((view.page + 1) * PER_PAGE < view.queue.length) {
@@ -1742,6 +1829,7 @@ const ACTIONS = {
     const exact = queue.filter(item => item.exact);
     const pool = (exact.length ? exact : queue).map(item => dishById(item.id));
     choose(weightedShuffle(pool)[0].id, 'Deze heb ik voor je uitgekozen. 🎲');
+    spinIcon();
   },
 
   pick(el) {
@@ -2083,3 +2171,4 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
 if (checkBadges().length) save();
 applyTheme();
 render();
+enterScreen();

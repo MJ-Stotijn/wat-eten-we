@@ -12,6 +12,8 @@ const MAP_MAX_ZOOM = 120;
 const MAP_TAP = 6;
 // Tik je net naast een land (een eilandje, een ministaat), dan telt het land binnen deze afstanden.
 const MAP_NEAR = [8, 16];
+// Zo lang (in milliseconden) duurt de beweging naar een werelddeel of een zoomstap.
+const MAP_FLIGHT = 380;
 
 const worldMap = {
   status: 'idle',      // idle, loading, ready of failed
@@ -20,6 +22,8 @@ const worldMap = {
   boxes: new Map(),    // landcode → [x, y, breedte, hoogte] van het grootste stuk van dat land
   full: null,          // de hele wereld als [x, y, breedte, hoogte]
   box: null,           // het stuk dat nu in beeld is
+  goal: null,          // het stuk waar de kaart naartoe beweegt, als er een beweging loopt
+  flight: 0,           // het nummer van die beweging, om haar af te kunnen breken
   selected: null,      // de landcode die is gekozen
   region: null,        // het werelddeel waarvan de landen onder de kaart staan
   query: '',           // wat er in het zoekveld staat
@@ -66,18 +70,56 @@ function zoomMap(factor, centerX, centerY) {
   setMapBox([cx - (cx - x) / factor, cy - (cy - y) / factor, w / factor, h / factor]);
 }
 
+// Schuift en zoomt in één vloeiende beweging naar een uitsnede. Tijdens de beweging is `goal` waar de kaart
+// naartoe gaat, zodat twee keer snel op + twee stappen inzoomt.
+function flyMapTo(box) {
+  const from = worldMap.box;
+  const to = fitMapBox(box);
+  stopMapFlight();
+  // Wie de kaart niet ziet (of geen beweging wil), krijgt meteen het eindbeeld.
+  if (motionOff() || !worldMap.svg.isConnected) return setMapBox(to);
+  worldMap.goal = to;
+  const start = performance.now();
+  const step = now => {
+    const t = Math.min(1, (now - start) / MAP_FLIGHT);
+    // Snel vertrekken en zacht aankomen; de breedte verandert in gelijke verhoudingen, dat oogt gelijkmatig.
+    const k = 1 - (1 - t) ** 3;
+    const w = from[2] * (to[2] / from[2]) ** k;
+    const h = w / MAP_RATIO;
+    const cx = from[0] + from[2] / 2 + (to[0] + to[2] / 2 - from[0] - from[2] / 2) * k;
+    const cy = from[1] + from[3] / 2 + (to[1] + to[3] / 2 - from[1] - from[3] / 2) * k;
+    setMapBox([cx - w / 2, cy - h / 2, w, h]);
+    if (t < 1) worldMap.flight = requestAnimationFrame(step);
+    else worldMap.goal = null;
+  };
+  worldMap.flight = requestAnimationFrame(step);
+}
+
+// Breekt een lopende beweging af, bijvoorbeeld omdat je de kaart zelf vastpakt.
+function stopMapFlight() {
+  cancelAnimationFrame(worldMap.flight);
+  worldMap.goal = null;
+}
+
+// De knoppen + en −: een stap in- of uitzoomen rond het midden.
+function zoomMapStep(factor) {
+  const [x, y, w, h] = worldMap.goal || worldMap.box;
+  flyMapTo([x + (w - w / factor) / 2, y + (h - h / factor) / 2, w / factor, h / factor]);
+}
+
 // Zet een land midden in beeld, met wat ruimte eromheen.
 function showCountryOnMap(code) {
   const box = worldMap.boxes.get(code);
   if (!box || worldMap.status !== 'ready') return;
   const [x, y, w, h] = box;
   const margin = Math.max(w, h, 2);
+  stopMapFlight();
   setMapBox([x - margin, y - margin, w + 2 * margin, h + 2 * margin]);
 }
 
 // Zet een werelddeel in beeld, of de hele wereld als er geen is gekozen.
 function showRegionOnMap(key) {
-  if (worldMap.status === 'ready') setMapBox(key ? mapBox(REGIONS[key][1]) : worldMap.full);
+  if (worldMap.status === 'ready') flyMapTo(key ? mapBox(REGIONS[key][1]) : worldMap.full);
 }
 
 function loadWorldMap() {
@@ -239,6 +281,7 @@ function listenToMap(svg) {
   };
 
   svg.addEventListener('pointerdown', event => {
+    stopMapFlight();
     // Een eerste vinger betekent dat er geen andere meer op de kaart ligt, ook als het loslaten is gemist.
     if (event.isPrimary) pointers.clear();
     if (pointers.size === 0) moved = 0;
@@ -284,6 +327,7 @@ function listenToMap(svg) {
 
   svg.addEventListener('wheel', event => {
     event.preventDefault();
+    stopMapFlight();
     zoomMap(event.deltaY < 0 ? 1.25 : 0.8, ...onMap(event.clientX, event.clientY));
   }, { passive: false });
 }

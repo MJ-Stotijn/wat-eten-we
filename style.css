@@ -181,11 +181,13 @@ html, body {
   -webkit-text-size-adjust: 100%;
 }
 
-/* In procenten, zodat een grotere letter in de telefooninstellingen wordt gevolgd */
-html { font-size: 106.25%; }
+/* In procenten, zodat een grotere letter in de telefooninstellingen wordt gevolgd.
+   Wat van opzij binnenschuift, mag het scherm niet breder maken: dat valt buiten beeld weg. */
+html { font-size: 106.25%; overflow-x: hidden; }
 
 #app {
   position: relative;
+  overflow-x: clip;
   max-width: 480px;
   margin: 0 auto;
   padding: 20px 16px calc(96px + env(safe-area-inset-bottom));
@@ -446,9 +448,6 @@ h3 { font-size: 1rem; margin: 18px 0 6px; }
 .notice.reward { text-align: center; font-size: 1rem; }
 /* Nog niet verdiend: het plaatje is grijs, de tekst blijft goed leesbaar */
 .locked .icon { filter: grayscale(1); opacity: 0.5; }
-@media (prefers-reduced-motion: no-preference) {
-  #app.enter .notice.reward { animation: pop 0.5s 0.15s backwards cubic-bezier(0.3, 1.6, 0.5, 1); }
-}
 
 .pill {
   display: inline-block;
@@ -505,13 +504,105 @@ h3 { font-size: 1rem; margin: 18px 0 6px; }
   font-size: 1rem;
 }
 
-/* Beweging: schermen komen zacht in beeld, het gekozen gerecht springt even op */
+/* ---------- Beweging ----------
+   Alles hieronder geldt alleen als het apparaat niet om minder beweging vraagt. De klasse "enter" staat
+   alleen op een scherm dat net is geopend (zie enterScreen in app.js): opnieuw tekenen binnen een scherm
+   speelt dus niets opnieuw af. */
+
+/* Het volgnummer van een regel in een lijst; de eerste tien komen een voor een, de rest tegelijk */
+.list > li:nth-child(2) { --n: 1; }
+.list > li:nth-child(3) { --n: 2; }
+.list > li:nth-child(4) { --n: 3; }
+.list > li:nth-child(5) { --n: 4; }
+.list > li:nth-child(6) { --n: 5; }
+.list > li:nth-child(7) { --n: 6; }
+.list > li:nth-child(8) { --n: 7; }
+.list > li:nth-child(9) { --n: 8; }
+.list > li:nth-child(n+10) { --n: 9; }
+
 @media (prefers-reduced-motion: no-preference) {
-  #app.enter { animation: rise 0.28s ease-out; }
-  .hero .emoji.pop { animation: pop 0.5s cubic-bezier(0.3, 1.6, 0.5, 1); }
+  /* Een nieuw scherm: de onderdelen komen kort na elkaar omhoog in beeld. Het volgnummer --i zet de app
+     erop; een lijst komt niet als geheel maar regel voor regel. */
+  #app.enter > *,
+  #app.enter > .list > li:nth-child(-n+12) {
+    animation: rise 0.34s cubic-bezier(0.2, 0.8, 0.3, 1) backwards;
+    animation-delay: calc((var(--i, 12) + var(--n, 0)) * 35ms);
+  }
+  #app.enter > .list { animation: none; }
+  /* De vragen schuiven van rechts binnen, en een stap terug komt van links */
+  #app.enter[data-view="ask"] > * { animation-name: from-right; }
+  #app.enter[data-dir="back"] > *,
+  #app.enter[data-dir="back"] > .list > li:nth-child(-n+12) { animation-name: from-left; }
+  /* De balkjes met gerechten schieten een voor een in beeld */
+  #app.enter[data-view="results"] > .bar {
+    animation: from-right 0.45s cubic-bezier(0.2, 1.3, 0.4, 1) backwards;
+    animation-delay: calc(var(--i, 0) * 70ms);
+  }
+  /* Een voortgangsbalk groeit vanaf waar hij stond */
+  #app.enter .progress > div { animation: grow 0.6s 0.15s cubic-bezier(0.2, 0.8, 0.3, 1) backwards; }
+
+  /* Het gekozen gerecht springt op, met een kring die uitdijt */
+  #app.enter .hero .emoji.pop,
+  .hero.revealed .emoji { animation: pop 0.5s cubic-bezier(0.3, 1.6, 0.5, 1) backwards, halo 0.9s 0.3s ease-out; }
+  /* "Verras me": het plaatje rolt, de rest wacht tot het stilstaat */
+  .hero > :not(.emoji) { transition: opacity 0.3s; }
+  .hero.spinning > :not(.emoji) { opacity: 0; }
+  .hero.spinning .emoji { animation: shake 0.18s linear infinite; }
+  /* Een nieuwe badge en wat ervoor meetelt */
+  #app.enter .notice.reward { animation: pop 0.5s 0.45s backwards cubic-bezier(0.3, 1.6, 0.5, 1); }
+  /* Verdiende badges springen een voor een op */
+  #app.enter[data-view="rewards"] li:not(.locked) .icon {
+    animation: pop 0.5s cubic-bezier(0.3, 1.6, 0.5, 1) backwards;
+    animation-delay: calc((var(--i, 12) + var(--n, 0)) * 35ms + 180ms);
+  }
+  /* Vandaag licht even op in het weekoverzicht */
+  #app.enter > .day.today {
+    animation: rise 0.34s cubic-bezier(0.2, 0.8, 0.3, 1) backwards, halo 1s ease-out;
+    animation-delay: calc(var(--i, 12) * 35ms), 0.6s;
+  }
+  /* Het vinkje van een gerecht dat net bij je favorieten is gezet */
+  .icon-btn.pop { animation: pop 0.45s cubic-bezier(0.3, 1.6, 0.5, 1); }
+
+  /* Kleine levendigheid: het bordje zweeft, het handje zwaait, de telefoon schudt */
+  #app[data-view="home"] .avatar { animation: float 4.5s ease-in-out infinite; }
+  #app[data-view="welcome"] .hero .emoji { animation: wave 1.6s 0.5s 2; }
+  #app[data-view="pass"] .hero .emoji { animation: wiggle 0.9s 0.4s 2; }
+  /* Het tabblad waar je naartoe gaat, maakt een sprongetje */
+  #nav button.active .nav-icon { animation: hop 0.4s cubic-bezier(0.3, 1.6, 0.5, 1); }
+  /* Zolang de kaart laadt */
+  .map-status.muted { animation: pulse 1.4s ease-in-out infinite; }
+  /* Knoppen veren in onder je vinger */
+  .icon-btn, .chip, .check, .theme, .nav-icon { transition: transform 0.12s; }
+  .icon-btn:active:not(:disabled) { transform: scale(0.9); }
+  #nav button:active .nav-icon { transform: scale(0.88); }
 }
-@keyframes rise { from { opacity: 0; transform: translateY(10px); } }
+
+@keyframes rise { from { opacity: 0; transform: translateY(12px); } }
+@keyframes from-right { from { opacity: 0; transform: translateX(28px); } }
+@keyframes from-left { from { opacity: 0; transform: translateX(-28px); } }
 @keyframes pop { from { transform: scale(0.4) rotate(-12deg); opacity: 0; } }
+@keyframes grow { from { width: var(--from, 0%); } }
+@keyframes halo { from { box-shadow: 0 0 0 0 var(--accent); } to { box-shadow: 0 0 0 26px transparent; } }
+@keyframes shake { 25% { transform: rotate(-7deg); } 75% { transform: rotate(7deg); } }
+@keyframes float { 50% { transform: translateY(-5px); } }
+@keyframes wave { 10%, 30% { transform: rotate(16deg); } 20%, 40% { transform: rotate(-10deg); } 50% { transform: rotate(0); } }
+@keyframes wiggle { 20%, 60% { transform: rotate(-14deg); } 40%, 80% { transform: rotate(14deg); } }
+@keyframes hop { 45% { transform: translateY(-6px) scale(1.15); } }
+@keyframes pulse { 50% { opacity: 0.45; } }
+
+/* Snippers bij een nieuwe badge: een laag over het hele scherm waar je doorheen kunt tikken */
+.confetti { position: fixed; inset: 0; z-index: 5; overflow: hidden; pointer-events: none; }
+.confetti i {
+  position: absolute;
+  top: -20px;
+  width: 9px;
+  height: 14px;
+  border-radius: 2px;
+  background: var(--color);
+  animation: confetti var(--fall) var(--wait) cubic-bezier(0.3, 0.2, 0.6, 1) forwards;
+}
+.confetti i:nth-child(3n) { width: 10px; height: 10px; border-radius: 50%; }
+@keyframes confetti { to { transform: translate(var(--drift), 108vh) rotate(var(--turn)); } }
 
 #nav {
   position: fixed;
