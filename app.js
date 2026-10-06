@@ -1120,11 +1120,11 @@ function dishFormHtml(dish, full) {
   // De allergenen staan ingeklapt, behalve als ze ertoe doen: bij een gerecht dat er al heeft, of als je zelf een allergie hebt.
   const showAllergens = d.allergens.length > 0 || d.unchecked || hasAllergy();
   const choices = (name, map, selected) => Object.entries(map).map(([value, label]) => `
-    <label class="check"><input type="radio" name="${name}" value="${value}"${value === selected ? ' checked' : ''}>${label}</label>`).join('');
+    <label class="check"><input type="radio" name="${name}" value="${value}" data-input="dish-icon"${value === selected ? ' checked' : ''}>${label}</label>`).join('');
   return `
     <form data-form="dish" novalidate>
       <label for="f-name">Naam van het gerecht</label>
-      <input id="f-name" name="name" type="text" maxlength="60" autocomplete="off" data-input="dish-name" value="${esc(d.name)}" placeholder="Bijvoorbeeld: spaghetti bolognese">
+      <input id="f-name" name="name" type="text" maxlength="60" autocomplete="off" data-input="dish-icon" value="${esc(d.name)}" placeholder="Bijvoorbeeld: spaghetti bolognese">
       <fieldset>
         <legend>Pictogram</legend>
         <label class="icon-pick"><input type="radio" name="icon" value=""${d.icon ? '' : ' checked'}>
@@ -2384,10 +2384,10 @@ document.addEventListener('input', event => {
   } else if (event.target.dataset.input === 'favorite-search') {
     view.query = event.target.value;
     filterFavorites();
-  } else if (event.target.dataset.input === 'dish-name') {
-    // Het pictogram dat bij de naam past, verandert mee terwijl je typt.
-    const form = event.target.form;
-    document.getElementById('auto-icon').innerHTML = iconSvg(iconKey(event.target.value, '', new FormData(form).get('type')));
+  } else if (event.target.dataset.input === 'dish-icon') {
+    // Het pictogram dat bij de naam en de soort past, verandert mee terwijl je invult.
+    const data = new FormData(event.target.form);
+    document.getElementById('auto-icon').innerHTML = iconSvg(iconKey(data.get('name'), '', data.get('type')));
   }
 });
 

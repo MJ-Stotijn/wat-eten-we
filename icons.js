@@ -207,7 +207,7 @@ const ICON_RULES = [
   ['inktvis', 'Inktvis', ['octopus', 'inktvis', 'calamares']],
   ['kip', 'Kip en gevogelte', ['kip', 'kalkoen', 'drumstick', 'eend']],
   ['vlees', 'Vlees', ['vlees', 'biefstuk', 'steak', 'entrecote', 'schnitzel', 'karbonade', 'kotelet', 'rollade', 'ribs', 'varken', /\bham\b/, /\blam\b/, /\bgeit\b/]],
-  ['gehaktbal', 'Gehakt en balletjes', ['gehaktbal', 'vleesbal', 'slavink', 'falafel', 'balletje', /\bballen\b/, /(?<!fijn)gehakt\b/]],
+  ['gehaktbal', 'Gehakt en balletjes', ['gehaktbal', 'vleesbal', 'slavink', 'falafel', 'balletje', /\bballen\b/, /(?:^|[^n])gehakt\b/]],
   ['worst', 'Worst', ['worst', 'wurst', 'gehaktrolletje']],
   ['spek', 'Spek', ['spek', 'bacon']],
   ['grill', 'Van de grill', ['barbecue', 'houtskool', 'gegrild', /\bgrill\b/]],

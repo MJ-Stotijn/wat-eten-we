@@ -376,6 +376,8 @@ input[type="text"], input[type="number"], input[type="search"], select, textarea
   background: transparent;
   font-size: 1.12rem;
 }
+/* Zonder de eigen opmaak van de telefoon: een iPhone tekent een zoekveld anders rond en grijs */
+input[type="text"], input[type="number"], input[type="search"], textarea { -webkit-appearance: none; appearance: none; }
 input::placeholder, textarea::placeholder { font-style: italic; color: var(--muted); opacity: 1; }
 input[type="search"] { margin-bottom: 12px; }
 select { cursor: pointer; }
@@ -433,7 +435,7 @@ summary::-webkit-details-marker { display: none; }
 /* ---------- Losse schermen ---------- */
 
 /* Welkom: de omslag van het boek, met een dubbele rand */
-.cover { margin: 14px -12px 0; padding: 44px 28px 22px; border: 1.5px solid var(--text); border-radius: 10px; outline: 1px solid var(--border); outline-offset: -6px; }
+.cover { margin: 14px -12px 0; padding: 44px 28px 22px; border: 1.5px solid var(--text); border-radius: 10px; box-shadow: inset 0 0 0 4px var(--bg), inset 0 0 0 5px var(--border); }
 .title { margin: 12px 0 0; font-size: 3.2rem; line-height: 1.02; }
 
 /* De profielfoto: een rond bordje met de foto (of je voorletter) en een cameraatje in de hoek */
@@ -520,7 +522,9 @@ span.person.on i { border: 1.5px solid var(--text); background: var(--card); col
 /* Nog niet verdiend: het pictogram is grijs, de tekst blijft goed leesbaar */
 .seal.locked { color: var(--muted); }
 .seal.locked .icon { border: 1.5px dashed var(--label); background: none; box-shadow: none; filter: grayscale(1); opacity: 0.55; }
-.seal[aria-pressed="true"] .icon { outline: 2px solid var(--text); outline-offset: 3px; }
+/* De badge die je hebt aangetikt krijgt een ring; als schaduw, zodat die op elke telefoon rond is */
+.seal[aria-pressed="true"] .icon { box-shadow: inset 0 0 0 4px var(--bg), inset 0 0 0 5px var(--gold), 0 0 0 3px var(--bg), 0 0 0 5px var(--text); }
+.seal.locked[aria-pressed="true"] .icon { box-shadow: 0 0 0 3px var(--bg), 0 0 0 5px var(--text); }
 /* De uitleg bij de badge die je hebt aangetikt */
 .notice.badge-info { display: flex; align-items: center; gap: 14px; text-align: left; }
 .badge-info > svg.ic { font-size: 2.1rem; }
