@@ -20,40 +20,50 @@ const MAX_HISTORY = 2000;
 
 // Badges. Een genoteerde maaltijd kan op drie manieren meetellen; elke manier heeft een eigen groep badges.
 const GROUPS = {
-  healthy: ['🥗', 'Gezond eten', 'Voor maaltijden die je als gezond hebt aangevinkt.'],
-  slow: ['⏲️', 'Uitgebreid koken', 'Voor gerechten die 45 minuten of langer kosten.'],
-  fresh: ['🌈', 'Afwisselen', 'Voor verschillende gerechten in je week.'],
+  healthy: ['blad', 'Gezond eten', 'Voor maaltijden die je als gezond hebt aangevinkt.'],
+  slow: ['klok', 'Uitgebreid koken', 'Voor gerechten die 45 minuten of langer kosten.'],
+  fresh: ['wissel', 'Afwisselen', 'Voor verschillende gerechten in je week.'],
 };
-// scope 'total' telt alles wat je noteerde, 'week' telt binnen één week (maandag t/m zondag).
+// scope 'total' telt alles wat je noteerde, 'week' telt binnen één week (maandag t/m zondag). In een lange
+// naam staat een zacht afbreekstreepje (­): daar mag de naam op een smal scherm afbreken.
 const BADGES = [
-  { id: 'gezond1', group: 'healthy', icon: '🥗', name: 'Groene start', text: 'Eet je eerste gezonde maaltijd', scope: 'total', key: 'healthy', goal: 1 },
-  { id: 'gezond2', group: 'healthy', icon: '💪', name: 'Gezonde week', text: 'Eet 5 gezonde maaltijden in één week', scope: 'week', key: 'healthy', goal: 5 },
-  { id: 'gezond3', group: 'healthy', icon: '🏆', name: 'Gezond leven', text: 'Eet 30 gezonde maaltijden', scope: 'total', key: 'healthy', goal: 30 },
-  { id: 'gezond4', group: 'healthy', icon: '👑', name: 'Gezondheidskampioen', text: 'Eet 100 gezonde maaltijden', scope: 'total', key: 'healthy', goal: 100 },
-  { id: 'tijd1', group: 'slow', icon: '⏲️', name: 'Mouwen opgestroopt', text: 'Kook je eerste uitgebreide maaltijd', scope: 'total', key: 'slow', goal: 1 },
-  { id: 'tijd2', group: 'slow', icon: '🍲', name: 'Met liefde gekookt', text: 'Kook 5 uitgebreide maaltijden', scope: 'total', key: 'slow', goal: 5 },
-  { id: 'tijd3', group: 'slow', icon: '🔥', name: 'Keukenmarathon', text: 'Kook 20 uitgebreide maaltijden', scope: 'total', key: 'slow', goal: 20 },
-  { id: 'tijd4', group: 'slow', icon: '🧑‍🍳', name: 'Meesterkok', text: 'Kook 50 uitgebreide maaltijden', scope: 'total', key: 'slow', goal: 50 },
-  { id: 'variatie1', group: 'fresh', icon: '🎨', name: 'Proeverij', text: 'Eet 5 verschillende gerechten in één week', scope: 'week', key: 'distinct', goal: 5 },
-  { id: 'variatie2', group: 'fresh', icon: '🌈', name: 'Elke dag anders', text: 'Eet 10 verschillende gerechten in één week', scope: 'week', key: 'distinct', goal: 10 },
-  { id: 'variatie3', group: 'fresh', icon: '🌍', name: 'Alleseter', text: 'Eet vlees, vis en vegetarisch in één week', scope: 'week', key: 'types', goal: 3 },
-  { id: 'variatie4', group: 'fresh', icon: '🧭', name: 'Ontdekker', text: 'Eet 25 verschillende gerechten', scope: 'total', key: 'distinct', goal: 25 },
+  { id: 'gezond1', group: 'healthy', icon: 'salade', name: 'Groene start', text: 'Eet je eerste gezonde maaltijd', scope: 'total', key: 'healthy', goal: 1 },
+  { id: 'gezond2', group: 'healthy', icon: 'appel', name: 'Gezonde week', text: 'Eet 5 gezonde maaltijden in één week', scope: 'week', key: 'healthy', goal: 5 },
+  { id: 'gezond3', group: 'healthy', icon: 'beker', name: 'Gezond leven', text: 'Eet 30 gezonde maaltijden', scope: 'total', key: 'healthy', goal: 30 },
+  { id: 'gezond4', group: 'healthy', icon: 'kroon', name: 'Gezondheids­kampioen', text: 'Eet 100 gezonde maaltijden', scope: 'total', key: 'healthy', goal: 100 },
+  { id: 'tijd1', group: 'slow', icon: 'klok', name: 'Mouwen opgestroopt', text: 'Kook je eerste uitgebreide maaltijd', scope: 'total', key: 'slow', goal: 1 },
+  { id: 'tijd2', group: 'slow', icon: 'stoofpot', name: 'Met liefde gekookt', text: 'Kook 5 uitgebreide maaltijden', scope: 'total', key: 'slow', goal: 5 },
+  { id: 'tijd3', group: 'slow', icon: 'vlam', name: 'Keuken­marathon', text: 'Kook 20 uitgebreide maaltijden', scope: 'total', key: 'slow', goal: 20 },
+  { id: 'tijd4', group: 'slow', icon: 'koksmuts', name: 'Meesterkok', text: 'Kook 50 uitgebreide maaltijden', scope: 'total', key: 'slow', goal: 50 },
+  { id: 'variatie1', group: 'fresh', icon: 'pap', name: 'Proeverij', text: 'Eet 5 verschillende gerechten in één week', scope: 'week', key: 'distinct', goal: 5 },
+  { id: 'variatie2', group: 'fresh', icon: 'kalender', name: 'Elke dag anders', text: 'Eet 10 verschillende gerechten in één week', scope: 'week', key: 'distinct', goal: 10 },
+  { id: 'variatie3', group: 'fresh', icon: 'bord', name: 'Alleseter', text: 'Eet vlees, vis en vegetarisch in één week', scope: 'week', key: 'types', goal: 3 },
+  { id: 'variatie4', group: 'fresh', icon: 'kompas', name: 'Ontdekker', text: 'Eet 25 verschillende gerechten', scope: 'total', key: 'distinct', goal: 25 },
 ];
-// De kleuren van elk thema staan in style.css onder dezelfde naam.
-const THEMES = {
-  standaard: 'Standaard', tomaat: 'Tomaat', citroen: 'Citroen', munt: 'Munt', lavendel: 'Lavendel',
-  'blauwe-bes': 'Blauwe bes', aubergine: 'Aubergine', nachtmarkt: 'Nachtmarkt', mosterd: 'Mosterd', olijf: 'Olijf',
+// De steunkleuren om uit te kiezen; de kleuren zelf staan in style.css onder dezelfde naam.
+const THEMES = { tomaat: 'Tomaat', olijf: 'Olijf', bosbes: 'Bosbes', mosterd: 'Mosterd' };
+// De avondstand: het donkere papier voor in het donker. Automatisch volgt het apparaat.
+const DARK_MODES = { auto: 'Automatisch', uit: 'Uit', aan: 'Aan' };
+// De thema's van voor het kookboekontwerp: [de kleur die er het meest op lijkt, de avondstand]. Het thema
+// Standaard volgde het apparaat; de andere waren altijd licht of altijd donker.
+const OLD_THEMES = {
+  standaard: ['tomaat', 'auto'], tomaat: ['tomaat', 'uit'], citroen: ['mosterd', 'uit'], munt: ['olijf', 'uit'],
+  lavendel: ['bosbes', 'uit'], 'blauwe-bes': ['bosbes', 'aan'], aubergine: ['bosbes', 'aan'],
+  nachtmarkt: ['tomaat', 'aan'], mosterd: ['mosterd', 'aan'], olijf: ['olijf', 'aan'],
 };
 
 // Een leeg antwoord ('') betekent "maakt niet uit".
+// Elk antwoord is [waarde, pictogram, tekst, toelichting].
 const QUESTIONS = [
-  { key: 'time', title: 'Hoeveel tijd heb je?', options: [
-    ['snel', '⚡ Weinig (tot 20 min)'], ['normaal', '⏱️ Een beetje (tot 45 min)'], ['', '🍲 Alle tijd van de wereld'] ] },
-  { key: 'type', title: 'Waar heb je trek in?', options: [
-    ['vlees', '🍖 Vlees'], ['vis', '🐟 Vis'], ['vega', '🥦 Vegetarisch'], ['', '🤷 Maakt me niet uit'] ] },
-  { key: 'kcal', title: 'Hoe stevig mag het zijn?', options: [
-    ['licht', '🥗 Licht (tot 400 kcal)'], ['gemiddeld', '🍝 Gemiddeld (400–700 kcal)'],
-    ['stevig', '🍔 Stevig (700+ kcal)'], ['', '🤷 Maakt me niet uit'] ] },
+  { key: 'time', title: 'Hoeveel <em>tijd</em> heb je?', text: 'Dan zoek ik er iets bij dat past.', options: [
+    ['snel', 'bliksem', 'Weinig', 'tot 20 minuten'], ['normaal', 'klok', 'Een beetje', 'tot 45 minuten'],
+    ['', 'stoofpot', 'Alle tijd van de wereld', 'lekker uitgebreid koken'] ] },
+  { key: 'type', title: 'Waar heb je <em>trek</em> in?', text: 'Kies wat je vandaag het lekkerst lijkt.', options: [
+    ['vlees', 'vlees', 'Vlees', ''], ['vis', 'vis', 'Vis', ''], ['vega', 'blad', 'Vegetarisch', ''],
+    ['', 'vraag', 'Maakt me niet uit', ''] ] },
+  { key: 'kcal', title: 'Hoe <em>stevig</em> mag het zijn?', text: 'Van een lichte hap tot een flink bord.', options: [
+    ['licht', 'salade', 'Licht', 'tot 400 kcal'], ['gemiddeld', 'spaghetti', 'Gemiddeld', '400 tot 700 kcal'],
+    ['stevig', 'hamburger', 'Stevig', '700 kcal of meer'], ['', 'vraag', 'Maakt me niet uit', ''] ] },
 ];
 // Bekende gerechten om met één tik aan je favorieten toe te voegen. De calorieën, de bereidingstijd en het
 // laatste veld (gezond of niet) zijn een schatting; de gebruiker kan ze aanpassen.
@@ -299,58 +309,13 @@ const CATALOG_DIETS = {
   'Ratatouille met rijst': ['vegan'],
   'Couscous met kip en groenten': ['eiwitrijk'],
 };
-const TYPE_ICON = { vlees: '🍖', vis: '🐟', vega: '🥦' };
-// Plaatjes bij gerechten: [plaatje, naam, woorden]. De app kiest het plaatje bij het woord dat een gerecht
-// het best typeert (zie guessIcon); in het formulier kun je er ook zelf een kiezen. De woorden staan
-// zonder hoofdletters en accenten; een patroon wordt gebruikt waar een kort woord anders te vaak raak is.
-const ICONS = [
-  ['🍕', 'Pizza', ['pizza', 'calzone', 'flammkuchen']],
-  ['🍔', 'Hamburger', ['hamburger', 'burger']],
-  ['🍟', 'Friet', ['friet', 'patat']],
-  ['🥞', 'Pannenkoeken', ['pannenkoek', 'poffertje', 'pancake', 'crepe', 'flensje']],
-  ['🍝', 'Pasta', ['spaghetti', 'pasta', 'macaroni', 'lasagne', 'penne', 'tagliatelle', 'ravioli', 'tortellini', 'gnocchi', 'carbonara', 'bolognese']],
-  ['🍜', 'Noedels', ['bami', 'noedel', 'noodle', 'ramen', /\bmie\b/]],
-  ['🍛', 'Curry', ['curry', 'kerrie', 'tikka', 'masala', 'korma', 'rendang']],
-  ['🍚', 'Rijst', ['nasi', 'rijst', 'risotto', 'paella', 'couscous', 'bulgur', 'quinoa']],
-  ['🍣', 'Sushi', ['sushi', 'sashimi']],
-  ['🍢', 'Saté', ['sate', 'spies']],
-  ['🥙', 'Pita', ['shoarma', 'doner', 'kebab', 'pita', 'gyros', 'kapsalon']],
-  ['🧆', 'Gefrituurde hapjes', ['bitterbal', 'kroket', 'falafel', 'croqueta']],
-  ['🥟', 'Deegpakketjes', ['dumpling', 'gyoza', 'wonton', 'deegkussentje', 'deegpakketje', 'deegflap', 'empanada', 'samosa', 'sambusa', 'loempia', 'maultaschen', 'pasteitje']],
-  ['🌯', 'Wrap', ['wrap', 'burrito', 'tortilla', 'fajita', 'enchilada', 'quesadilla']],
-  ['🌮', 'Taco', ['taco']],
-  ['🥗', 'Salade', ['salade', 'gado gado', 'rauwkost', 'bowl', /\bsla\b/]],
-  ['🥣', 'Soep of pap', ['soep', 'bouillon', 'havermout', 'yoghurt', 'kwark', 'muesli', 'granola', 'cruesli', 'oats', 'skyr', /pap\b/]],
-  ['🍲', 'Stoofpot', ['stoof', 'stoofvlees', 'hachee', 'goulash', 'ragout', 'jachtschotel']],
-  ['🌶️', 'Chili', ['chili']],
-  ['🥔', 'Aardappel', ['stamppot', 'hutspot', 'aardappel', 'rosti', 'gratin']],
-  ['🥘', 'Ovenschotel', ['ovenschotel', 'schotel', 'roerbak', 'wok', 'tajine']],
-  ['🥧', 'Hartige taart', ['quiche', 'taart', 'pastei', 'bladerdeeg']],
-  ['🥬', 'Bladgroente', ['witlof']],
-  ['🍆', 'Groenteschotel', ['ratatouille', 'aubergine', 'moussaka']],
-  ['🐟', 'Vis', ['zalm', 'vis', 'kibbeling', 'tonijn', 'kabeljauw', 'haring', 'makreel', 'forel', 'lekkerbek', 'sardine', 'sardinha']],
-  ['🍤', 'Garnalen', ['garnaal', 'garnalen', 'scampi', 'gamba', 'mossel']],
-  ['🐙', 'Inktvis', ['octopus', 'inktvis', 'calamares']],
-  ['🍗', 'Kip', ['kip', 'kalkoen', 'drumstick']],
-  ['🥩', 'Stuk vlees', ['biefstuk', 'steak', 'entrecote', 'schnitzel', 'karbonade', 'kotelet', 'speklap', 'rollade']],
-  ['🍖', 'Vlees', ['vlees', 'gehakt', 'worst', 'ribs', 'slavink']],
-  ['🧀', 'Kaas', ['kaas', 'fondue', 'raclette']],
-  ['🍳', 'Ei', ['omelet', 'roerei', 'spiegelei', 'uitsmijter', 'eieren', 'frittata', /\bei\b/]],
-  ['🥪', 'Belegd brood', ['tosti', 'sandwich', 'broodje']],
-  ['🍞', 'Brood', ['boterham', 'brood', 'toast', 'beschuit', 'cracker']],
-  ['🥐', 'Croissant', ['croissant']],
-  ['🧇', 'Wafel', ['wafel']],
-  ['🍮', 'Toetje', ['pudding', 'pavlova', 'tiramisu']],
-  ['🍰', 'Gebak', [/gebak\b/, /cake\b/, 'cupcake', 'muffin', 'brownie']],
-  ['🥤', 'Smoothie', ['smoothie', 'shake']],
-  ['🥦', 'Groente', ['broccoli', 'bloemkool', 'groente', 'bonen', 'boontjes']],
-  ['🍄', 'Paddenstoelen', ['champignon', 'paddenstoel']],
-];
+// De korte namen van de maaltijden, voor de tabbladen en de regels in je week.
+const MEAL_SHORT = { ontbijt: 'Ontbijt', middag: 'Middag', avond: 'Avond' };
+// Zoveel favorieten zie je bij "Iets noteren" voordat je om de rest vraagt.
+const LOG_PREVIEW = 5;
 // De profielfoto wordt vierkant en klein opgeslagen, als tekst in de opslag van de browser.
 const PHOTO_SIZE = 256;
 const PHOTO_PATTERN = /^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/;
-// Alle plaatjes die een gerecht mag hebben.
-const ICON_SET = new Set([...ICONS.map(([icon]) => icon), ...Object.values(TYPE_ICON), '🍽️']);
 
 const app = document.getElementById('app');
 const nav = document.getElementById('nav');
@@ -370,7 +335,7 @@ let manualMeal = null;
 function emptyState() {
   return {
     dishes: [], history: [], shopping: [], badges: {},
-    onboarded: false, welcomed: false, name: '', photo: '', theme: 'standaard', country: guessCountry(), diet: [],
+    onboarded: false, welcomed: false, name: '', photo: '', theme: 'tomaat', dark: 'auto', country: guessCountry(), diet: [],
     allergies: [], otherAllergies: [],
   };
 }
@@ -423,12 +388,25 @@ function cleanName(name) {
 function greeting() {
   const hour = new Date().getHours();
   const part = hour < 6 ? 'Goedenacht' : hour < 12 ? 'Goedemorgen' : hour < 18 ? 'Goedemiddag' : 'Goedenavond';
-  return state.name ? `${part}, ${esc(state.name)}!` : `${part}!`;
+  return state.name ? `${part},<br><em>${esc(state.name)}</em>` : `${part}!`;
+}
+
+// Een andere kleur of avondstand: bewaren en opnieuw tekenen. Waar de browser het kan, vloeien de oude
+// kleuren over in de nieuwe.
+function repaint() {
+  save();
+  const change = () => {
+    applyTheme();
+    render();
+  };
+  if (document.startViewTransition && !motionOff()) document.startViewTransition(change);
+  else change();
 }
 
 function applyTheme() {
   document.documentElement.dataset.theme = state.theme;
-  // De balk van de browser of telefoon krijgt de achtergrondkleur van het thema.
+  document.documentElement.dataset.dark = state.dark;
+  // De balk van de browser of telefoon krijgt de kleur van het papier.
   const bg = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
   document.querySelector('meta[name="theme-color"]').content = bg;
 }
@@ -466,8 +444,8 @@ function sanitize(data) {
       type: d.type,
       kcal: cleanKcal(d.kcal),
       healthy: d.healthy === true,
-      // Leeg betekent: de app kiest het plaatje bij de naam.
-      icon: ICON_SET.has(d.icon) ? d.icon : '',
+      // Leeg betekent: de app kiest het pictogram bij de naam.
+      icon: cleanIcon(d.icon, d.name.trim()),
       diets: fromList || !Array.isArray(d.diets) ? catalogDiets(d.name.trim()) : cleanDiets(d.diets, false),
       allergens: fromList ? catalogAllergens(d.name.trim()) : cleanAllergens(d.allergens),
       // Waar bij een gerecht uit de wereldkeuken: de allergenen zijn nog door niemand ingevuld.
@@ -476,13 +454,17 @@ function sanitize(data) {
       recipe: typeof d.recipe === 'string' ? d.recipe : '',
     });
   }
+  // Zonder avondstand zijn het gegevens van voor het kookboekontwerp: dan wordt het oude thema omgezet.
+  const modern = Object.hasOwn(DARK_MODES, data.dark);
+  const [oldTheme, oldDark] = OLD_THEMES[Object.hasOwn(OLD_THEMES, data.theme) ? data.theme : 'standaard'];
   return {
     onboarded: data.onboarded === true && dishes.length >= MIN_DISHES,
     // Wie al gerechten heeft, is het welkomstscherm al voorbij.
     welcomed: data.welcomed === true || dishes.length > 0,
     name: cleanName(data.name),
     photo: cleanPhoto(data.photo),
-    theme: Object.hasOwn(THEMES, data.theme) ? data.theme : 'standaard',
+    theme: modern ? (Object.hasOwn(THEMES, data.theme) ? data.theme : 'tomaat') : oldTheme,
+    dark: modern ? data.dark : oldDark,
     country: Object.hasOwn(COUNTRIES, data.country) ? data.country : guessCountry(),
     diet: cleanDiets(data.diet, true),
     allergies: cleanAllergens(data.allergies),
@@ -500,7 +482,7 @@ function sanitize(data) {
         name: old ? dish.name : h.name.trim().slice(0, 60),
         type: old ? dish.type : Object.hasOwn(TYPES, h.type) ? h.type : null,
         kcal: old ? dish.kcal : cleanKcal(h.kcal),
-        icon: ICON_SET.has(h.icon) ? h.icon : '',
+        icon: cleanIcon(h.icon, old ? dish.name : h.name.trim()),
         // Notities van voor de badges nemen deze twee over van het gerecht, als dat er nog is.
         healthy: typeof h.healthy === 'boolean' ? h.healthy : dish ? dish.healthy : false,
         time: Object.hasOwn(TIMES, h.time) ? h.time : dish && !('time' in h) ? dish.time : null,
@@ -674,19 +656,14 @@ function flag(code) {
   return String.fromCodePoint(...[...code].map(letter => 0x1F1E6 + letter.charCodeAt(0) - 65));
 }
 
-// Woorden waaraan je in de omschrijving van een gerecht uit de wereldkeuken ziet dat het iets zoets is.
-const SWEET_WORDS = /\bzoete?\b(?! aardappel)|honing|siroop|stroop|suiker|\bjam\b|chocolade|karamel|custard|dadel/;
-
 // Een gerecht uit world-dishes.js uitgeschreven: naam, omschrijving, soort, bereidingstijd en maaltijden.
-// Het plaatje staat erbij als de naam de app op het verkeerde been zet. Zegt de naam niets over het plaatje
-// (veel buitenlandse namen), dan komt het uit de omschrijving; zegt ook die niets, dan krijgt zoetigheid gebak.
+// Het pictogram past bij de naam; zegt die niets (veel buitenlandse namen), dan bij de omschrijving.
 function worldDish(row) {
-  const [name, text, type, time, meals, icon] = row.split('|');
-  const sweet = type === 'g' && SWEET_WORDS.test(searchKey(text));
+  const [name, text, type, time, meals] = row.split('|');
   return {
     name, text, type: DISH_TYPE[type], time: DISH_TIME[time],
     meals: cleanMeals(meals ? [...meals].map(code => DISH_MEAL[code]) : ['avond']),
-    icon: icon || (guessIcon(name) ? '' : guessIcon(text) || (sweet ? '🍰' : '')),
+    icon: iconKey(name, text, DISH_TYPE[type]),
   };
 }
 
@@ -743,43 +720,21 @@ function mealDishes() {
   return state.dishes.filter(d => d.meals.includes(meal) && suitable(d));
 }
 
-// Het plaatje bij het woord dat een tekst het best typeert. In een samenstelling is dat het laatste
-// woorddeel ("kipsalade" is een salade); een woord dat in een langer woord zit telt niet mee
-// ("koek" in "pannenkoek").
-function bestIcon(text) {
-  const matches = [];
-  for (const [icon, , words] of ICONS) {
-    for (const word of words) {
-      const start = word instanceof RegExp ? text.search(word) : text.lastIndexOf(word);
-      if (start === -1) continue;
-      const length = word instanceof RegExp ? text.match(word)[0].length : word.length;
-      matches.push({ icon, start, end: start + length });
-    }
-  }
-  const outer = matches.filter(a => !matches.some(b =>
-    b.end - b.start > a.end - a.start && b.start <= a.start && b.end >= a.end));
-  outer.sort((a, b) => b.start - a.start);
-  return outer.length ? outer[0].icon : '';
-}
-
-// Het plaatje dat bij een naam past, of niets. In "zalm met rijst" zegt het deel voor "met" het meest.
-function guessIcon(name) {
-  const text = searchKey(name);
-  return bestIcon(text.split(/ (?:met|op|uit|in|van|en) /)[0]) || bestIcon(text);
-}
-
-// Het plaatje van een gerecht of notitie: zelf gekozen, anders passend bij de naam, anders bij de soort.
+// Het pictogram van een gerecht of notitie: zelf gekozen, en anders wat bij de naam of de soort past.
 function dishIcon(dish) {
-  return dish.icon || guessIcon(dish.name) || TYPE_ICON[dish.type] || '🍽️';
+  return dish.icon || iconKey(dish.name, '', dish.type);
 }
 
 function dishMeta(dish) {
-  return `${TIME_SHORT[dish.time]} · ${TYPES[dish.type]}`;
+  return `${TIME_SHORT[dish.time]} · ${TYPES[dish.type]}`.toLowerCase();
 }
 
-// Voor de lijsten: ook voor welke maaltijden en hoeveel calorieën.
+// Voor de lijsten: op de eerste regel de maaltijden, de tijd, de soort en de calorieën; daaronder de diëten
+// en de allergenen, als die er zijn.
 function dishDetails(dish) {
-  return `${dish.meals.map(m => MEALS[m]).join(', ')}<br>${dishMeta(dish)}${dish.kcal == null ? '' : ' · ' + kcalLabel(dish)}${dish.healthy ? ' · 🥗 Gezond' : ''}${dish.diets.length ? `<br>${dish.diets.map(key => DIETS[key]).join(', ')}` : ''}${allergenLine(dish) ? `<br>${allergenLine(dish)}` : ''}`;
+  const first = [dish.meals.map(m => MEAL_SHORT[m].toLowerCase()).join(', '), dishMeta(dish), kcalLabel(dish), dish.healthy ? 'gezond' : ''];
+  const second = [dish.diets.map(key => DIETS[key].toLowerCase()).join(', '), allergenLine(dish)];
+  return [first, second].map(line => line.filter(Boolean).join(' · ')).filter(Boolean).join('<br>');
 }
 
 // "Bevat: gluten, melk", of niets als er geen allergenen bij het gerecht staan.
@@ -854,13 +809,15 @@ function logEntry(source, day, mealKey, picked) {
   return entry;
 }
 
+// Een regel uit je week: het gerecht, een stippellijn en de maaltijd. Op het startscherm staan de calorieën
+// erbij; in het weekoverzicht staat het totaal onder de dag en kun je de regel weghalen. "Afwisselen" geldt
+// voor bijna alles wat je eet en staat daarom niet op de regel; gezond en uitgebreid wel.
 function entryHtml(entry, removable, marks) {
-  const icons = marksHtml(marks);
+  const meta = `${MEAL_SHORT[entry.meal].toLowerCase()}${removable || entry.kcal == null ? '' : ` · ${entry.kcal} kcal`}`;
   return `
-    <li><span class="icon" aria-hidden="true">${dishIcon(entry)}</span>
-    <span class="grow"><strong>${esc(entry.name)}</strong><br>
-      <span class="small muted">${MEALS[entry.meal]}${entry.kcal == null ? '' : ` · ${entry.kcal} kcal`}${icons ? ` · ${icons}` : ''}</span></span>
-    ${removable ? `<button class="icon-btn" data-action="remove-entry" data-id="${entry.id}" aria-label="Verwijder ${esc(entry.name)}">✕</button>` : ''}</li>`;
+    <li>${iconSvg(dishIcon(entry))}
+    <span class="grow"><strong>${esc(entry.name)}</strong><i></i><span class="small">${meta} ${marksHtml(marks && { healthy: marks.healthy, slow: marks.slow })}</span></span>
+    ${removable ? `<button class="icon-btn" data-action="remove-entry" data-id="${entry.id}" aria-label="Verwijder ${esc(entry.name)}">${iconSvg('kruis')}</button>` : ''}</li>`;
 }
 
 // ---------- Beloningen ----------
@@ -899,12 +856,12 @@ function dishMarks(dish) {
   };
 }
 
-// De plaatjes van de groepen waarvoor iets meetelt, met een omschrijving voor schermlezers.
+// De pictogrammen van de groepen waarvoor iets meetelt, met een omschrijving voor schermlezers.
 function marksHtml(marks) {
   const keys = Object.keys(GROUPS).filter(key => marks && marks[key]);
   if (!keys.length) return '';
   const label = `Telt mee voor ${new Intl.ListFormat('nl').format(keys.map(key => GROUPS[key][1].toLowerCase()))}`;
-  return `<span role="img" aria-label="${label}">${keys.map(key => GROUPS[key][0]).join(' ')}</span>`;
+  return `<span class="marks" role="img" aria-label="${label}">${keys.map(key => iconSvg(GROUPS[key][0])).join('')}</span>`;
 }
 
 function countEntries(entries) {
@@ -945,10 +902,10 @@ function rewardFor(entry) {
 
 function rewardHtml(reward) {
   if (!reward) return '';
-  const reasons = Object.keys(GROUPS).filter(key => reward.marks[key]).map(key => `${GROUPS[key][0]} ${GROUPS[key][1].toLowerCase()}`);
+  const reasons = Object.keys(GROUPS).filter(key => reward.marks[key]).map(key => GROUPS[key][1].toLowerCase());
   return `
     ${reward.badges.map(id => BADGES.find(b => b.id === id)).map(b =>
-      `<div class="notice reward">🏅 Nieuwe badge: <strong>${b.icon} ${b.name}</strong></div>`).join('')}
+      `<div class="notice reward">${iconSvg('medaille')} Nieuwe badge: <em>${b.name}</em></div>`).join('')}
     ${reasons.length ? `<div class="notice reward">Telt mee voor ${new Intl.ListFormat('nl').format(reasons)}</div>` : ''}`;
 }
 
@@ -998,12 +955,12 @@ function choose(id, note) {
 
 // Zoveel onderdelen van een scherm komen een voor een in beeld; de rest komt tegelijk met het laatste.
 const STAGGER = 12;
-// Zo vaak verspringt het plaatje bij "Verras me" voordat het stilstaat, en zo snel (in milliseconden).
-const SPIN_TURNS = 9;
-const SPIN_SPEED = 90;
+// Zoveel gerechten staan er bij "Verras me" in de kring, en zo lang (in milliseconden) blijft de kring staan.
+const SPIN_PLATES = 8;
+const SPIN_TIME = 2100;
 // Aantal snippers bij een nieuwe badge, hun kleuren, en na hoeveel milliseconden ze zijn opgeruimd.
 const CONFETTI = 36;
-const CONFETTI_COLORS = ['var(--accent)', 'var(--accent-ink)', '#f6c026', '#2bb3a3', '#ff6b8b', '#7aa2f7'];
+const CONFETTI_COLORS = ['var(--accent)', 'var(--gold)', 'var(--olive)', 'var(--text)'];
 const CONFETTI_TIME = 3800;
 
 // Geen beweging voor wie daar op het apparaat om heeft gevraagd (zie ook style.css), en ook niet zolang de
@@ -1042,29 +999,6 @@ function confetti() {
   }
   document.body.appendChild(layer);
   setTimeout(() => layer.remove(), CONFETTI_TIME);
-}
-
-// Bij "Verras me" verspringt het plaatje eerst langs je andere gerechten, als een dobbelsteen die uitrolt.
-// De naam van het gerecht verschijnt pas als het plaatje stilstaat.
-function spinIcon() {
-  const hero = app.querySelector('.hero');
-  const emoji = hero.querySelector('.emoji');
-  const final = emoji.textContent;
-  const icons = [...new Set(state.dishes.map(dishIcon))].filter(icon => icon !== final);
-  if (motionOff() || !icons.length) return;
-  hero.classList.add('spinning');
-  let turn = 0;
-  const timer = setInterval(() => {
-    // Is het scherm intussen opnieuw getekend, dan staat het goede plaatje er al.
-    if (!hero.isConnected) return clearInterval(timer);
-    if (turn < SPIN_TURNS) {
-      emoji.textContent = icons[turn++ % icons.length];
-      return;
-    }
-    clearInterval(timer);
-    emoji.textContent = final;
-    hero.classList.replace('spinning', 'revealed');
-  }, SPIN_SPEED);
 }
 
 // ---------- Navigatie ----------
@@ -1165,6 +1099,17 @@ function render() {
 
 // ---------- Schermen ----------
 
+// De kop van een scherm: de naam in kleine hoofdletters tussen twee lijntjes, met links en rechts plaats
+// voor een knop.
+function topHtml(title, left = '', right = '') {
+  return `<div class="top">${left}<span class="brand">${title}</span>${right}</div>`;
+}
+
+// De knop linksboven waarmee je een scherm verlaat.
+function backHtml(label, attributes) {
+  return `<button class="back" ${attributes}>‹ ${label}</button>`;
+}
+
 function dishFormHtml(dish, full) {
   // Een nieuw gerecht begint met jouw dieet aangevinkt, want je voegt meestal toe wat je zelf eet.
   const d = dish || {
@@ -1174,66 +1119,66 @@ function dishFormHtml(dish, full) {
   };
   // De allergenen staan ingeklapt, behalve als ze ertoe doen: bij een gerecht dat er al heeft, of als je zelf een allergie hebt.
   const showAllergens = d.allergens.length > 0 || d.unchecked || hasAllergy();
-  const options = (map, selected) => Object.entries(map)
-    .map(([value, label]) => `<option value="${value}"${value === selected ? ' selected' : ''}>${label}</option>`).join('');
+  const choices = (name, map, selected) => Object.entries(map).map(([value, label]) => `
+    <label class="check"><input type="radio" name="${name}" value="${value}"${value === selected ? ' checked' : ''}>${label}</label>`).join('');
   return `
     <form data-form="dish" novalidate>
       <label for="f-name">Naam van het gerecht</label>
-      <input id="f-name" name="name" type="text" maxlength="60" autocomplete="off" value="${esc(d.name)}" placeholder="Bijvoorbeeld: spaghetti bolognese">
+      <input id="f-name" name="name" type="text" maxlength="60" autocomplete="off" data-input="dish-name" value="${esc(d.name)}" placeholder="Bijvoorbeeld: spaghetti bolognese">
+      <fieldset>
+        <legend>Pictogram</legend>
+        <label class="icon-pick"><input type="radio" name="icon" value=""${d.icon ? '' : ' checked'}>
+          <span class="icon" id="auto-icon" aria-hidden="true">${iconSvg(iconKey(d.name, '', d.type))}</span>past bij de naam</label>
+        <details${d.icon ? ' open' : ''}>
+          <summary><span>Zelf een pictogram kiezen</span></summary>
+          <div class="icon-grid">${DISH_ICONS.map(([key, label]) => `
+            <label class="icon-pick"><input type="radio" name="icon" value="${key}" aria-label="${label}"${key === d.icon ? ' checked' : ''}>
+              <span class="icon" aria-hidden="true">${iconSvg(key)}</span></label>`).join('')}
+          </div>
+        </details>
+      </fieldset>
       <fieldset>
         <legend>Geschikt voor</legend>
         <div class="checks">${Object.entries(MEALS).map(([value, label]) => `
           <label class="check"><input type="checkbox" name="meals" value="${value}"${d.meals.includes(value) ? ' checked' : ''}>${label}</label>`).join('')}
         </div>
       </fieldset>
-      <div class="row">
-        <div>
-          <label for="f-time">Bereidingstijd</label>
-          <select id="f-time" name="time">${options(TIMES, d.time)}</select>
-        </div>
-        <div>
-          <label for="f-type">Soort</label>
-          <select id="f-type" name="type">${options(TYPES, d.type)}</select>
-        </div>
-      </div>
-      <label for="f-icon">Plaatje</label>
-      <select id="f-icon" name="icon">
-        <option value="">Automatisch (past bij de naam)</option>
-        ${ICONS.map(([icon, label]) => `<option value="${icon}"${icon === d.icon ? ' selected' : ''}>${icon} ${label}</option>`).join('')}
-      </select>
-      <label for="f-kcal">Calorieën per portie <span class="muted">(optioneel)</span></label>
+      <fieldset>
+        <legend>Bereidingstijd</legend>
+        <div class="checks">${choices('time', TIMES, d.time)}</div>
+      </fieldset>
+      <fieldset>
+        <legend>Soort</legend>
+        <div class="checks">${choices('type', TYPES, d.type)}</div>
+      </fieldset>
+      <label for="f-kcal">Calorieën per portie <span class="muted">(mag je overslaan)</span></label>
       <input id="f-kcal" name="kcal" type="number" inputmode="numeric" min="0" max="5000" value="${d.kcal == null ? '' : d.kcal}" placeholder="Bijvoorbeeld: 550">
       <div class="checks" style="margin-top:14px">
-        <label class="check"><input type="checkbox" name="healthy"${d.healthy ? ' checked' : ''}>🥗 Dit is een gezonde maaltijd</label>
+        <label class="check"><input type="checkbox" name="healthy"${d.healthy ? ' checked' : ''}>${iconSvg('blad')} Dit is een gezonde maaltijd</label>
       </div>
       <p class="small muted" style="margin-top:6px">Gezonde en uitgebreide maaltijden tellen mee voor je badges.</p>
       <fieldset>
-        <legend>Past bij dieet <span class="muted" style="font-weight:400">(optioneel)</span></legend>
+        <legend>Past bij dieet <span class="muted">(mag je overslaan)</span></legend>
         <div class="checks">${Object.entries(DIETS).filter(([key]) => key !== 'vegetarisch').map(([key, label]) => `
           <label class="check"><input type="checkbox" name="diets" value="${key}"${d.diets.includes(key) ? ' checked' : ''}>${label}</label>`).join('')}
         </div>
       </fieldset>
       <p class="small muted" style="margin-top:6px">Vegetarisch hoef je niet aan te vinken: dat volgt uit de soort.</p>
       <details${showAllergens ? ' open' : ''}>
-        <summary><span>Allergenen in dit gerecht <span class="muted" style="font-weight:400">(optioneel)</span></span></summary>
+        <summary><span>Allergenen in dit gerecht <span class="muted">(mag je overslaan)</span></span></summary>
         <p class="small muted">${d.unchecked ? 'Van dit gerecht zijn de allergenen nog niet ingevuld. ' : ''}Vink aan wat erin zit. Heb je zelf een allergie, dan stel ik dit gerecht niet voor als het jouw allergeen bevat.</p>
         ${allergenChecksHtml('allergens', d.allergens, 'dish')}
       </details>
       ${full ? `
-        <label for="f-ingredients">Ingrediënten <span class="muted">(één per regel, optioneel)</span></label>
+        <label for="f-ingredients">Ingrediënten <span class="muted">(één per regel, mag je overslaan)</span></label>
         <textarea id="f-ingredients" name="ingredients" placeholder="500 g gehakt&#10;1 ui">${esc(recipeOf(d).ingredients.join('\n'))}</textarea>
-        <label for="f-recipe">Bereidingswijze <span class="muted">(optioneel)</span></label>
+        <label for="f-recipe">Bereidingswijze <span class="muted">(mag je overslaan)</span></label>
         <textarea id="f-recipe" name="recipe">${esc(recipeOf(d).recipe)}</textarea>
         ${recipeOf(d).own ? '' : `<p class="small muted" style="margin-top:6px">Dit recept (voor ${RECIPE_SERVES} personen) zat al in de app. Je kunt het hier aanpassen.</p>`}` : ''}
       <p class="error" role="alert" hidden></p>
       <p></p>
       <button class="btn primary" type="submit">${dish ? 'Opslaan' : 'Gerecht toevoegen'}</button>
     </form>`;
-}
-
-// Zonder hoofdletters en accenten, zodat "creme" ook "crème" vindt.
-function searchKey(text) {
-  return text.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 }
 
 // Past een gerecht uit de wereldkeuken bij het dieet en de allergieën van de gebruiker? Van een gerecht dat
@@ -1258,7 +1203,7 @@ function catalogHtml(defaultMeal) {
     const dish = mine.get(name.toLowerCase());
     if (dish && !fresh(dish)) return '';
     return `
-      <li data-name="${esc(searchKey(name))}"><span class="icon" aria-hidden="true">${icon}</span>
+      <li data-name="${esc(searchKey(name))}"><span class="icon" aria-hidden="true">${iconSvg(icon)}</span>
       <span class="grow"><strong>${esc(name)}</strong><br><span class="small muted">${esc(text)}</span></span>
       ${dish
         ? `<button class="icon-btn on" data-action="remove-dish" data-id="${dish.id}" aria-label="Haal ${esc(name)} weer weg">✓</button>`
@@ -1271,18 +1216,18 @@ function catalogHtml(defaultMeal) {
   const localNames = new Set(local.map(({ dish }) => dish.name.toLowerCase()));
   const sections = [{
     id: 'group-local', title: `Veel gegeten in ${country}`, short: `${flag(state.country)} ${country}`,
-    rows: local.map(({ dish, index }) => row(dish.name, dishIcon(dish), dish.text, `data-action="add-local" data-index="${index}"`)),
+    rows: local.map(({ dish, index }) => row(dish.name, dish.icon, dish.text, `data-action="add-local" data-index="${index}"`)),
   }, ...CATALOG_GROUPS.map(([title, names], n) => ({
     id: `group-${n}`, title, short: title,
     rows: names.map(name => CATALOG.findIndex(item => item[0] === name))
       .filter(index => fits(CATALOG[index][1]) && !localNames.has(CATALOG[index][0].toLowerCase()) && suitable(catalogDish(CATALOG[index])))
       .map(index => {
         const [name, , time, type] = CATALOG[index];
-        return row(name, guessIcon(name) || TYPE_ICON[type], dishMeta({ time, type }), `data-action="add-suggestion" data-index="${index}"`);
+        return row(name, iconKey(name, '', type), dishMeta({ time, type }), `data-action="add-suggestion" data-index="${index}"`);
       }),
   }))].map(section => ({ ...section, rows: section.rows.filter(Boolean) })).filter(section => section.rows.length);
   return `
-    <div class="segments" role="group" aria-label="Maaltijd">${[['alles', 'Alles'], ...Object.entries(MEALS)].map(([value, label]) => `
+    <div class="segments" role="group" aria-label="Maaltijd">${[['alles', 'Alles'], ...Object.entries(MEAL_SHORT)].map(([value, label]) => `
       <button data-action="catalog-meal" data-meal="${value}" aria-pressed="${value === filter}">${label}</button>`).join('')}
     </div>
     <input type="search" data-input="catalog-search" value="${esc(view.catalogQuery || '')}" placeholder="Zoek een gerecht" aria-label="Zoek een gerecht">
@@ -1321,12 +1266,12 @@ function allergenChecksHtml(name, checked, change) {
 // De waarschuwing die overal bij allergieën hoort te staan.
 const ALLERGY_WARNING = 'Belangrijk: wat er bij een gerecht staat, is een schatting van wat er meestal in zit. Recepten en producten verschillen, dus de app kan niet garanderen dat een gerecht veilig voor je is. Controleer altijd zelf de ingrediënten en de etiketten.';
 
-// De ronde profielfoto, of het bordje zolang er geen foto is. Tikken opent de fotokiezer van het apparaat.
+// De ronde profielfoto, of je voorletter zolang er geen foto is. Tikken opent de fotokiezer van het apparaat.
 function avatarHtml() {
   return `
     <button class="avatar" data-action="photo-pick" aria-label="${state.photo ? 'Profielfoto aanpassen' : 'Profielfoto kiezen'}">
-      ${state.photo ? `<img src="${state.photo}" alt="">` : '<span aria-hidden="true">🍽️</span>'}
-      <span class="avatar-badge" aria-hidden="true">📷</span>
+      ${state.photo ? `<img src="${state.photo}" alt="">` : `<span aria-hidden="true">${state.name ? esc([...state.name][0].toUpperCase()) : iconSvg('bord')}</span>`}
+      <span class="avatar-badge" aria-hidden="true">${iconSvg('camera')}</span>
     </button>
     <input id="photo-file" type="file" accept="image/*" data-change="photo" hidden>`;
 }
@@ -1386,44 +1331,55 @@ function filterFavorites() {
   if (empty) empty.hidden = shown > 0;
 }
 
-function barHtml(item) {
+// Een voorstel als kaart, met het volgnummer erboven.
+function barHtml(item, number) {
   const dish = dishById(item.id);
-  const icons = marksHtml(dishMarks(dish));
   return `
     <button class="bar${item.exact ? '' : ' near'}" data-action="pick" data-id="${dish.id}">
-      <span class="icon" aria-hidden="true">${dishIcon(dish)}</span>
+      <span class="icon" aria-hidden="true">${iconSvg(dishIcon(dish))}</span>
       <span class="bar-text">
+        <span class="no" aria-hidden="true">No. ${number}</span>${item.exact ? '' : ' <span class="tag">past bijna</span>'}<br>
         <span class="bar-name">${esc(dish.name)}</span><br>
-        <span class="bar-meta">${dishMeta(dish)}${item.exact ? '' : '<span class="tag">past bijna</span>'}</span>
+        <span class="bar-meta">${dishMeta(dish)}</span>
       </span>
-      <span class="bar-kcal">${kcalLabel(dish)}${icons ? `<span class="bar-marks">${icons}</span>` : ''}</span>
+      <span class="bar-kcal">${dish.kcal == null ? '' : `<b>${dish.kcal}</b>kcal`}${marksHtml(dishMarks(dish))}</span>
     </button>`;
 }
 
 const VIEWS = {
+  // De eerste keer openen: de omslag van het kookboek.
   welcome() {
     return `
-      <div class="hero"><div class="emoji">👋</div><h1>Hoi, leuk dat je er bent!</h1>
-        <p class="muted">Weet je vaak niet wat je moet eten? Ik help je kiezen uit je eigen favorieten.</p></div>
-      <form data-form="welcome">
-        <label for="f-yourname">Hoe mag ik je noemen? <span class="muted">(mag je overslaan)</span></label>
-        <input id="f-yourname" name="name" type="text" maxlength="30" autocomplete="given-name" placeholder="Je voornaam">
-        <label for="f-country">In welk land woon je?</label>
-        ${countrySelectHtml('')}
-        <p class="small muted" style="margin-top:6px">Dan laat ik eerst zien wat daar veel wordt gegeten.</p>
-        <fieldset>
-          <legend>Volg je een dieet? <span class="muted" style="font-weight:400">(mag je overslaan)</span></legend>
-          ${dietChecksHtml(false)}
-        </fieldset>
-        <p class="small muted" style="margin-top:6px">Dan stel ik alleen gerechten voor die erbij passen. Je kunt dit later aanpassen bij de instellingen.</p>
-        <details>
-          <summary><span>Heb je een voedselallergie? <span class="muted" style="font-weight:400">(mag je overslaan)</span></span></summary>
-          <p class="small muted">Vink aan waar je allergisch voor bent. Andere allergieën voeg je later toe bij de instellingen.</p>
-          ${allergenChecksHtml('allergies', state.allergies, 'welcome')}
-          <p class="small muted" style="margin-top:8px">${ALLERGY_WARNING}</p>
-        </details>
-        <button class="btn primary big sticky" type="submit">Aan de slag</button>
-      </form>`;
+      <div class="cover">
+        <p class="over">Het kookboek van jou</p>
+        <h1 class="title">Wat eten<br><em>we?</em></h1>
+        <div class="orn"><i></i></div>
+        <div class="hero"><div class="emoji">${iconSvg('bord')}</div>
+          <p class="sub">Weet je vaak niet wat je moet eten? Ik help je kiezen uit je eigen favorieten.</p></div>
+        <form data-form="welcome">
+          <label for="f-yourname">Hoe mag ik je noemen? <span class="muted">(mag je overslaan)</span></label>
+          <input id="f-yourname" name="name" type="text" maxlength="30" autocomplete="given-name" placeholder="Je voornaam">
+          <label for="f-country">In welk land woon je?</label>
+          ${countrySelectHtml('')}
+          <p class="small muted" style="margin-top:6px">Dan laat ik eerst zien wat daar veel wordt gegeten.</p>
+          <details>
+            <summary><span>Dieet of allergie <span class="muted">(mag je overslaan)</span></span></summary>
+            <fieldset>
+              <legend>Volg je een dieet?</legend>
+              ${dietChecksHtml(false)}
+            </fieldset>
+            <p class="small muted" style="margin-top:6px">Dan stel ik alleen gerechten voor die erbij passen. Je kunt dit later aanpassen bij de instellingen.</p>
+            <fieldset>
+              <legend>Heb je een voedselallergie?</legend>
+              <p class="small muted">Vink aan waar je allergisch voor bent. Andere allergieën voeg je later toe bij de instellingen.</p>
+              ${allergenChecksHtml('allergies', state.allergies, 'welcome')}
+            </fieldset>
+            <p class="small muted" style="margin-top:8px">${ALLERGY_WARNING}</p>
+          </details>
+          <p></p>
+          <button class="btn primary big sticky" type="submit">Aan de slag</button>
+        </form>
+      </div>`;
   },
 
   onboarding() {
@@ -1432,15 +1388,16 @@ const VIEWS = {
     const cheer = count === 0 ? 'Begin met je eerste gerecht.' : count < 3 ? 'Goed begin!' : count < 5 ? 'Lekker bezig!'
       : count === 5 ? 'Nog eentje!' : 'Top, je kunt beginnen!';
     return `
-      <div class="hero"><div class="emoji">🍽️</div><h1>Wat eet jij graag${state.name ? `, ${esc(state.name)}` : ''}?</h1></div>
-      <p>Vertel me je favoriete gerechten, minimaal ${MIN_DISHES}. Daarna help ik je elke dag kiezen.</p>
-      <p class="small muted">${Math.min(count, MIN_DISHES)} van ${MIN_DISHES} · ${cheer}</p>
+      ${topHtml('Je favorieten')}
+      <div class="hero"><div class="emoji">${iconSvg('bord')}</div><h1>Wat eet jij <em>graag</em>${state.name ? `, ${esc(state.name)}` : ''}?</h1>
+        <p class="sub">Vertel me je favoriete gerechten, minimaal ${MIN_DISHES}. Daarna help ik je elke dag kiezen.</p></div>
+      <p class="small muted center">${Math.min(count, MIN_DISHES)} van ${MIN_DISHES} · ${cheer}</p>
       <div class="progress"><div style="width:${Math.min(100, count / MIN_DISHES * 100)}%"></div></div>
       ${count ? `
         <p class="small muted" style="margin-bottom:6px">Jouw gerechten tot nu toe. Tik er een aan om hem weer weg te halen.</p>
         <div class="chips">${state.dishes.map(d => `
           <button class="chip picked" data-action="remove-dish" data-id="${d.id}" aria-label="Haal ${esc(d.name)} weg">
-            <span aria-hidden="true">${dishIcon(d)}</span> ${esc(d.name)} <span aria-hidden="true">✕</span></button>`).join('')}
+            ${iconSvg(dishIcon(d))} ${esc(d.name)} <span aria-hidden="true">✕</span></button>`).join('')}
         </div>` : ''}
       <h2>Tik op de plus bij wat je lekker vindt</h2>
       ${catalogHtml('avond')}
@@ -1448,6 +1405,7 @@ const VIEWS = {
         <summary><span>Staat het er niet bij? Voeg zelf een gerecht toe</span></summary>
         ${dishFormHtml(null, false)}
       </details>
+      <p></p>
       <button class="btn primary sticky" data-action="finish-onboarding"${left > 0 ? ' disabled' : ''}>
         ${left > 0 ? `Nog ${left} ${left === 1 ? 'gerecht' : 'gerechten'} te gaan` : 'Laten we beginnen!'}
       </button>
@@ -1466,27 +1424,27 @@ const VIEWS = {
     // Is er niets voor deze maaltijd, dan kun je meteen overstappen naar een maaltijd waar wel iets voor is.
     const others = none ? Object.keys(MEALS).filter(key => state.dishes.some(d => d.meals.includes(key) && suitable(d))) : [];
     return `
-      <div class="topbar">
-        <button class="icon-btn globe" data-action="nav" data-view="world" aria-label="Wereldkeuken: gerechten per land"><span aria-hidden="true">🌍</span> Wereld</button>
-        <button class="icon-btn settings" data-action="nav" data-view="more" aria-label="Instellingen">⚙️</button>
-      </div>
+      ${topHtml('Wat eten we?',
+        `<button class="pill-btn" data-action="nav" data-view="world" aria-label="Wereldkeuken: gerechten per land">${iconSvg('wereld')} Wereld</button>`,
+        `<button class="icon-btn soft" data-action="nav" data-view="more" aria-label="Instellingen">${iconSvg('tandwiel')}</button>`)}
       <div class="hero">${avatarHtml()}<h1>${greeting()}</h1>
-        <p class="muted">${manualMeal ? `Je kiest nu voor ${MEALS[meal].toLowerCase()}.` : `Tijd voor ${MEALS[meal].toLowerCase()}!`} Geen idee wat je wilt eten? Ik help je kiezen.</p></div>
-      <div class="segments" role="group" aria-label="Maaltijd">${Object.entries(MEALS).map(([value, label]) => `
+        <p class="sub">${manualMeal ? `Je kiest nu voor ${MEALS[meal].toLowerCase()}.` : `Tijd voor ${MEALS[meal].toLowerCase()}.`} Geen idee wat het wordt? Ik help je kiezen.</p></div>
+      <div class="segments" role="group" aria-label="Maaltijd">${Object.entries(MEAL_SHORT).map(([value, label]) => `
         <button data-action="set-meal" data-meal="${value}" aria-pressed="${value === meal}">${label}</button>`).join('')}
       </div>
       ${none ? `<div class="notice">Je hebt nog niets voor ${MEALS[meal].toLowerCase()}${dietBlocks ? ` dat bij ${limits} past` : ''}. Zullen we er een toevoegen?</div>
-        <button class="btn primary" data-action="discover" data-meal="${meal}">🔎 Gerechten ontdekken</button>
+        <button class="btn primary" data-action="discover" data-meal="${meal}">${iconSvg('zoek')} Gerechten ontdekken</button>
         <button class="btn" data-action="edit-dish">+ Zelf een gerecht toevoegen</button>
         ${others.map(key => `<button class="btn" data-action="set-meal" data-meal="${key}">Of kies nu voor ${MEALS[key].toLowerCase()}</button>`).join('')}` : `
-        <button class="btn primary big" data-action="start-ask">Help mij kiezen</button>
+        <button class="btn primary big" data-action="start-ask">Help mij kiezen<small>drie vragen, vier voorstellen</small></button>
         <div class="row">
-          <button class="btn" data-action="surprise">🎲 Verras me</button>
-          <button class="btn" data-action="nav" data-view="group-setup">👥 Samen kiezen</button>
+          <button class="btn" data-action="surprise">${iconSvg('dobbelsteen')} Verras me</button>
+          <button class="btn" data-action="nav" data-view="group-setup">${iconSvg('samen')} Samen kiezen</button>
         </div>`}
       ${eaten.length ? `<h2>Vandaag gegeten</h2>
-        <ul class="list">${eaten.map(h => entryHtml(h, false, marks.get(h.id))).join('')}</ul>
-        <button class="btn link" data-action="nav" data-view="week">Bekijk je hele week</button>` : ''}`;
+        <ul class="list lines">${eaten.map(h => entryHtml(h, false, marks.get(h.id))).join('')}</ul>
+        <button class="btn link" data-action="nav" data-view="week">Bekijk je hele week</button>` : ''}
+      <div class="orn"><i></i></div>`;
   },
 
   week() {
@@ -1498,20 +1456,26 @@ const VIEWS = {
       date.setDate(start.getDate() + i);
       return { label, date, key: dayKey(date) };
     });
-    const title = offset === 0 ? 'Deze week' : offset === -1 ? 'Vorige week' : `Week van ${shortDate(start)}`;
+    const end = days[6].date;
+    const month = date => date.toLocaleDateString('nl-NL', { month: 'long' });
+    // "5 – 11 oktober", of "29 september – 5 oktober" als de week over twee maanden loopt.
+    const range = start.getMonth() === end.getMonth()
+      ? `${start.getDate()} – ${end.getDate()} <em>${month(end)}</em>`
+      : `${start.getDate()} ${month(start)} – ${end.getDate()} <em>${month(end)}</em>`;
+    const title = offset === 0 ? 'Deze week' : offset === -1 ? 'Vorige week' : `${-offset} weken geleden`;
     const marks = entryMarks();
     const keys = days.map(day => day.key);
     const counts = countEntries(state.history.filter(h => keys.includes(dayKey(h.date))));
     return `
-      <h1>Mijn week</h1>
-      <p class="muted">Hier zie je wat je hebt gegeten. Wat je kiest, noteer ik vanzelf bij vandaag. Met de plus zet je er zelf iets bij.</p>
+      ${topHtml('Mijn week')}
       <div class="weeknav">
-        <button class="icon-btn" data-action="week-move" data-step="-1" aria-label="Vorige week"${offset <= -MAX_WEEKS_BACK ? ' disabled' : ''}>‹</button>
-        <div class="center"><strong>${title}</strong><br><span class="small muted">${shortDate(start)} t/m ${shortDate(days[6].date)}</span></div>
-        <button class="icon-btn" data-action="week-move" data-step="1" aria-label="Volgende week"${offset >= 0 ? ' disabled' : ''}>›</button>
+        <button class="icon-btn soft" data-action="week-move" data-step="-1" aria-label="Vorige week"${offset <= -MAX_WEEKS_BACK ? ' disabled' : ''}>‹</button>
+        <h1>${range}</h1>
+        <button class="icon-btn soft" data-action="week-move" data-step="1" aria-label="Volgende week"${offset >= 0 ? ' disabled' : ''}>›</button>
       </div>
-      <button class="btn link" data-action="nav" data-view="rewards">
-        🥗 ${counts.healthy}× gezond · ⏲️ ${counts.slow}× uitgebreid · 🌈 ${counts.distinct} verschillend</button>
+      <p class="sub">${title}.${offset === 0 ? ' Wat je kiest, noteer ik vanzelf bij vandaag.' : ''}</p>
+      <button class="stats" data-action="nav" data-view="rewards" aria-label="${counts.healthy} keer gezond, ${counts.slow} keer uitgebreid, ${counts.distinct} verschillende gerechten. Bekijk je badges">
+        <span><b>${counts.healthy}</b>gezond</span><span><b>${counts.slow}</b>uitgebreid</span><span><b>${counts.distinct}</b>verschillend</span></button>
       ${days.map(day => {
         const entries = entriesOn(day.key);
         const future = day.key > today;
@@ -1520,98 +1484,108 @@ const VIEWS = {
         const total = known.length ? `${known.reduce((sum, h) => sum + h.kcal, 0)}${known.length < entries.length ? '+' : ''} kcal` : '';
         return `
           ${day.key === view.day ? rewardHtml(view.reward) : ''}
-          <section class="card day${day.key === today ? ' today' : ''}${future ? ' future' : ''}" data-day="${day.key}">
-            <div class="day-head">
-              <h2>${day.label} <span class="small muted">${shortDate(day.date)}</span>${day.key === today ? ' <span class="pill">vandaag</span>' : ''}</h2>
-              <span class="bar-kcal">${total}</span>
-              ${future ? '' : `<button class="icon-btn" data-action="log-day" data-day="${day.key}" aria-label="Iets noteren bij ${day.label.toLowerCase()}">+</button>`}
+          <section class="day${day.key === today ? ' today' : ''}${future ? ' future' : ''}" data-day="${day.key}">
+            <h2 class="date" aria-label="${day.label} ${shortDate(day.date)}${day.key === today ? ', vandaag' : ''}">${day.label.slice(0, 2)}<b>${day.date.getDate()}</b></h2>
+            <div class="body">
+              ${entries.length ? `<ul class="list lines">${entries.map(h => entryHtml(h, true, marks.get(h.id))).join('')}</ul>`
+                : `<p class="none">${future ? 'Deze dag moet nog komen.' : 'Nog niets genoteerd.'}</p>`}
+              ${future ? '' : `<div class="foot">
+                <button class="btn link" data-action="log-day" data-day="${day.key}" aria-label="Iets noteren bij ${day.label.toLowerCase()}">+ iets noteren</button>
+                <span>${total}</span></div>`}
             </div>
-            ${entries.length ? `<ul class="list">${entries.map(h => entryHtml(h, true, marks.get(h.id))).join('')}</ul>`
-              : `<p class="small muted">${future ? 'Deze dag moet nog komen.' : 'Nog niets genoteerd.'}</p>`}
           </section>`;
       }).join('')}`;
   },
 
   log() {
     const date = new Date(`${view.day}T12:00:00`);
-    const when = view.day === dayKey(new Date()) ? 'vandaag'
-      : `op ${date.toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' })}`;
+    const when = view.day === dayKey(new Date()) ? '<em>vandaag</em>'
+      : `op <em>${date.toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' })}</em>`;
     // Eerst de gerechten die bij de gekozen maaltijd horen.
     const dishes = [...state.dishes].sort((a, b) =>
       b.meals.includes(view.meal) - a.meals.includes(view.meal) || a.name.localeCompare(b.name, 'nl'));
+    const shown = view.logAll ? dishes : dishes.slice(0, LOG_PREVIEW);
     return `
+      ${topHtml('Iets noteren', backHtml('Week', 'data-action="log-cancel"'))}
       <h1>Wat at je ${when}?</h1>
-      <div class="segments" role="group" aria-label="Maaltijd">${Object.entries(MEALS).map(([value, label]) => `
+      <div class="segments" role="group" aria-label="Maaltijd">${Object.entries(MEAL_SHORT).map(([value, label]) => `
         <button data-action="log-meal" data-meal="${value}" aria-pressed="${value === view.meal}">${label}</button>`).join('')}
       </div>
       <h2>Tik een favoriet aan</h2>
-      <div class="chips">${dishes.map(d => `
-        <button class="chip" data-action="log-dish" data-id="${d.id}"><span aria-hidden="true">${dishIcon(d)}</span> ${esc(d.name)}</button>`).join('')}
-      </div>
+      <ul class="list">${shown.map(d => `
+        <li><span class="icon" aria-hidden="true">${iconSvg(dishIcon(d))}</span>
+        <span class="grow"><strong>${esc(d.name)}</strong><br><span class="small muted">${dishMeta(d)}</span></span>
+        <button class="icon-btn" data-action="log-dish" data-id="${d.id}" aria-label="Noteer ${esc(d.name)}">+</button></li>`).join('')}
+      </ul>
+      ${shown.length < dishes.length ? `<button class="btn link" data-action="log-all">Toon alle ${dishes.length} favorieten</button>` : ''}
       <h2>Of iets anders gegeten?</h2>
       <form data-form="log" novalidate>
         <label for="f-logname">Wat was het?</label>
         <input id="f-logname" name="name" type="text" maxlength="60" autocomplete="off" placeholder="Bijvoorbeeld: friet">
-        <label for="f-logkcal">Calorieën <span class="muted">(optioneel)</span></label>
+        <label for="f-logkcal">Calorieën <span class="muted">(mag je overslaan)</span></label>
         <input id="f-logkcal" name="kcal" type="number" inputmode="numeric" min="0" max="5000" placeholder="Bijvoorbeeld: 550">
         <div class="checks" style="margin-top:14px">
-          <label class="check"><input type="checkbox" name="healthy">🥗 Het was gezond</label>
-          <label class="check"><input type="checkbox" name="slow">⏲️ Uitgebreid gekookt (45+ min)</label>
+          <label class="check"><input type="checkbox" name="healthy">${iconSvg('blad')} Het was gezond</label>
+          <label class="check"><input type="checkbox" name="slow">${iconSvg('klok')} Uitgebreid gekookt (45+ min)</label>
         </div>
         <p class="error" role="alert" hidden></p>
         <p></p>
         <button class="btn primary" type="submit">Noteren</button>
-      </form>
-      <button class="btn link" data-action="log-cancel">Annuleren</button>`;
+      </form>`;
   },
 
   rewards() {
     const stats = rewardStats();
     const earned = BADGES.filter(b => state.badges[b.id]).length;
+    // Bij een badge voor één week telt wat je deze week al hebt.
+    const progress = b => Math.min(b.goal, (b.scope === 'total' ? stats.total : stats.now)[b.key]);
+    // Uitgelicht staat de badge die je aantikt; tot dan de badge waar je het dichtst bij bent.
+    const nearest = BADGES.filter(b => !state.badges[b.id]).sort((a, b) => progress(b) / b.goal - progress(a) / a.goal)[0];
+    const shown = BADGES.find(b => b.id === view.badge) || nearest || BADGES[0];
+    const date = state.badges[shown.id];
     return `
-      <div class="hero"><div class="emoji">🏅</div>
-        <h1>Jouw badges</h1>
-        <p><strong>${earned} van ${BADGES.length} verdiend</strong></p></div>
+      ${topHtml('Jouw badges')}
+      <h1><em>${earned}</em> van ${BADGES.length}</h1>
       <div class="progress"><div style="width:${earned / BADGES.length * 100}%"></div></div>
-      <p class="muted">Badges verdien je met wat er in je week staat. Eén maaltijd kan voor meerdere badges meetellen.</p>
-      ${Object.entries(GROUPS).map(([group, [icon, name, text]]) => `
-        <h2><span aria-hidden="true">${icon}</span> ${name}</h2>
+      <p class="sub">Badges verdien je met wat er in je week staat. Tik op een badge om te zien wat je ervoor doet.</p>
+      <div class="notice reward badge-info">${iconSvg(shown.icon)}
+        <span><strong>${shown.name}</strong><br>${shown.text}<br>
+        <span class="small muted">${date ? `Verdiend op ${shortDate(new Date(date))}` : `${progress(shown)} van ${shown.goal}`}</span></span></div>
+      ${Object.entries(GROUPS).map(([group, [, name, text]]) => `
+        <h2>${name}</h2>
         <p class="small muted">${text}</p>
-        <ul class="list">${BADGES.filter(b => b.group === group).map(b => {
-          const date = state.badges[b.id];
-          // Bij een badge voor één week telt wat je deze week al hebt.
-          const progress = Math.min(b.goal, (b.scope === 'total' ? stats.total : stats.now)[b.key]);
-          return `
-            <li class="${date ? '' : 'locked'}"><span class="icon" aria-hidden="true">${b.icon}</span>
-            <span class="grow"><strong>${b.name}</strong><br><span class="small muted">${b.text}</span></span>
-            <span class="small muted">${date ? `✓ ${shortDate(new Date(date))}` : `${progress} van ${b.goal}`}</span></li>`;
-        }).join('')}
-        </ul>`).join('')}`;
+        <div class="seals">${BADGES.filter(b => b.group === group).map(b => `
+          <button class="seal${state.badges[b.id] ? '' : ' locked'}" data-action="show-badge" data-id="${b.id}" aria-pressed="${b.id === shown.id}">
+            <span class="icon" aria-hidden="true">${iconSvg(b.icon)}</span>${b.name}
+            <small>${state.badges[b.id] ? 'verdiend' : `${progress(b)} van ${b.goal}`}</small></button>`).join('')}
+        </div>`).join('')}`;
   },
 
   'group-setup'() {
     return `
-      <h1>Samen kiezen</h1>
-      <p>Gezellig! Iedereen kiest om de beurt op deze telefoon. Het gerecht met de meeste stemmen wint.</p>
+      ${topHtml('Samen kiezen')}
+      <div class="hero"><div class="emoji">${iconSvg('samen')}</div><h1>Samen <em>kiezen</em></h1>
+        <p class="sub">Gezellig! Iedereen kiest om de beurt op deze telefoon. Het gerecht met de meeste stemmen wint.</p></div>
       <h2>Met hoeveel personen zijn jullie?</h2>
-      ${[2, 3, 4, 5, 6].map(n => `<button class="btn" data-action="start-group" data-count="${n}">${n} personen</button>`).join('')}
+      <div class="people">${[2, 3, 4, 5, 6].map(n => `
+        <button class="person" data-action="start-group" data-count="${n}" aria-label="${n} personen"><i>${n}</i></button>`).join('')}
+      </div>
       <button class="btn link" data-action="nav" data-view="home">Annuleren</button>`;
   },
 
   ask() {
     const q = QUESTIONS[view.step];
-    // De balk groeit of krimpt vanaf waar hij bij de vorige vraag stond.
-    const before = view.step + (backward ? 2 : 0);
     return `
-      <p class="small muted">Vraag ${view.step + 1} van ${QUESTIONS.length}</p>
-      <div class="progress"><div style="width:${(view.step + 1) / QUESTIONS.length * 100}%;--from:${before / QUESTIONS.length * 100}%"></div></div>
+      ${topHtml(`Vraag ${view.step + 1} van ${QUESTIONS.length}`)}
+      <div class="dots" aria-hidden="true">${QUESTIONS.map((question, i) => `<i${i <= view.step ? ' class="on"' : ''}></i>`).join('')}</div>
       <h1>${q.title}</h1>
-      <p></p>
-      ${q.options.map(([value, label]) => {
-        // Het plaatje vooraan is versiering en wordt niet voorgelezen.
-        const [icon, ...words] = label.split(' ');
-        return `<button class="btn" data-action="answer" data-value="${value}"><span aria-hidden="true">${icon}</span> ${words.join(' ')}</button>`;
-      }).join('')}
+      <p class="sub">${q.text}</p>
+      ${q.options.map(([value, icon, label, hint]) => `
+        <button class="bar" data-action="answer" data-value="${value}">
+          <span class="icon" aria-hidden="true">${iconSvg(icon)}</span>
+          <span class="bar-text"><span class="bar-name">${label}</span>${hint ? `<br><span class="bar-meta">${hint}</span>` : ''}</span>
+          <span class="chev" aria-hidden="true">›</span>
+        </button>`).join('')}
       <button class="btn link" data-action="${view.step ? 'ask-back' : 'nav'}" data-view="home">${view.step ? 'Vorige vraag' : 'Annuleren'}</button>`;
   },
 
@@ -1622,29 +1596,50 @@ const VIEWS = {
     if (view.wrapped) notices.push('Dat waren ze allemaal! We beginnen weer vooraan.');
     if (!view.queue[0].exact) notices.push('Niets past precies bij je antwoorden, maar dit komt aardig in de buurt.');
     else if (items.some(item => !item.exact)) notices.push('Staat er “past bijna” bij? Dan klopt het net niet helemaal met je antwoorden.');
-    // Uitleg bij de plaatjes die rechts op de balkjes staan.
+    // Uitleg bij de pictogrammen die rechts op de kaarten staan.
     const marks = items.map(item => dishMarks(dishById(item.id)));
-    const legend = Object.keys(GROUPS).filter(key => marks.some(m => m[key])).map(key => `${GROUPS[key][0]} ${GROUPS[key][1].toLowerCase()}`);
+    const legend = Object.keys(GROUPS).filter(key => marks.some(m => m[key])).map(key => `${iconSvg(GROUPS[key][0])} ${GROUPS[key][1].toLowerCase()}`);
     return `
-      <h1>${group ? `Persoon ${group.votes.length + 1} van ${group.count}, kies maar!` : 'Wat lijkt je lekker?'}</h1>
-      <p class="muted">Tik op waar je zin in hebt.</p>
+      ${topHtml(group ? `Persoon ${group.votes.length + 1} van ${group.count}` : 'Voorstellen', backHtml('Stoppen', 'data-action="nav" data-view="home"'))}
+      <h1>${group ? `Persoon ${group.votes.length + 1}, wat` : 'Wat'} lijkt je <em>lekker</em>?</h1>
+      <p class="sub">Tik op waar je zin in hebt.</p>
       ${notices.map(n => `<div class="notice">${n}</div>`).join('')}
-      ${items.map(barHtml).join('')}
-      ${legend.length ? `<p class="small muted center">${legend.join(' · ')}: dat telt mee voor je badges.</p>` : ''}
+      ${items.map((item, i) => barHtml(item, view.page * PER_PAGE + i + 1)).join('')}
+      ${legend.length ? `<p class="legend small muted">${legend.join(' · ')}: dat telt mee voor je badges.</p>` : ''}
       ${group ? '' : `
         <div class="row">
           ${view.queue.length > PER_PAGE ? '<button class="btn" data-action="more-results">Iets anders</button>' : ''}
-          <button class="btn" data-action="surprise">🎲 Verras me</button>
-        </div>`}
-      <button class="btn link" data-action="nav" data-view="home">Annuleren</button>`;
+          <button class="btn" data-action="surprise">${iconSvg('dobbelsteen')} Verras me</button>
+        </div>`}`;
   },
 
   pass() {
     const next = view.group.votes.length + 1;
     return `
-      <div class="hero"><div class="emoji">📱</div><h1>Geef de telefoon door</h1>
-        <p class="muted">Persoon ${next} van ${view.group.count} is aan de beurt. Niet spieken! 😉</p></div>
+      ${topHtml('Samen kiezen')}
+      <div class="hero"><div class="emoji">${iconSvg('telefoon')}</div><h1>Geef de telefoon <em>door</em></h1>
+        <p class="sub">Persoon ${next} van ${view.group.count} is aan de beurt. Niet spieken!</p></div>
+      <div class="people" aria-hidden="true">${Array.from({ length: view.group.count }, (person, i) => `
+        <span class="person${i + 1 < next ? ' done' : i + 1 === next ? ' on' : ''}"><i>${i + 1 < next ? '✓' : i + 1}</i></span>`).join('')}
+      </div>
       <button class="btn primary big" data-action="pass-continue">Ik ben persoon ${next}</button>`;
+  },
+
+  // "Verras me": je gerechten in een kring, met in het midden het gerecht dat het wordt. Na een ogenblik
+  // gaat de app vanzelf door naar het recept (zie de actie surprise).
+  spin() {
+    const dish = dishById(view.id);
+    const others = [...new Set(state.dishes.map(dishIcon))].filter(key => key !== dishIcon(dish)).slice(0, SPIN_PLATES);
+    return `
+      ${topHtml('Verras me')}
+      <p class="sub">Ik kies iets uit je favorieten…</p>
+      <div class="wheel" aria-hidden="true">
+        <div class="ring">${others.map((key, i) => `<span class="icon" style="--a:${Math.round(360 / others.length * i)}">${iconSvg(key)}</span>`).join('')}</div>
+        <div class="emoji">${iconSvg(dishIcon(dish))}</div>
+      </div>
+      <p class="over">Het wordt</p>
+      <h1>${esc(dish.name)}<em>!</em></h1>
+      <p class="sub">${dishMeta(dish)}${dish.kcal == null ? '' : ' · ' + kcalLabel(dish)}</p>`;
   },
 
   chosen() {
@@ -1652,48 +1647,50 @@ const VIEWS = {
     const { ingredients, recipe, own } = recipeOf(dish);
     const hasRecipe = ingredients.length || recipe;
     return `
-      <div class="hero"><div class="emoji pop">${dishIcon(dish)}</div>
-        <p class="muted">Je ${MEALS[meal].toLowerCase()} wordt…</p>
+      ${topHtml(`Je ${MEALS[meal].toLowerCase()} wordt`)}
+      <span class="bookmark" aria-hidden="true"></span>
+      <div class="hero"><div class="emoji pop">${iconSvg(dishIcon(dish))}</div>
         <h1>${esc(dish.name)}</h1>
-        <p class="muted">${dishMeta(dish)}${dish.kcal == null ? '' : ' · ' + kcalLabel(dish)}</p>
-        <p><strong>Eet smakelijk${state.name ? `, ${esc(state.name)}` : ''}! 😋</strong></p>
+        <p class="sub">${dishMeta(dish)}${dish.kcal == null ? '' : ' · ' + kcalLabel(dish)}</p>
+        <p class="wish">Eet smakelijk${state.name ? `, ${esc(state.name)}` : ''}!</p>
         <p class="small muted">Ik heb het bij vandaag genoteerd in je week.</p>
         ${allergenLine(dish) ? `<p class="small muted">${allergenLine(dish).replace('Bevat:', 'Bevat meestal:')}</p>` : ''}</div>
       ${rewardHtml(view.reward)}
       ${view.note ? `<div class="notice">${esc(view.note)}</div>` : ''}
       ${ingredients.length ? `
-        <div class="card"><h2 style="margin-top:0">Ingrediënten</h2>
-          ${own ? '' : `<p class="small muted">Voor ${RECIPE_SERVES} personen</p>`}
-          <ul>${ingredients.map(i => `<li>${esc(i)}</li>`).join('')}</ul>
-          <button class="btn" data-action="add-to-shopping"${view.added ? ' disabled' : ''}>
-            ${view.added ? '✓ Op de boodschappenlijst gezet' : '🛒 Zet op de boodschappenlijst'}</button>
-        </div>` : ''}
-      ${recipe ? `<div class="card"><h2 style="margin-top:0">Bereidingswijze</h2>
-        ${own ? `<p class="recipe">${esc(recipe)}</p>` : `<ol class="steps">${recipe.split('\n').map(step => `<li>${esc(step)}</li>`).join('')}</ol>`}</div>` : ''}
+        <h2>Ingrediënten${own ? '' : ` <span>voor ${RECIPE_SERVES} personen</span>`}</h2>
+        <ul class="ing">${ingredients.map(i => `<li>${esc(i)}</li>`).join('')}</ul>
+        <button class="btn" data-action="add-to-shopping"${view.added ? ' disabled' : ''}>
+          ${view.added ? '✓ Op de boodschappenlijst gezet' : `${iconSvg('mand')} Zet op de boodschappenlijst`}</button>` : ''}
+      ${recipe ? `<h2>Bereiding</h2>
+        ${own ? `<p class="recipe">${esc(recipe)}</p>` : `<ol class="steps">${recipe.split('\n').map(step => `<li>${esc(step)}</li>`).join('')}</ol>`}` : ''}
       ${hasRecipe ? '' : '<div class="notice">Van dit gerecht heb ik nog geen recept. Zoek er een op internet, of zet je eigen recept erbij.</div>'}
-      <a class="btn" href="https://www.google.com/search?q=${encodeURIComponent(`recept ${dish.name}`)}" target="_blank" rel="noopener noreferrer">🔎 ${hasRecipe ? 'Zoek een ander recept op internet' : 'Zoek een recept op internet'}</a>
-      <button class="btn" data-action="edit-dish" data-id="${dish.id}">${hasRecipe ? 'Recept aanpassen' : 'Eigen recept toevoegen'}</button>
+      <div class="orn"><i></i></div>
+      <a class="btn" href="https://www.google.com/search?q=${encodeURIComponent(`recept ${dish.name}`)}" target="_blank" rel="noopener noreferrer">${iconSvg('zoek')} ${hasRecipe ? 'Zoek een ander recept op internet' : 'Zoek een recept op internet'}</a>
+      <button class="btn" data-action="edit-dish" data-id="${dish.id}">${iconSvg('potlood')} ${hasRecipe ? 'Recept aanpassen' : 'Eigen recept toevoegen'}</button>
       <button class="btn primary" data-action="nav" data-view="home">Lekker, dank je!</button>
       <button class="btn link" data-action="undo-choice">Toch liever iets anders</button>`;
   },
 
   favorites() {
+    const count = state.dishes.length;
     return `
-      <h1>Favorieten</h1>
-      <p class="muted">Je hebt ${state.dishes.length} favorieten. Tik op het potlood om er een aan te passen.</p>
-      <button class="btn primary" data-action="discover" data-meal="alles">🔎 Gerechten ontdekken</button>
+      ${topHtml('Favorieten')}
+      <h1><em>${count}</em> ${count === 1 ? 'favoriet' : 'favorieten'}</h1>
+      <p class="sub">Hieruit help ik je kiezen. Tik op het potlood om een gerecht aan te passen.</p>
+      <button class="btn primary" data-action="discover" data-meal="alles">${iconSvg('zoek')} Gerechten ontdekken</button>
       <div class="row">
-        <button class="btn" data-action="nav" data-view="world">🌍 Wereldkeuken</button>
+        <button class="btn" data-action="nav" data-view="world">${iconSvg('wereld')} Wereldkeuken</button>
         <button class="btn" data-action="edit-dish">+ Zelf toevoegen</button>
       </div>
-      ${state.dishes.length > SEARCH_FROM ? `
+      ${count > SEARCH_FROM ? `
         <input type="search" data-input="favorite-search" value="${esc(view.query || '')}" placeholder="Zoek in je favorieten" aria-label="Zoek in je favorieten">
         <p class="small muted" id="favorites-empty" hidden>Geen favoriet gevonden met die naam.</p>` : ''}
       <ul class="list" id="favorites-list">${[...state.dishes].sort((a, b) => a.name.localeCompare(b.name, 'nl')).map(d => `
-        <li data-name="${esc(searchKey(d.name))}"><span class="icon" aria-hidden="true">${dishIcon(d)}</span>
+        <li data-name="${esc(searchKey(d.name))}"><span class="icon" aria-hidden="true">${iconSvg(dishIcon(d))}</span>
         <span class="grow"><strong>${esc(d.name)}</strong><br><span class="small muted">${dishDetails(d)}</span>
-          ${allergyBlock(d) ? `<br><span class="small warn">⚠️ Stel ik niet voor: ${esc(allergyBlock(d))}</span>` : ''}</span>
-        <button class="icon-btn" data-action="edit-dish" data-id="${d.id}" aria-label="Pas ${esc(d.name)} aan">✎</button></li>`).join('')}
+          ${allergyBlock(d) ? `<br><span class="small warn">${iconSvg('waarschuwing')} Stel ik niet voor: ${esc(allergyBlock(d))}</span>` : ''}</span>
+        <button class="icon-btn soft" data-action="edit-dish" data-id="${d.id}" aria-label="Pas ${esc(d.name)} aan">${iconSvg('potlood')}</button></li>`).join('')}
       </ul>`;
   },
 
@@ -1702,14 +1699,16 @@ const VIEWS = {
   world() {
     const names = Object.entries(COUNTRIES).sort((a, b) => a[1][0].localeCompare(b[1][0], 'nl'));
     return `
-      <h1>Wereldkeuken</h1>
-      <p class="muted">Tik op een land om de bekendste gerechten van dat land te zien. Je kunt de kaart verschuiven en inzoomen.</p>
-      <div class="map-wrap">
+      ${topHtml('Wereldkeuken', backHtml('Terug', 'data-action="nav" data-view="home"'))}
+      <h1>De wereld op je <em>bord</em></h1>
+      <p class="sub">Tik op een land voor de bekendste gerechten. Je kunt de kaart verschuiven en inzoomen.</p>
+      <div class="atlas">
         <div id="map-host" style="aspect-ratio:${MAP_RATIO.toFixed(3)}">${mapStatusHtml()}</div>
         <div class="map-tools">
-          <button class="icon-btn" data-action="map-zoom" data-factor="1.8" aria-label="Inzoomen">+</button>
-          <button class="icon-btn" data-action="map-zoom" data-factor="0.55" aria-label="Uitzoomen">−</button>
-          <button class="icon-btn" data-action="map-region" data-region="" aria-label="Hele wereld tonen">🌍</button>
+          <span class="compass" aria-hidden="true">${iconSvg('kompas')}</span>
+          <button class="icon-btn soft" data-action="map-zoom" data-factor="1.8" aria-label="Inzoomen">+</button>
+          <button class="icon-btn soft" data-action="map-zoom" data-factor="0.55" aria-label="Uitzoomen">−</button>
+          <button class="icon-btn soft" data-action="map-region" data-region="" aria-label="Hele wereld tonen">${iconSvg('wereld')}</button>
         </div>
       </div>
       ${countryCardHtml()}
@@ -1726,40 +1725,41 @@ const VIEWS = {
       <button class="btn link" data-action="nav" data-view="home">Terug naar het begin</button>`;
   },
 
-  // De bekende gerechten van één land, elk met een plus om het bij de favorieten te zetten.
+  // De bekende gerechten van één land als menukaart, elk met een plus om het bij de favorieten te zetten.
   country() {
     const code = view.code;
     const rows = countryDishes(code);
     const have = new Set(state.dishes.map(d => d.name.toLowerCase()));
-    if (!rows.length) return `
-      <div class="hero"><div class="emoji">${flag(code)}</div><h1>${COUNTRIES[code][0]}</h1>
-        <p class="muted">Van dit land heb ik nog geen gerechten.</p></div>
-      <button class="btn link" data-action="nav" data-view="world">← Terug naar de kaart</button>`;
-    return `
-      <button class="btn link back" data-action="nav" data-view="world">← Kaart</button>
-      <div class="hero"><div class="emoji">${flag(code)}</div><h1>${COUNTRIES[code][0]}</h1>
-        <p class="muted">${rows.length === 10 ? 'Tien bekende gerechten' : `Bekende gerechten (${rows.length})`}. Tik op de plus om er een bij je favorieten te zetten.</p></div>
+    const head = `
+      ${topHtml('Wereldkeuken', backHtml('Kaart', 'data-action="nav" data-view="world"'))}
+      <div class="hero"><div class="emoji flag">${flag(code)}</div><h1>${COUNTRIES[code][0]}</h1>`;
+    if (!rows.length) return `${head}
+        <p class="sub">Van dit land heb ik nog geen gerechten.</p></div>`;
+    return `${head}
+        <p class="sub">${rows.length === 10 ? 'Tien bekende gerechten' : `Bekende gerechten (${rows.length})`}. Tik op de plus om er een bij je favorieten te zetten.</p></div>
       ${hasAllergy() || state.diet.length ? '<div class="notice">Van de meeste van deze gerechten ken ik de allergenen en de diëten niet. Zet je er een bij je favorieten, vul die dan zelf in bij het gerecht. Tot die tijd stel ik het niet voor.</div>' : ''}
+      <h2>Menu</h2>
       <ol class="list">${rows.map((row, i) => {
         const dish = worldDish(row);
         const added = have.has(dish.name.toLowerCase());
         return `
-          <li><span class="rank" aria-hidden="true">${i + 1}</span><span class="icon" aria-hidden="true">${dishIcon(dish)}</span>
+          <li><span class="icon" aria-hidden="true">${iconSvg(dish.icon)}</span>
           <span class="grow"><strong>${esc(dish.name)}</strong><br><span class="small muted">${esc(dish.text)}</span></span>
           <button class="icon-btn${added ? ' done' : ''}${i === view.justAdded ? ' pop' : ''}" data-action="world-add" data-index="${i}"${added ? ' disabled' : ''}
             aria-label="${added ? `${esc(dish.name)} staat bij je favorieten` : `Zet ${esc(dish.name)} bij je favorieten`}">${added ? '✓' : '+'}</button></li>`;
       }).join('')}
       </ol>
       <p class="small muted">Dit is mijn eigen keuze van bekende gerechten, geen officiële ranglijst.</p>
-      <button class="btn link" data-action="nav" data-view="world">← Terug naar de kaart</button>`;
+      <button class="btn link" data-action="nav" data-view="world">Terug naar de kaart</button>`;
   },
 
   discover() {
     return `
-      <h1>Gerechten ontdekken</h1>
-      <p class="muted">Tik op de plus bij wat je lekker vindt, dan zet ik het bij je favorieten. Je hebt er nu ${state.dishes.length}.</p>
+      ${topHtml('Gerechten ontdekken')}
+      <h1>Wat vind je <em>lekker</em>?</h1>
+      <p class="sub">Tik op de plus bij wat je lekker vindt, dan zet ik het bij je favorieten.</p>
       ${catalogHtml('alles')}
-      <button class="btn link" data-action="nav" data-view="world">🌍 Of kijk in de wereldkeuken</button>
+      <button class="btn link" data-action="nav" data-view="world">${iconSvg('wereld')} Of kijk in de wereldkeuken</button>
       <button class="btn primary sticky above-nav" data-action="nav" data-view="favorites">Klaar · ${state.dishes.length} favorieten</button>`;
   },
 
@@ -1767,36 +1767,50 @@ const VIEWS = {
     const dish = view.id ? dishById(view.id) : null;
     const canDelete = state.dishes.length > MIN_DISHES;
     return `
-      <h1>${dish ? 'Gerecht aanpassen' : 'Nieuw gerecht'}</h1>
+      ${topHtml(dish ? 'Gerecht aanpassen' : 'Nieuw gerecht', backHtml('Annuleren', 'data-action="nav" data-view="favorites"'))}
+      <h1>${dish ? esc(dish.name) : 'Een <em>nieuw</em> gerecht'}</h1>
       ${dishFormHtml(dish, true)}
       ${dish ? `
         <button class="btn danger" data-action="delete-dish"${canDelete ? '' : ' disabled'}>
           ${view.confirm ? 'Zeker weten? Tik nog een keer' : 'Gerecht verwijderen'}</button>
-        ${canDelete ? '' : `<p class="small muted center">Je hebt minimaal ${MIN_DISHES} gerechten nodig. Voeg eerst een nieuw gerecht toe.</p>`}` : ''}
-      <button class="btn link" data-action="nav" data-view="favorites">Annuleren</button>`;
+        ${canDelete ? '' : `<p class="small muted center">Je hebt minimaal ${MIN_DISHES} gerechten nodig. Voeg eerst een nieuw gerecht toe.</p>`}` : ''}`;
   },
 
   shopping() {
     const anyDone = state.shopping.some(i => i.done);
+    const open = state.shopping.filter(i => !i.done).length;
+    // Per gerecht een groepje; wat je zelf op de lijst hebt gezet, staat bij elkaar.
+    const groups = new Map();
+    for (const item of state.shopping) {
+      if (!groups.has(item.dish)) groups.set(item.dish, []);
+      groups.get(item.dish).push(item);
+    }
     return `
-      <h1>Boodschappen</h1>
-      <form data-form="shopping" class="row" style="align-items:flex-start">
-        <input name="text" type="text" maxlength="80" autocomplete="off" placeholder="Iets toevoegen" aria-label="Iets toevoegen" style="flex:3">
-        <button class="btn primary" type="submit" aria-label="Toevoegen aan de lijst">+</button>
+      ${topHtml('Boodschappen')}
+      <h1>${!state.shopping.length ? 'Je <em>lijstje</em>' : open ? `Nog <em>${open}</em> te halen` : 'Alles <em>gehaald</em>'}</h1>
+      <form data-form="shopping" class="row">
+        <input name="text" type="text" maxlength="80" autocomplete="off" placeholder="Iets toevoegen" aria-label="Iets toevoegen">
+        <button class="icon-btn" type="submit" aria-label="Toevoegen aan de lijst">+</button>
       </form>
       ${state.shopping.length ? `
-        <ul class="list">${state.shopping.map(i => `
-          <li class="tick"><label><input type="checkbox" id="s-${i.id}" data-change="toggle-item" data-id="${i.id}"${i.done ? ' checked' : ''}>
-            <span class="grow${i.done ? ' done' : ''}">${esc(i.text)}
-              ${i.dish ? `<br><span class="small muted">${esc(i.dish)}</span>` : ''}</span></label></li>`).join('')}
-        </ul>
+        ${[...groups].map(([dish, items]) => `
+          <h2>${dish ? esc(dish) : 'Zelf toegevoegd'}</h2>
+          <ul class="list">${items.map(i => `
+            <li class="tick"><label><input type="checkbox" id="s-${i.id}" data-change="toggle-item" data-id="${i.id}"${i.done ? ' checked' : ''}>
+              <span class="grow${i.done ? ' done' : ''}">${esc(i.text)}</span></label></li>`).join('')}
+          </ul>`).join('')}
+        <p></p>
         <button class="btn"${anyDone ? '' : ' disabled'} data-action="clear-done">Afgevinkte verwijderen</button>`
-      : '<div class="hero"><div class="emoji">🛒</div><p class="muted">Je lijstje is nog leeg. Kies een gerecht met ingrediënten, of zet er zelf iets op.</p></div>'}`;
+      : `<div class="hero"><div class="emoji">${iconSvg('mand')}</div><p class="sub">Je lijstje is nog leeg. Kies een gerecht met ingrediënten, of zet er zelf iets op.</p></div>`}`;
   },
 
   // De instellingen zijn verdeeld over tabbladen; view.tab onthoudt welk tabblad open staat.
   more() {
     const tab = Object.hasOwn(SETTINGS_TABS, view.tab) ? view.tab : 'profiel';
+    const titles = {
+      profiel: 'Jouw <em>profiel</em>', allergie: 'Mijn <em>allergieën</em>', dieet: 'Mijn <em>dieet</em>',
+      thema: 'Kies je <em>kleur</em>', backup: 'Je <em>back-up</em>',
+    };
     const panels = {
       profiel: () => `
         <h2>Profielfoto</h2>
@@ -1806,26 +1820,25 @@ const VIEWS = {
         ${state.photo ? '<button class="btn danger" data-action="photo-remove">Foto verwijderen</button>' : ''}
         <p class="muted small">Je foto blijft op dit apparaat staan en gaat mee in je back-up.</p>
         <h2>Je naam</h2>
-        <form data-form="name" class="row" style="align-items:flex-start">
-          <input name="name" type="text" maxlength="30" autocomplete="given-name" value="${esc(state.name)}" placeholder="Je voornaam" aria-label="Je naam" style="flex:3">
+        <form data-form="name" class="row">
+          <input name="name" type="text" maxlength="30" autocomplete="given-name" value="${esc(state.name)}" placeholder="Je voornaam" aria-label="Je naam">
           <button class="btn primary" type="submit">${view.nameSaved ? '✓' : 'OK'}</button>
         </form>
-        <h2><label for="f-country" style="margin:0;font-weight:inherit">Je land</label></h2>
+        <h2><label for="f-country" style="margin:0">Je land</label></h2>
         ${countrySelectHtml(' data-change="set-country"')}
         <p class="muted small" style="margin-top:6px">Bij "Gerechten ontdekken" zie je eerst wat er in dit land veel wordt gegeten.</p>`,
 
       allergie: () => `
-        <h2>Mijn allergieën</h2>
         <p class="muted small">Vink aan waar je allergisch voor bent. Gerechten waar dat in zit, stel ik niet meer voor.</p>
         <fieldset aria-label="Mijn allergieën">${allergenChecksHtml('allergies', state.allergies, 'user')}</fieldset>
-        <h3>Andere allergie</h3>
+        <h2>Andere allergie</h2>
         <p class="muted small">Staat jouw allergie er niet bij? Voeg haar toe. Ik sla dan gerechten over waar dat woord in de naam of bij de ingrediënten staat.</p>
         ${state.otherAllergies.length ? `<ul class="list">${state.otherAllergies.map((term, i) => `
           <li><span class="grow">${esc(term)}</span>
-          <button class="icon-btn" data-action="remove-allergy" data-index="${i}" aria-label="Verwijder ${esc(term)}">✕</button></li>`).join('')}</ul>` : ''}
-        <form data-form="allergy" class="row" style="align-items:flex-start">
-          <input name="term" type="text" maxlength="30" autocomplete="off" placeholder="Bijvoorbeeld: kiwi" aria-label="Andere allergie" style="flex:3">
-          <button class="btn primary" type="submit" aria-label="Allergie toevoegen">+</button>
+          <button class="icon-btn soft" data-action="remove-allergy" data-index="${i}" aria-label="Verwijder ${esc(term)}">${iconSvg('kruis')}</button></li>`).join('')}</ul>` : ''}
+        <form data-form="allergy" class="row">
+          <input name="term" type="text" maxlength="30" autocomplete="off" placeholder="Bijvoorbeeld: kiwi" aria-label="Andere allergie">
+          <button class="icon-btn" type="submit" aria-label="Allergie toevoegen">+</button>
         </form>
         <div class="chips">${ALLERGY_IDEAS.filter(idea => !state.otherAllergies.some(term => searchKey(term) === idea)).map(idea => `
           <button class="chip" data-action="add-allergy" data-term="${idea}">+ ${idea}</button>`).join('')}
@@ -1833,21 +1846,22 @@ const VIEWS = {
         <div class="notice">${ALLERGY_WARNING}</div>`,
 
       dieet: () => `
-        <h2>Mijn dieet</h2>
         <fieldset aria-label="Mijn dieet">${dietChecksHtml(true)}</fieldset>
-        <p class="muted small" style="margin-top:6px">Ik stel alleen gerechten voor die passen bij alles wat je hier aanvinkt. Per gerecht geef je bij Favorieten aan bij welk dieet het past.</p>
+        <p class="muted small" style="margin-top:10px">Ik stel alleen gerechten voor die passen bij alles wat je hier aanvinkt. Per gerecht geef je bij Favorieten aan bij welk dieet het past.</p>
         <p class="muted small">Let op: de diëten bij gerechten zijn een schatting en geen garantie. Heb je een allergie? Vink die dan aan op het tabblad Allergie.</p>`,
 
       thema: () => `
-        <h2>Thema</h2>
-        <div class="themes" role="group" aria-label="Thema">${Object.entries(THEMES).map(([id, name]) => `
+        <div class="themes" role="group" aria-label="Kleur">${Object.entries(THEMES).map(([id, name]) => `
           <button class="theme" data-theme="${id}" data-action="set-theme" aria-pressed="${id === state.theme}">
             <span class="theme-dot"></span>${name}</button>`).join('')}
         </div>
-        <p class="muted small">Standaard volgt de lichte of donkere modus van je telefoon.</p>`,
+        <h2>${iconSvg('maan')} Avondstand <span>voor in het donker</span></h2>
+        <div class="segments boxed" role="group" aria-label="Avondstand">${Object.entries(DARK_MODES).map(([id, name]) => `
+          <button data-action="set-dark" data-dark="${id}" aria-pressed="${id === state.dark}">${name}</button>`).join('')}
+        </div>
+        <p class="muted small">Automatisch volgt de instelling van je telefoon.</p>`,
 
       backup: () => `
-        <h2>Back-up</h2>
         <p class="muted small">Je gerechten staan alleen op dit apparaat. Maak af en toe een back-up, zodat je niets kwijtraakt.</p>
         <button class="btn" data-action="export">Back-up opslaan</button>
         <button class="btn" data-action="import-pick">Back-up terugzetten</button>
@@ -1857,10 +1871,11 @@ const VIEWS = {
         <button class="btn danger" data-action="reset">${view.confirm ? 'Zeker weten? Alles wordt gewist' : 'Alles wissen'}</button>`,
     };
     return `
-      <h1>Instellingen</h1>
+      ${topHtml('Instellingen', backHtml('Terug', 'data-action="nav" data-view="home"'))}
       <div class="segments" role="tablist" aria-label="Onderdelen van de instellingen">${Object.entries(SETTINGS_TABS).map(([key, label]) => `
         <button role="tab" id="tab-${key}" data-action="settings-tab" data-tab="${key}" aria-selected="${key === tab}" aria-controls="settings-panel">${label}</button>`).join('')}
       </div>
+      <h1>${titles[tab]}</h1>
       <div id="settings-panel" role="tabpanel" aria-labelledby="tab-${tab}">${panels[tab]()}</div>
       <button class="btn link" data-action="nav" data-view="home">Terug naar het begin</button>`;
   },
@@ -1882,14 +1897,24 @@ const ACTIONS = {
 
   'set-theme'(el) {
     state.theme = el.dataset.theme;
-    save();
-    const change = () => {
-      applyTheme();
-      render();
-    };
-    // Waar de browser het kan, vloeien de oude kleuren over in de nieuwe.
-    if (document.startViewTransition && !motionOff()) document.startViewTransition(change);
-    else change();
+    repaint();
+  },
+
+  'set-dark'(el) {
+    state.dark = el.dataset.dark;
+    repaint();
+  },
+
+  // Laat zien wat je voor een badge moet doen.
+  'show-badge'(el) {
+    view.badge = el.dataset.id;
+    render();
+    app.querySelector(`.seal[data-id="${el.dataset.id}"]`).focus();
+  },
+
+  'log-all'() {
+    view.logAll = true;
+    render();
   },
 
   'finish-onboarding'() {
@@ -2005,8 +2030,15 @@ const ACTIONS = {
     const queue = inResults ? view.queue.slice(view.page * PER_PAGE) : buildQueue({});
     const exact = queue.filter(item => item.exact);
     const pool = (exact.length ? exact : queue).map(item => dishById(item.id));
-    choose(weightedShuffle(pool)[0].id, 'Deze heb ik voor je uitgekozen. 🎲');
-    spinIcon();
+    const id = weightedShuffle(pool)[0].id;
+    const note = 'Deze heb ik voor je uitgekozen.';
+    // Wie geen beweging wil, ziet meteen het gerecht. Anders draait eerst de kring met je gerechten; loop je
+    // intussen weg van dat scherm, dan is er niets gekozen.
+    if (motionOff()) return choose(id, note);
+    go('spin', { id });
+    setTimeout(() => {
+      if (view.name === 'spin' && view.id === id) choose(id, note);
+    }, SPIN_TIME);
   },
 
   pick(el) {
@@ -2022,7 +2054,7 @@ const ACTIONS = {
     const winner = winners[Math.floor(Math.random() * winners.length)];
     const note = winners.length > 1
       ? `Gelijkspel tussen ${new Intl.ListFormat('nl').format(winners.map(id => dishById(id).name))}. Ik heb geloot!`
-      : `Gewonnen met ${top} van de ${group.count} stemmen. 🎉`;
+      : `Gewonnen met ${top} van de ${group.count} stemmen.`;
     choose(winner, note);
   },
 
@@ -2171,7 +2203,7 @@ const FORMS = {
     Object.assign(dish, {
       name, meals: cleanMeals(meals), time: data.get('time'), type: data.get('type'), kcal,
       healthy: data.has('healthy'), diets: cleanDiets(data.getAll('diets'), false),
-      icon: ICON_SET.has(data.get('icon')) ? data.get('icon') : '',
+      icon: cleanIcon(data.get('icon'), name),
       allergens: cleanAllergens(data.getAll('allergens')),
       // Wie het formulier opslaat, heeft de allergenen gezien en zo nodig ingevuld.
       unchecked: false,
@@ -2352,6 +2384,10 @@ document.addEventListener('input', event => {
   } else if (event.target.dataset.input === 'favorite-search') {
     view.query = event.target.value;
     filterFavorites();
+  } else if (event.target.dataset.input === 'dish-name') {
+    // Het pictogram dat bij de naam past, verandert mee terwijl je typt.
+    const form = event.target.form;
+    document.getElementById('auto-icon').innerHTML = iconSvg(iconKey(event.target.value, '', new FormData(form).get('type')));
   }
 });
 
@@ -2370,6 +2406,9 @@ document.addEventListener('toggle', event => {
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
 }
+
+// De pictogrammen van de menubalk onderin.
+for (const el of nav.querySelectorAll('[data-ic]')) el.innerHTML = iconSvg(el.dataset.ic);
 
 // Wie al notities had van voor de badges, krijgt de badges die daarbij horen.
 if (checkBadges().length) save();
