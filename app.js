@@ -134,8 +134,30 @@ const CATALOG = [
   ['Witlof met ham en kaas', ['avond'], 'uitgebreid', 'vlees', 550, false],
   ['Couscous met kip en groenten', ['avond'], 'normaal', 'vlees', 550, true],
 ];
-// Zoveel gerechten uit de lijst zie je voordat je om meer vraagt.
-const CATALOG_PREVIEW = 12;
+// De gerechten uit de lijst in groepjes, in de volgorde waarin ze op het scherm staan. Elk gerecht uit
+// CATALOG staat in precies één groepje.
+const CATALOG_GROUPS = [
+  ['Pap, yoghurt en fruit', ['Havermout', 'Yoghurt met muesli', 'Kwark met fruit', 'Overnight oats', 'Smoothie met banaan', 'Griesmeelpap']],
+  ['Brood en wraps', ['Volkorenbrood met ei', 'Boterham met kaas', 'Boterham met pindakaas', 'Croissant met jam', 'Bananenbrood', 'Tosti', 'Broodje gezond', 'Tonijnsalade op brood', 'Wrap met kip en groenten']],
+  ['Ei', ['Omelet', 'Roerei met toast', 'Uitsmijter']],
+  ['Soep', ['Tomatensoep', 'Groentesoep met linzen', 'Kippensoep', 'Pompoensoep', 'Erwtensoep']],
+  ['Salade en bowls', ['Kipsalade', 'Salade met kikkererwten en feta', 'Couscoussalade', 'Pokébowl met zalm']],
+  ['Pasta', ['Spaghetti bolognese', 'Pasta met champignons', 'Pasta pesto met kip', 'Pasta met zalm en spinazie', 'Macaroni met ham en kaas', 'Lasagne', 'Groentelasagne']],
+  ['Stamppot en stoofvlees', ['Stamppot boerenkool', 'Hutspot', 'Zuurkoolstamppot', 'Andijviestamppot', 'Hachee', 'Stoofvlees met rode kool']],
+  ['Aardappelen, vlees en groente', ['Gehaktbal met sperziebonen', 'Kip met broccoli en aardappelen', 'Gevulde kipfilet uit de oven', 'Witlof met ham en kaas', 'Ovenschotel met gehakt']],
+  ['Curry', ['Kipcurry met rijst', 'Kip kerrie met rijst en boontjes', 'Groentecurry', 'Pompoencurry']],
+  ['Rijst, bonen en couscous', ['Risotto met paddenstoelen', 'Ratatouille met rijst', 'Chili con carne', 'Chili sin carne', 'Couscous met kip en groenten']],
+  ['Wok en Indonesisch', ['Nasi goreng', 'Surinaamse nasi met kip', 'Bami goreng', 'Kipsaté met rijst', 'Gado gado', 'Roerbak met kip en groenten', 'Roerbak met tofu']],
+  ['Vis', ['Zalm met rijst', 'Vis uit de oven met groenten', 'Kibbeling met friet']],
+  ['Pizza, wraps en pannenkoeken', ['Pizza', 'Hamburger met friet', 'Shoarma met pita', 'Wraps met gehakt', 'Pannenkoeken', 'Poffertjes', 'Quiche met groenten']],
+];
+// Zoveel gerechten van een groepje zie je voordat je om meer vraagt.
+const CATALOG_PREVIEW = 4;
+// Tijdzones van landen waar veel Nederlands wordt gesproken, om het land van de gebruiker te raden.
+const ZONE_COUNTRY = {
+  'Europe/Amsterdam': 'NL', 'Europe/Brussels': 'BE', 'America/Paramaribo': 'SR',
+  'America/Curacao': 'CW', 'America/Aruba': 'AW',
+};
 // Vanaf meer dan zoveel favorieten staat er een zoekveld boven de lijst.
 const SEARCH_FROM = 8;
 // De afkortingen waarmee de gerechten per land zijn genoteerd (in world-dishes.js).
@@ -348,9 +370,21 @@ let manualMeal = null;
 function emptyState() {
   return {
     dishes: [], history: [], shopping: [], badges: {},
-    onboarded: false, welcomed: false, name: '', photo: '', theme: 'standaard', diet: [],
+    onboarded: false, welcomed: false, name: '', photo: '', theme: 'standaard', country: guessCountry(), diet: [],
     allergies: [], otherAllergies: [],
   };
+}
+
+// Het land waar de gebruiker waarschijnlijk woont, zolang die het niet zelf heeft gekozen: eerst afgeleid
+// van de tijdzone van het apparaat, dan van de taalinstelling, en anders Nederland (de app is Nederlandstalig).
+function guessCountry() {
+  const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  if (Object.hasOwn(ZONE_COUNTRY, zone)) return ZONE_COUNTRY[zone];
+  for (const tag of navigator.languages || []) {
+    const region = (tag.split('-')[1] || '').toUpperCase();
+    if (Object.hasOwn(COUNTRIES, region)) return region;
+  }
+  return 'NL';
 }
 
 // Alleen een echte, kleine afbeelding telt als profielfoto; al het andere wordt genegeerd.
@@ -449,6 +483,7 @@ function sanitize(data) {
     name: cleanName(data.name),
     photo: cleanPhoto(data.photo),
     theme: Object.hasOwn(THEMES, data.theme) ? data.theme : 'standaard',
+    country: Object.hasOwn(COUNTRIES, data.country) ? data.country : guessCountry(),
     diet: cleanDiets(data.diet, true),
     allergies: cleanAllergens(data.allergies),
     otherAllergies: cleanTerms(data.otherAllergies),
@@ -658,6 +693,25 @@ function worldDish(row) {
 // De gerechten van een land; van een land zonder gerechten een lege lijst.
 function countryDishes(code) {
   return WORLD_DISHES[code] || [];
+}
+
+// Een gerecht uit de wereldkeuken als favoriet. Staat het ook in de lijst met bekende gerechten, dan komen
+// de gegevens daarvandaan; anders zijn calorieën, diëten en allergenen nog onbekend.
+function worldEntry(dish) {
+  const listed = CATALOG.find(item => item[0].toLowerCase() === dish.name.toLowerCase());
+  return listed ? catalogEntry(listed) : {
+    id: newId(), name: dish.name, meals: dish.meals, time: dish.time, type: dish.type, kcal: null, healthy: false,
+    icon: dish.icon, diets: [], allergens: [], unchecked: true, ingredients: [], recipe: '',
+  };
+}
+
+// Zet een gerecht bij de favorieten vanuit de lijst waaruit je kiest. Het blijft daar staan met een vinkje,
+// zodat je ziet wat je hebt gekozen en het weer weg kunt halen.
+function keepFresh(dish) {
+  state.dishes.push(dish);
+  view.fresh = [...(view.fresh || []), dish.id];
+  save();
+  render();
 }
 
 // "10 gerechten", "1 gerecht".
@@ -1182,25 +1236,68 @@ function searchKey(text) {
   return text.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 }
 
-// Bekende gerechten die je nog niet hebt, met een zoekveld en een keuze per maaltijd.
-// Welke er te zien zijn, regelt filterCatalog() na het tekenen.
+// Past een gerecht uit de wereldkeuken bij het dieet en de allergieën van de gebruiker? Van een gerecht dat
+// ook in de lijst met bekende gerechten staat, is dat bekend. Van de rest is alleen de soort bekend: wie
+// vegetarisch of veganistisch eet, krijgt daarvan alleen de vegetarische te zien.
+function localSuitable(dish) {
+  const listed = CATALOG.find(item => item[0].toLowerCase() === dish.name.toLowerCase());
+  if (listed) return suitable(catalogDish(listed));
+  return dish.type === 'vega' || !(state.diet.includes('vegetarisch') || state.diet.includes('vegan'));
+}
+
+// De lijst waaruit je gerechten kiest, met een keuze per maaltijd, een zoekveld en een balk om naar een
+// groepje te springen. Bovenaan staat wat er in het land van de gebruiker veel wordt gegeten, daaronder de
+// bekende gerechten per groepje. Wat je al had, staat er niet tussen; wat je hier net hebt gekozen wel, met
+// een vinkje. Welke regels er te zien zijn, regelt filterCatalog() na het tekenen.
 function catalogHtml(defaultMeal) {
-  const have = new Set(state.dishes.map(d => d.name.toLowerCase()));
   const filter = view.catalogMeal || defaultMeal;
-  // Bij een maaltijd staan de gerechten voorop die daar in de eerste plaats voor bedoeld zijn.
-  const items = CATALOG.map((item, index) => ({ item, index }))
-    .filter(({ item }) => !have.has(item[0].toLowerCase()) && (filter === 'alles' || item[1].includes(filter)) &&
-      suitable(catalogDish(item)))
-    .sort((a, b) => (b.item[1][0] === filter) - (a.item[1][0] === filter));
+  const mine = new Map(state.dishes.map(d => [d.name.toLowerCase(), d]));
+  const fresh = dish => !state.onboarded || (view.fresh || []).includes(dish.id);
+  const fits = meals => filter === 'alles' || meals.includes(filter);
+  const row = (name, icon, text, add) => {
+    const dish = mine.get(name.toLowerCase());
+    if (dish && !fresh(dish)) return '';
+    return `
+      <li data-name="${esc(searchKey(name))}"><span class="icon" aria-hidden="true">${icon}</span>
+      <span class="grow"><strong>${esc(name)}</strong><br><span class="small muted">${esc(text)}</span></span>
+      ${dish
+        ? `<button class="icon-btn on" data-action="remove-dish" data-id="${dish.id}" aria-label="Haal ${esc(name)} weer weg">✓</button>`
+        : `<button class="icon-btn" ${add} aria-label="Zet ${esc(name)} bij je favorieten">+</button>`}</li>`;
+  };
+  const country = COUNTRIES[state.country][0];
+  const local = countryDishes(state.country).map((line, index) => ({ dish: worldDish(line), index }))
+    .filter(({ dish }) => fits(dish.meals) && localSuitable(dish));
+  // Een gerecht dat al bij het land staat, komt niet nog eens in een groepje.
+  const localNames = new Set(local.map(({ dish }) => dish.name.toLowerCase()));
+  const sections = [{
+    id: 'group-local', title: `Veel gegeten in ${country}`, short: `${flag(state.country)} ${country}`,
+    rows: local.map(({ dish, index }) => row(dish.name, dishIcon(dish), dish.text, `data-action="add-local" data-index="${index}"`)),
+  }, ...CATALOG_GROUPS.map(([title, names], n) => ({
+    id: `group-${n}`, title, short: title,
+    rows: names.map(name => CATALOG.findIndex(item => item[0] === name))
+      .filter(index => fits(CATALOG[index][1]) && !localNames.has(CATALOG[index][0].toLowerCase()) && suitable(catalogDish(CATALOG[index])))
+      .map(index => {
+        const [name, , time, type] = CATALOG[index];
+        return row(name, guessIcon(name) || TYPE_ICON[type], dishMeta({ time, type }), `data-action="add-suggestion" data-index="${index}"`);
+      }),
+  }))].map(section => ({ ...section, rows: section.rows.filter(Boolean) })).filter(section => section.rows.length);
   return `
     <div class="segments" role="group" aria-label="Maaltijd">${[['alles', 'Alles'], ...Object.entries(MEALS)].map(([value, label]) => `
       <button data-action="catalog-meal" data-meal="${value}" aria-pressed="${value === filter}">${label}</button>`).join('')}
     </div>
     <input type="search" data-input="catalog-search" value="${esc(view.catalogQuery || '')}" placeholder="Zoek een gerecht" aria-label="Zoek een gerecht">
-    <div class="chips" id="catalog">${items.map(({ item, index }) => `
-      <button class="chip" data-action="add-suggestion" data-index="${index}" data-name="${esc(searchKey(item[0]))}"><span aria-hidden="true">${guessIcon(item[0]) || TYPE_ICON[item[3]]}</span> ${item[0]}</button>`).join('')}
+    <div class="jump" id="catalog-jump" role="group" aria-label="Ga naar een groep">${sections.map(section => `
+      <button class="chip" data-action="catalog-jump" data-target="${section.id}">${section.short}</button>`).join('')}
     </div>
-    <button class="btn link" id="catalog-more" data-action="catalog-more" hidden></button>
+    <div id="catalog">${sections.map(section => `
+      <section id="${section.id}">
+        <h2>${section.title}</h2>
+        ${section.id === 'group-local' && (hasAllergy() || state.diet.length) ? '<p class="small muted">Van sommige van deze gerechten ken ik de allergenen en de diëten niet. Vul die na het toevoegen zelf in; tot die tijd stel ik ze niet voor.</p>' : ''}
+        <div class="card pick"><ul class="list">${section.rows.join('')}</ul>
+          <button class="btn link" data-action="catalog-more" data-group="${section.id}" hidden></button></div>
+        ${section.id === 'group-local' ? '<p class="small muted">Woon je ergens anders? Je kiest je land bij de instellingen, op het tabblad Profiel.</p>' : ''}
+      </section>`).join('')}
+    </div>
     <p class="small muted" id="catalog-empty" hidden></p>
     ${state.diet.length ? `<p class="small muted">Je ziet alleen gerechten die passen bij je dieet: ${state.diet.map(key => DIETS[key].toLowerCase()).join(', ')}.</p>` : ''}
     ${allergyNames().length ? `<p class="small muted">Gerechten waar meestal ${allergyNames().join(', ')} in zit, laat ik weg. Controleer bij een allergie altijd zelf de ingrediënten.</p>` : ''}
@@ -1234,6 +1331,13 @@ function avatarHtml() {
     <input id="photo-file" type="file" accept="image/*" data-change="photo" hidden>`;
 }
 
+// De keuzelijst met alle landen, voor het land waar de gebruiker woont.
+function countrySelectHtml(attributes) {
+  const names = Object.entries(COUNTRIES).sort((a, b) => a[1][0].localeCompare(b[1][0], 'nl'));
+  return `<select id="f-country" name="country"${attributes}>${names.map(([code, [name]]) =>
+    `<option value="${code}"${code === state.country ? ' selected' : ''}>${name}</option>`).join('')}</select>`;
+}
+
 // Aanvinkbare diëten voor de gebruiker zelf, op het welkomstscherm en bij de instellingen.
 function dietChecksHtml(change) {
   return `
@@ -1242,19 +1346,31 @@ function dietChecksHtml(change) {
     </div>`;
 }
 
+// Laat in de lijst met gerechten zien wat bij het zoekwoord past. Zonder zoekwoord zie je van elk groepje
+// eerst een paar gerechten, met een knop voor de rest; het groepje van je land staat er helemaal.
 function filterCatalog() {
   const query = searchKey(view.catalogQuery || '').trim();
-  const chips = [...app.querySelectorAll('#catalog .chip')];
-  const matches = chips.filter(chip => chip.dataset.name.includes(query));
-  const limit = query || view.catalogAll ? Infinity : CATALOG_PREVIEW;
-  for (const chip of chips) chip.hidden = true;
-  for (const chip of matches.slice(0, limit)) chip.hidden = false;
-  const more = document.getElementById('catalog-more');
-  more.hidden = matches.length <= limit;
-  const rest = matches.length - CATALOG_PREVIEW;
-  more.textContent = `Toon nog ${rest} ${rest === 1 ? 'gerecht' : 'gerechten'}`;
+  const open = view.catalogOpen || [];
+  let found = 0;
+  for (const section of document.querySelectorAll('#catalog section')) {
+    const rows = [...section.querySelectorAll('li')];
+    const matches = rows.filter(row => row.dataset.name.includes(query));
+    const limit = query || section.id === 'group-local' || open.includes(section.id) ? Infinity : CATALOG_PREVIEW;
+    const shown = matches.slice(0, limit);
+    for (const row of rows) {
+      row.hidden = !shown.includes(row);
+      // De laatste regel die je ziet, heeft geen streep eronder.
+      row.classList.toggle('last', row === shown[shown.length - 1]);
+    }
+    const more = section.querySelector('[data-action="catalog-more"]');
+    more.hidden = matches.length <= limit;
+    more.textContent = `Toon nog ${matches.length - limit}`;
+    section.hidden = matches.length === 0;
+    document.querySelector(`#catalog-jump [data-target="${section.id}"]`).hidden = section.hidden;
+    found += matches.length;
+  }
   const empty = document.getElementById('catalog-empty');
-  empty.hidden = matches.length > 0;
+  empty.hidden = found > 0;
   empty.textContent = query ? 'Niets gevonden. Je kunt het gerecht ook zelf toevoegen.' : 'Je hebt alle gerechten uit deze lijst al.';
 }
 
@@ -1292,6 +1408,9 @@ const VIEWS = {
       <form data-form="welcome">
         <label for="f-yourname">Hoe mag ik je noemen? <span class="muted">(mag je overslaan)</span></label>
         <input id="f-yourname" name="name" type="text" maxlength="30" autocomplete="given-name" placeholder="Je voornaam">
+        <label for="f-country">In welk land woon je?</label>
+        ${countrySelectHtml('')}
+        <p class="small muted" style="margin-top:6px">Dan laat ik eerst zien wat daar veel wordt gegeten.</p>
         <fieldset>
           <legend>Volg je een dieet? <span class="muted" style="font-weight:400">(mag je overslaan)</span></legend>
           ${dietChecksHtml(false)}
@@ -1323,7 +1442,7 @@ const VIEWS = {
           <button class="chip picked" data-action="remove-dish" data-id="${d.id}" aria-label="Haal ${esc(d.name)} weg">
             <span aria-hidden="true">${dishIcon(d)}</span> ${esc(d.name)} <span aria-hidden="true">✕</span></button>`).join('')}
         </div>` : ''}
-      <h2>Tik aan wat je lekker vindt</h2>
+      <h2>Tik op de plus bij wat je lekker vindt</h2>
       ${catalogHtml('avond')}
       <details data-remember="ownOpen"${view.ownOpen ? ' open' : ''}>
         <summary><span>Staat het er niet bij? Voeg zelf een gerecht toe</span></summary>
@@ -1638,7 +1757,7 @@ const VIEWS = {
   discover() {
     return `
       <h1>Gerechten ontdekken</h1>
-      <p class="muted">Tik aan wat je lekker vindt, dan zet ik het bij je favorieten. Je hebt er nu ${state.dishes.length}.</p>
+      <p class="muted">Tik op de plus bij wat je lekker vindt, dan zet ik het bij je favorieten. Je hebt er nu ${state.dishes.length}.</p>
       ${catalogHtml('alles')}
       <button class="btn link" data-action="nav" data-view="world">🌍 Of kijk in de wereldkeuken</button>
       <button class="btn primary sticky above-nav" data-action="nav" data-view="favorites">Klaar · ${state.dishes.length} favorieten</button>`;
@@ -1690,7 +1809,10 @@ const VIEWS = {
         <form data-form="name" class="row" style="align-items:flex-start">
           <input name="name" type="text" maxlength="30" autocomplete="given-name" value="${esc(state.name)}" placeholder="Je voornaam" aria-label="Je naam" style="flex:3">
           <button class="btn primary" type="submit">${view.nameSaved ? '✓' : 'OK'}</button>
-        </form>`,
+        </form>
+        <h2><label for="f-country" style="margin:0;font-weight:inherit">Je land</label></h2>
+        ${countrySelectHtml(' data-change="set-country"')}
+        <p class="muted small" style="margin-top:6px">Bij "Gerechten ontdekken" zie je eerst wat er in dit land veel wordt gegeten.</p>`,
 
       allergie: () => `
         <h2>Mijn allergieën</h2>
@@ -1781,21 +1903,30 @@ const ACTIONS = {
 
   'catalog-meal'(el) {
     view.catalogMeal = el.dataset.meal;
-    view.catalogAll = false;
+    view.catalogOpen = [];
     render();
   },
 
-  'catalog-more'() {
-    view.catalogAll = true;
+  // Klapt één groepje helemaal uit.
+  'catalog-more'(el) {
+    view.catalogOpen = [...(view.catalogOpen || []), el.dataset.group];
     filterCatalog();
+  },
+
+  'catalog-jump'(el) {
+    document.getElementById(el.dataset.target).scrollIntoView({ behavior: motionOff() ? 'auto' : 'smooth', block: 'start' });
   },
 
   'add-suggestion'(el) {
     const item = CATALOG[el.dataset.index];
     if (state.dishes.some(d => d.name.toLowerCase() === item[0].toLowerCase())) return;
-    state.dishes.push(catalogEntry(item));
-    save();
-    render();
+    keepFresh(catalogEntry(item));
+  },
+
+  // Een gerecht uit het groepje van je eigen land, bovenaan de lijst.
+  'add-local'(el) {
+    const dish = worldDish(countryDishes(state.country)[el.dataset.index]);
+    if (!state.dishes.some(d => d.name.toLowerCase() === dish.name.toLowerCase())) keepFresh(worldEntry(dish));
   },
 
   'map-zoom'(el) {
@@ -1822,16 +1953,11 @@ const ACTIONS = {
     go('country', { code: el.dataset.code });
   },
 
-  // Zet een gerecht uit de wereldkeuken bij de favorieten. Staat het ook in de lijst met bekende gerechten,
-  // dan komen de gegevens daarvandaan; anders zijn calorieën, diëten en allergenen nog onbekend.
+  // Zet een gerecht uit de wereldkeuken bij de favorieten.
   'world-add'(el) {
     const dish = worldDish(countryDishes(view.code)[el.dataset.index]);
     if (state.dishes.some(d => d.name.toLowerCase() === dish.name.toLowerCase())) return;
-    const listed = CATALOG.find(item => item[0].toLowerCase() === dish.name.toLowerCase());
-    state.dishes.push(listed ? catalogEntry(listed) : {
-      id: newId(), name: dish.name, meals: dish.meals, time: dish.time, type: dish.type, kcal: null, healthy: false,
-      icon: dish.icon, diets: [], allergens: [], unchecked: true, ingredients: [], recipe: '',
-    });
+    state.dishes.push(worldEntry(dish));
     save();
     // Het vinkje van het gerecht dat er net bij kwam, springt even op.
     view.justAdded = Number(el.dataset.index);
@@ -2070,6 +2196,7 @@ const FORMS = {
   welcome(form) {
     const data = new FormData(form);
     state.name = cleanName(data.get('name'));
+    if (Object.hasOwn(COUNTRIES, data.get('country'))) state.country = data.get('country');
     state.diet = cleanDiets(data.getAll('diet'), true);
     state.allergies = cleanAllergens(data.getAll('allergies'));
     state.welcomed = true;
@@ -2149,6 +2276,14 @@ const CHANGES = {
   },
 
   // Een vinkje bij "Mijn dieet" in de instellingen werkt meteen.
+  'set-country'(el) {
+    if (!Object.hasOwn(COUNTRIES, el.value)) return;
+    state.country = el.value;
+    save();
+    render();
+    document.getElementById('f-country').focus();
+  },
+
   'set-diet'(el) {
     const checked = [...app.querySelectorAll('input[name="diet"]:checked')].map(input => input.value);
     state.diet = cleanDiets(checked, true);

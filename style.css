@@ -428,6 +428,20 @@ h3 { font-size: 1rem; margin: 18px 0 6px; }
   border-radius: 18px;
 }
 .list .grow { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+/* De lijst waaruit je gerechten kiest: per groepje een kopje en een kaart met regels onder elkaar */
+#catalog section { scroll-margin-top: 68px; }
+#catalog h2 { margin: 16px 0 8px; }
+.pick { padding: 4px 14px; }
+.pick .list li { padding: 8px 0; margin: 0; border: none; border-bottom: 1px solid var(--border); border-radius: 0; background: none; }
+.pick .list li.last { border-bottom: none; }
+.pick .icon { width: 38px; height: 38px; font-size: 1.2rem; }
+.pick .icon-btn { font-size: 1.2rem; font-weight: 700; line-height: 1; }
+.pick .icon-btn.on { background: var(--accent); color: var(--accent-text); }
+.pick .btn.link { margin: 0; border-top: 1px solid var(--border); border-radius: 0; }
+/* De balk waarmee je naar een groepje springt: schuift opzij en blijft bovenaan in beeld */
+.jump { position: sticky; top: 0; z-index: 2; display: flex; gap: 8px; overflow-x: auto; margin: 0 -16px; padding: 8px 16px; background: var(--bg); scrollbar-width: none; }
+.jump::-webkit-scrollbar { display: none; }
+.jump .chip { flex: none; min-width: 48px; white-space: nowrap; }
 /* Een regel van het boodschappenlijstje: de hele regel is aan te tikken, niet alleen het vakje */
 .list li.tick { padding: 0; }
 .list li.tick label { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; min-height: 56px; margin: 0; padding: 12px 14px; font-weight: 400; cursor: pointer; }
