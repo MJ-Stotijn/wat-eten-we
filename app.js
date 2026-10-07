@@ -329,6 +329,10 @@ let view = { name: 'home' };
 // geldt ze tot het volgende dagdeel begint of tot de app lang op de achtergrond heeft gestaan.
 let meal = defaultMeal();
 let manualMeal = null;
+// De dag waarvan het startscherm laat zien wat je at; na middernacht is dat een andere dag.
+let homeDay = '';
+// Een back-up die is gekozen om terug te zetten, tot de gebruiker dat bevestigt.
+let pendingImport = null;
 
 // ---------- Opslag ----------
 
@@ -425,11 +429,13 @@ function sanitize(data) {
   if (!data || !Array.isArray(data.dishes)) return null;
   const isId = id => typeof id === 'string' && /^[a-z0-9]{1,24}$/i.test(id);
   const list = value => Array.isArray(value) ? value : [];
+  // Alleen een woord uit de bekende keuzes telt; een lijst of een getal dat er toevallig op lijkt niet.
+  const known = (choices, value) => typeof value === 'string' && Object.hasOwn(choices, value);
   const ids = new Set();
   const dishes = [];
   for (const d of data.dishes) {
     const ok = d && isId(d.id) && !ids.has(d.id) && typeof d.name === 'string' && d.name.trim() &&
-      Object.hasOwn(TIMES, d.time) && Object.hasOwn(TYPES, d.type);
+      known(TIMES, d.time) && known(TYPES, d.type);
     if (!ok) continue;
     ids.add(d.id);
     // Een gerecht dat is opgeslagen voordat de app allergenen kende, krijgt de allergenen en de diëten van
@@ -455,17 +461,17 @@ function sanitize(data) {
     });
   }
   // Zonder avondstand zijn het gegevens van voor het kookboekontwerp: dan wordt het oude thema omgezet.
-  const modern = Object.hasOwn(DARK_MODES, data.dark);
-  const [oldTheme, oldDark] = OLD_THEMES[Object.hasOwn(OLD_THEMES, data.theme) ? data.theme : 'standaard'];
+  const modern = known(DARK_MODES, data.dark);
+  const [oldTheme, oldDark] = OLD_THEMES[known(OLD_THEMES, data.theme) ? data.theme : 'standaard'];
   return {
     onboarded: data.onboarded === true && dishes.length >= MIN_DISHES,
     // Wie al gerechten heeft, is het welkomstscherm al voorbij.
     welcomed: data.welcomed === true || dishes.length > 0,
     name: cleanName(data.name),
     photo: cleanPhoto(data.photo),
-    theme: modern ? (Object.hasOwn(THEMES, data.theme) ? data.theme : 'tomaat') : oldTheme,
+    theme: modern ? (known(THEMES, data.theme) ? data.theme : 'tomaat') : oldTheme,
     dark: modern ? data.dark : oldDark,
-    country: Object.hasOwn(COUNTRIES, data.country) ? data.country : guessCountry(),
+    country: known(COUNTRIES, data.country) ? data.country : guessCountry(),
     diet: cleanDiets(data.diet, true),
     allergies: cleanAllergens(data.allergies),
     otherAllergies: cleanTerms(data.otherAllergies),
@@ -480,13 +486,13 @@ function sanitize(data) {
         id: newId(),
         dishId: dish ? dish.id : null,
         name: old ? dish.name : h.name.trim().slice(0, 60),
-        type: old ? dish.type : Object.hasOwn(TYPES, h.type) ? h.type : null,
+        type: old ? dish.type : known(TYPES, h.type) ? h.type : null,
         kcal: old ? dish.kcal : cleanKcal(h.kcal),
         icon: cleanIcon(h.icon, old ? dish.name : h.name.trim()),
         // Notities van voor de badges nemen deze twee over van het gerecht, als dat er nog is.
         healthy: typeof h.healthy === 'boolean' ? h.healthy : dish ? dish.healthy : false,
-        time: Object.hasOwn(TIMES, h.time) ? h.time : dish && !('time' in h) ? dish.time : null,
-        meal: Object.hasOwn(MEALS, h.meal) ? h.meal : 'avond',
+        time: known(TIMES, h.time) ? h.time : dish && !('time' in h) ? dish.time : null,
+        meal: known(MEALS, h.meal) ? h.meal : 'avond',
         date: new Date(h.date).toISOString(),
         picked: h.picked !== false,
       };
@@ -504,6 +510,17 @@ function save() {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   } catch (e) { /* opslag vol of geblokkeerd: de app blijft werken tot het sluiten */ }
+}
+
+// Zet de back-up terug die de gebruiker heeft gekozen (zie de wijziging import): alles in de app wordt vervangen.
+function restoreBackup() {
+  if (!pendingImport) return;
+  state = { ...pendingImport, onboarded: true };
+  pendingImport = null;
+  checkBadges();
+  save();
+  applyTheme();
+  go('more', { tab: 'backup', message: `Back-up teruggezet: ${dishCount(state.dishes.length)}.` });
 }
 
 // ---------- Hulpfuncties ----------
@@ -609,6 +626,11 @@ function recipeOf(dish) {
   if (ingredients.length || dish.recipe) return { ingredients, recipe: dish.recipe || '', own: true };
   const [list, recipe] = RECIPE_BY_NAME.get(dish.name.toLowerCase()) || ['', ''];
   return { ingredients: list ? list.split('|') : [], recipe, own: false };
+}
+
+// De ingrediënten van een gerecht die al op de boodschappenlijst staan en nog niet zijn afgevinkt.
+function openShopping(dish) {
+  return new Set(state.shopping.filter(item => !item.done && item.dish === dish.name).map(item => item.text));
 }
 
 // Welke allergenen van de gebruiker in een gerecht zitten, als leesbare namen. Aangevinkte allergenen tellen
@@ -1024,6 +1046,15 @@ function go(name, extra = {}) {
   syncHistory();
 }
 
+// Verlaat het formulier van een gerecht: terug naar het recept waar je vandaan kwam, en anders naar je
+// favorieten. `message` zegt wat er is bewaard.
+function leaveEdit(message) {
+  const from = view.returnTo;
+  // De beloning van daarnet is al gevierd; die komt niet nog een keer in beeld.
+  if (from && dishById(from.id)) go('chosen', { ...from, reward: null, note: message || from.note });
+  else go('favorites', { message });
+}
+
 // Zorgt dat de terugknop van de telefoon naar het startscherm gaat in plaats van de app te sluiten:
 // buiten het startscherm staat er precies één extra stap in de browsergeschiedenis.
 // history.back() werkt met vertraging; tot die klaar is, wordt er niets aan de geschiedenis veranderd.
@@ -1054,9 +1085,12 @@ window.addEventListener('popstate', () => {
 });
 
 // De maaltijd op het startscherm loopt mee met de klok: elke minuut, en zodra de app weer in beeld komt.
-// Na een half uur op de achtergrond vervalt ook een maaltijd die je zelf had gekozen.
+// Na een half uur op de achtergrond vervalt ook een maaltijd die je zelf had gekozen. Na middernacht
+// begint "vandaag gegeten" opnieuw.
 function tickMeal() {
-  if (!document.hidden && state.onboarded && view.name === 'home' && syncMeal()) render();
+  if (document.hidden || !state.onboarded || view.name !== 'home') return;
+  const changed = syncMeal();
+  if (changed || homeDay !== dayKey(new Date())) render();
 }
 setInterval(tickMeal, 60000);
 
@@ -1075,6 +1109,8 @@ const NAV_TAB = {
   week: 'week', log: 'week', favorites: 'favorites', edit: 'favorites', discover: 'favorites',
   shopping: 'shopping', rewards: 'rewards',
 };
+// De tekst op de knop linksboven bij een recept, naar het scherm waar je vandaan kwam.
+const BACK_LABEL = { home: 'Terug', favorites: 'Favorieten' };
 
 function render() {
   if (!state.onboarded) view.name = state.welcomed ? 'onboarding' : 'welcome';
@@ -1089,7 +1125,8 @@ function render() {
     filterCountries();
   }
   nav.hidden = !state.onboarded;
-  const tab = NAV_TAB[view.name] || 'home';
+  // Een recept dat je vanuit je favorieten opent, hoort bij het tabblad Favorieten.
+  const tab = NAV_TAB[view.name] || NAV_TAB[view.back] || 'home';
   for (const button of nav.querySelectorAll('button')) {
     button.classList.toggle('active', button.dataset.view === tab);
     if (button.dataset.view === tab) button.setAttribute('aria-current', 'page');
@@ -1415,8 +1452,11 @@ const VIEWS = {
   },
 
   home() {
-    const eaten = entriesOn(dayKey(new Date()));
+    homeDay = dayKey(new Date());
+    const eaten = entriesOn(homeDay);
     const marks = entryMarks();
+    // Staat er voor deze maaltijd vandaag al een gerecht uit je favorieten, dan kun je meteen naar het recept.
+    const current = eaten.filter(h => h.meal === meal && dishById(h.dishId)).pop();
     const none = mealDishes().length === 0;
     // Zijn er wel gerechten voor deze maaltijd, maar passen ze niet bij het dieet of de allergieën?
     const dietBlocks = none && state.dishes.some(d => d.meals.includes(meal));
@@ -1428,10 +1468,19 @@ const VIEWS = {
         `<button class="pill-btn" data-action="nav" data-view="world" aria-label="Wereldkeuken: gerechten per land">${iconSvg('wereld')} Wereld</button>`,
         `<button class="icon-btn soft" data-action="nav" data-view="more" aria-label="Instellingen">${iconSvg('tandwiel')}</button>`)}
       <div class="hero">${avatarHtml()}<h1>${greeting()}</h1>
-        <p class="sub">${manualMeal ? `Je kiest nu voor ${MEALS[meal].toLowerCase()}.` : `Tijd voor ${MEALS[meal].toLowerCase()}.`} Geen idee wat het wordt? Ik help je kiezen.</p></div>
+        <p class="sub">${current && !none ? `Je ${MEALS[meal].toLowerCase()} is gekozen. Liever iets anders? Kies gerust opnieuw.`
+          : `${manualMeal ? `Je kiest nu voor ${MEALS[meal].toLowerCase()}.` : `Tijd voor ${MEALS[meal].toLowerCase()}.`} Geen idee wat het wordt? Ik help je kiezen.`}</p></div>
       <div class="segments" role="group" aria-label="Maaltijd">${Object.entries(MEAL_SHORT).map(([value, label]) => `
         <button data-action="set-meal" data-meal="${value}" aria-pressed="${value === meal}">${label}</button>`).join('')}
       </div>
+      ${current ? `
+        <button class="bar" data-action="open-recipe" data-id="${current.dishId}">
+          <span class="icon" aria-hidden="true">${iconSvg(dishIcon(dishById(current.dishId)))}</span>
+          <span class="bar-text"><span class="no">Je ${MEALS[meal].toLowerCase()} van vandaag</span><br>
+            <span class="bar-name">${esc(dishById(current.dishId).name)}</span><br>
+            <span class="bar-meta">bekijk het recept</span></span>
+          <span class="chev" aria-hidden="true">›</span>
+        </button>` : ''}
       ${none ? `<div class="notice">Je hebt nog niets voor ${MEALS[meal].toLowerCase()}${dietBlocks ? ` dat bij ${limits} past` : ''}. Zullen we er een toevoegen?</div>
         <button class="btn primary" data-action="discover" data-meal="${meal}">${iconSvg('zoek')} Gerechten ontdekken</button>
         <button class="btn" data-action="edit-dish">+ Zelf een gerecht toevoegen</button>
@@ -1484,6 +1533,9 @@ const VIEWS = {
         const total = known.length ? `${known.reduce((sum, h) => sum + h.kcal, 0)}${known.length < entries.length ? '+' : ''} kcal` : '';
         return `
           ${day.key === view.day ? rewardHtml(view.reward) : ''}
+          ${view.removed && day.key === dayKey(view.removed.date) ? `
+            <div class="notice undo">Weggehaald: ${esc(view.removed.name)}.
+              <button class="btn link" data-action="restore-entry">Zet terug</button></div>` : ''}
           <section class="day${day.key === today ? ' today' : ''}${future ? ' future' : ''}" data-day="${day.key}">
             <h2 class="date" aria-label="${day.label} ${shortDate(day.date)}${day.key === today ? ', vandaag' : ''}">${day.label.slice(0, 2)}<b>${day.date.getDate()}</b></h2>
             <div class="body">
@@ -1642,34 +1694,40 @@ const VIEWS = {
       <p class="sub">${dishMeta(dish)}${dish.kcal == null ? '' : ' · ' + kcalLabel(dish)}</p>`;
   },
 
+  // Het recept van een gerecht. Net gekozen: met een felicitatie en de mogelijkheid om terug te komen op je
+  // keuze. Later opnieuw geopend (view.back zegt vanaf welk scherm): alleen het recept.
   chosen() {
     const dish = dishById(view.id);
     const { ingredients, recipe, own } = recipeOf(dish);
     const hasRecipe = ingredients.length || recipe;
+    const back = view.back;
+    const open = openShopping(dish);
+    const onList = ingredients.every(text => open.has(text));
     return `
-      ${topHtml(`Je ${MEALS[meal].toLowerCase()} wordt`)}
+      ${back ? topHtml('Recept', backHtml(BACK_LABEL[back], `data-action="nav" data-view="${back}"`)) : topHtml(`Je ${MEALS[meal].toLowerCase()} wordt`)}
       <span class="bookmark" aria-hidden="true"></span>
       <div class="hero"><div class="emoji pop">${iconSvg(dishIcon(dish))}</div>
         <h1>${esc(dish.name)}</h1>
         <p class="sub">${dishMeta(dish)}${dish.kcal == null ? '' : ' · ' + kcalLabel(dish)}</p>
-        <p class="wish">Eet smakelijk${state.name ? `, ${esc(state.name)}` : ''}!</p>
-        <p class="small muted">Ik heb het bij vandaag genoteerd in je week.</p>
+        ${back ? '' : `<p class="wish">Eet smakelijk${state.name ? `, ${esc(state.name)}` : ''}!</p>
+        <p class="small muted">Ik heb het bij vandaag genoteerd in je week.</p>`}
         ${allergenLine(dish) ? `<p class="small muted">${allergenLine(dish).replace('Bevat:', 'Bevat meestal:')}</p>` : ''}</div>
       ${rewardHtml(view.reward)}
       ${view.note ? `<div class="notice">${esc(view.note)}</div>` : ''}
       ${ingredients.length ? `
         <h2>Ingrediënten${own ? '' : ` <span>voor ${RECIPE_SERVES} personen</span>`}</h2>
         <ul class="ing">${ingredients.map(i => `<li>${esc(i)}</li>`).join('')}</ul>
-        <button class="btn" data-action="add-to-shopping"${view.added ? ' disabled' : ''}>
-          ${view.added ? '✓ Op de boodschappenlijst gezet' : `${iconSvg('mand')} Zet op de boodschappenlijst`}</button>` : ''}
+        <button class="btn" data-action="add-to-shopping"${view.added || onList ? ' disabled' : ''}>
+          ${view.added ? '✓ Op de boodschappenlijst gezet' : onList ? '✓ Staat al op je boodschappenlijst' : `${iconSvg('mand')} Zet op de boodschappenlijst`}</button>` : ''}
       ${recipe ? `<h2>Bereiding</h2>
         ${own ? `<p class="recipe">${esc(recipe)}</p>` : `<ol class="steps">${recipe.split('\n').map(step => `<li>${esc(step)}</li>`).join('')}</ol>`}` : ''}
       ${hasRecipe ? '' : '<div class="notice">Van dit gerecht heb ik nog geen recept. Zoek er een op internet, of zet je eigen recept erbij.</div>'}
       <div class="orn"><i></i></div>
       <a class="btn" href="https://www.google.com/search?q=${encodeURIComponent(`recept ${dish.name}`)}" target="_blank" rel="noopener noreferrer">${iconSvg('zoek')} ${hasRecipe ? 'Zoek een ander recept op internet' : 'Zoek een recept op internet'}</a>
       <button class="btn" data-action="edit-dish" data-id="${dish.id}">${iconSvg('potlood')} ${hasRecipe ? 'Recept aanpassen' : 'Eigen recept toevoegen'}</button>
-      <button class="btn primary" data-action="nav" data-view="home">Lekker, dank je!</button>
-      <button class="btn link" data-action="undo-choice">Toch liever iets anders</button>`;
+      ${back ? `<button class="btn primary" data-action="nav" data-view="${back}">Klaar</button>` : `
+        <button class="btn primary" data-action="nav" data-view="home">Lekker, dank je!</button>
+        <button class="btn link" data-action="undo-choice">Toch liever iets anders</button>`}`;
   },
 
   favorites() {
@@ -1677,7 +1735,8 @@ const VIEWS = {
     return `
       ${topHtml('Favorieten')}
       <h1><em>${count}</em> ${count === 1 ? 'favoriet' : 'favorieten'}</h1>
-      <p class="sub">Hieruit help ik je kiezen. Tik op het potlood om een gerecht aan te passen.</p>
+      <p class="sub">Hieruit help ik je kiezen. Tik op een gerecht voor het recept, of op het potlood om het aan te passen.</p>
+      ${view.message ? `<div class="notice">${esc(view.message)}</div>` : ''}
       <button class="btn primary" data-action="discover" data-meal="alles">${iconSvg('zoek')} Gerechten ontdekken</button>
       <div class="row">
         <button class="btn" data-action="nav" data-view="world">${iconSvg('wereld')} Wereldkeuken</button>
@@ -1687,9 +1746,10 @@ const VIEWS = {
         <input type="search" data-input="favorite-search" value="${esc(view.query || '')}" placeholder="Zoek in je favorieten" aria-label="Zoek in je favorieten">
         <p class="small muted" id="favorites-empty" hidden>Geen favoriet gevonden met die naam.</p>` : ''}
       <ul class="list" id="favorites-list">${[...state.dishes].sort((a, b) => a.name.localeCompare(b.name, 'nl')).map(d => `
-        <li data-name="${esc(searchKey(d.name))}"><span class="icon" aria-hidden="true">${iconSvg(dishIcon(d))}</span>
+        <li data-name="${esc(searchKey(d.name))}">
+        <button class="row-link" data-action="open-recipe" data-id="${d.id}"><span class="icon" aria-hidden="true">${iconSvg(dishIcon(d))}</span>
         <span class="grow"><strong>${esc(d.name)}</strong><br><span class="small muted">${dishDetails(d)}</span>
-          ${allergyBlock(d) ? `<br><span class="small warn">${iconSvg('waarschuwing')} Stel ik niet voor: ${esc(allergyBlock(d))}</span>` : ''}</span>
+          ${allergyBlock(d) ? `<br><span class="small warn">${iconSvg('waarschuwing')} Stel ik niet voor: ${esc(allergyBlock(d))}</span>` : ''}</span></button>
         <button class="icon-btn soft" data-action="edit-dish" data-id="${d.id}" aria-label="Pas ${esc(d.name)} aan">${iconSvg('potlood')}</button></li>`).join('')}
       </ul>`;
   },
@@ -1767,7 +1827,7 @@ const VIEWS = {
     const dish = view.id ? dishById(view.id) : null;
     const canDelete = state.dishes.length > MIN_DISHES;
     return `
-      ${topHtml(dish ? 'Gerecht aanpassen' : 'Nieuw gerecht', backHtml('Annuleren', 'data-action="nav" data-view="favorites"'))}
+      ${topHtml(dish ? 'Gerecht aanpassen' : 'Nieuw gerecht', backHtml('Annuleren', 'data-action="edit-cancel"'))}
       <h1>${dish ? esc(dish.name) : 'Een <em>nieuw</em> gerecht'}</h1>
       ${dishFormHtml(dish, true)}
       ${dish ? `
@@ -1866,6 +1926,11 @@ const VIEWS = {
         <button class="btn" data-action="export">Back-up opslaan</button>
         <button class="btn" data-action="import-pick">Back-up terugzetten</button>
         <input id="import-file" type="file" accept="application/json,.json" data-change="import" hidden>
+        ${view.pending && pendingImport ? `
+          <div class="notice">In deze back-up staan ${dishCount(pendingImport.dishes.length)} en ${pendingImport.history.length} ${pendingImport.history.length === 1 ? 'notitie' : 'notities'} in je week.
+            Terugzetten vervangt alles wat nu in de app staat: ${dishCount(state.dishes.length)} en ${state.history.length} ${state.history.length === 1 ? 'notitie' : 'notities'}.</div>
+          <button class="btn primary" data-action="import-confirm">Ja, zet de back-up terug</button>
+          <button class="btn" data-action="settings-tab" data-tab="backup">Nee, laat alles zoals het is</button>` : ''}
         ${view.message ? `<div class="notice">${esc(view.message)}</div>` : ''}
         <h2>Opnieuw beginnen</h2>
         <button class="btn danger" data-action="reset">${view.confirm ? 'Zeker weten? Alles wordt gewist' : 'Alles wissen'}</button>`,
@@ -2060,10 +2125,12 @@ const ACTIONS = {
 
   'pass-continue'() { go('results', view.results); },
 
+  // Wat al op de lijst staat en nog niet is afgevinkt, komt er niet nog een keer bij.
   'add-to-shopping'() {
     const dish = dishById(view.id);
+    const open = openShopping(dish);
     for (const text of recipeOf(dish).ingredients) {
-      state.shopping.push({ id: newId(), text, done: false, dish: dish.name });
+      if (!open.has(text)) state.shopping.push({ id: newId(), text, done: false, dish: dish.name });
     }
     save();
     view.added = true;
@@ -2102,25 +2169,50 @@ const ACTIONS = {
 
   'log-cancel'() { go('week', { offset: view.offset, day: view.day }); },
 
+  // Haalt een notitie uit je week. Ze blijft nog even bij de hand, voor wie zich vergist (zie restore-entry).
   'remove-entry'(el) {
-    state.history = state.history.filter(h => h.id !== el.dataset.id);
+    const entry = state.history.find(h => h.id === el.dataset.id);
+    if (!entry) return;
+    state.history = state.history.filter(h => h !== entry);
     save();
     delete view.reward;
+    view.removed = entry;
+    render();
+    const undo = app.querySelector('[data-action="restore-entry"]');
+    if (undo) undo.focus({ preventScroll: true });
+  },
+
+  'restore-entry'() {
+    if (!view.removed) return;
+    state.history.push(view.removed);
+    delete view.removed;
+    save();
     render();
   },
 
-  'edit-dish'(el) { go('edit', { id: el.dataset.id || null }); },
+  // Het recept van een gerecht opnieuw bekijken, vanaf het startscherm of vanuit je favorieten.
+  'open-recipe'(el) {
+    if (dishById(el.dataset.id)) go('chosen', { id: el.dataset.id, back: view.name === 'favorites' ? 'favorites' : 'home' });
+  },
+
+  // Wie een gerecht aanpast vanaf het recept, komt daarna weer bij dat recept uit.
+  'edit-dish'(el) {
+    go('edit', { id: el.dataset.id || null, returnTo: view.name === 'chosen' ? view : null });
+  },
+
+  'edit-cancel'() { leaveEdit(); },
 
   'delete-dish'() {
     if (state.dishes.length <= MIN_DISHES) return;
     if (!view.confirm) { view.confirm = true; return render(); }
+    const { name } = dishById(view.id);
     state.dishes = state.dishes.filter(d => d.id !== view.id);
     // Wat je ervan hebt gegeten, blijft in je week staan; alleen de koppeling met het gerecht vervalt.
     for (const h of state.history) {
       if (h.dishId === view.id) h.dishId = null;
     }
     save();
-    go('favorites');
+    go('favorites', { message: `Verwijderd: ${name}.` });
   },
 
   'clear-done'() {
@@ -2139,6 +2231,8 @@ const ACTIONS = {
   },
 
   'import-pick'() { document.getElementById('import-file').click(); },
+
+  'import-confirm'() { restoreBackup(); },
 
   // Een ander tabblad van de instellingen openen; de focus blijft op het gekozen tabblad.
   'settings-tab'(el) {
@@ -2176,6 +2270,18 @@ const ACTIONS = {
   },
 };
 
+// Laat bij een formulier zien wat er nog niet klopt, en zet de aanwijzer in het veld waar het om gaat.
+function formError(form, message, field) {
+  const error = form.querySelector('.error');
+  error.textContent = message;
+  error.hidden = false;
+  const input = form.querySelector(`[name="${field}"]`);
+  if (!input) return;
+  // De melding komt direct onder het veld te staan, zodat je haar ziet terwijl je het verbetert.
+  (input.closest('fieldset') || input).after(error);
+  input.focus();
+}
+
 const FORMS = {
   dish(form) {
     const data = new FormData(form);
@@ -2183,20 +2289,16 @@ const FORMS = {
     const kcalText = data.get('kcal').trim();
     const kcal = kcalText === '' ? null : Math.round(Number(kcalText));
     // Zonder opnieuw te tekenen, zodat wat al is ingevuld blijft staan.
-    const fail = message => {
-      const error = form.querySelector('.error');
-      error.textContent = message;
-      error.hidden = false;
-    };
+    const fail = (message, field) => formError(form, message, field);
 
     const meals = data.getAll('meals');
 
-    if (!name) return fail('Hoe heet het gerecht? Vul nog even een naam in.');
-    if (!meals.length) return fail('Wanneer eet je dit? Kies minstens één maaltijd.');
+    if (!name) return fail('Hoe heet het gerecht? Vul nog even een naam in.', 'name');
+    if (!meals.length) return fail('Wanneer eet je dit? Kies minstens één maaltijd.', 'meals');
     if (state.dishes.some(d => d.id !== view.id && d.name.toLowerCase() === name.toLowerCase())) {
-      return fail('Deze staat al in je lijst.');
+      return fail('Deze staat al in je lijst.', 'name');
     }
-    if (kcal != null && !(kcal >= 0 && kcal <= 5000)) return fail('Dat aantal calorieën klopt niet. Kies een getal tussen 0 en 5000.');
+    if (kcal != null && !(kcal >= 0 && kcal <= 5000)) return fail('Dat aantal calorieën klopt niet. Kies een getal tussen 0 en 5000.', 'kcal');
 
     const existing = view.id ? dishById(view.id) : null;
     const dish = existing || { id: newId(), ingredients: [], recipe: '' };
@@ -2221,7 +2323,7 @@ const FORMS = {
     if (!existing) state.dishes.push(dish);
     save();
     // Bij de eerste start blijft het formulier open: wie zelf een gerecht toevoegt, voegt er vaak meer toe.
-    if (state.onboarded) go('favorites');
+    if (state.onboarded) leaveEdit(`${existing ? 'Aangepast' : 'Toegevoegd'}: ${name}.`);
     else go('onboarding', { ownOpen: true });
   },
 
@@ -2258,14 +2360,10 @@ const FORMS = {
     const name = data.get('name').trim().slice(0, 60);
     const kcalText = data.get('kcal').trim();
     const kcal = kcalText === '' ? null : Math.round(Number(kcalText));
-    const fail = message => {
-      const error = form.querySelector('.error');
-      error.textContent = message;
-      error.hidden = false;
-    };
+    const fail = (message, field) => formError(form, message, field);
 
-    if (!name) return fail('Wat heb je gegeten? Vul nog even in wat het was.');
-    if (kcal != null && !(kcal >= 0 && kcal <= 5000)) return fail('Dat aantal calorieën klopt niet. Kies een getal tussen 0 en 5000.');
+    if (!name) return fail('Wat heb je gegeten? Vul nog even in wat het was.', 'name');
+    if (kcal != null && !(kcal >= 0 && kcal <= 5000)) return fail('Dat aantal calorieën klopt niet. Kies een getal tussen 0 en 5000.', 'kcal');
 
     const source = { name, kcal, healthy: data.has('healthy'), time: data.has('slow') ? 'uitgebreid' : null };
     const reward = rewardFor(logEntry(source, view.day, view.meal, false));
@@ -2338,11 +2436,10 @@ const CHANGES = {
     try {
       const clean = sanitize(JSON.parse(await file.text()));
       if (!clean || clean.dishes.length < MIN_DISHES) throw new Error('ongeldig');
-      state = { ...clean, onboarded: true };
-      checkBadges();
-      save();
-      applyTheme();
-      go('more', { tab: 'backup', message: `Back-up teruggezet: ${state.dishes.length} gerechten.` });
+      // Wie de app al gebruikt, krijgt eerst te zien wat er wordt vervangen; bij de eerste start valt er niets te verliezen.
+      pendingImport = clean;
+      if (state.onboarded) go('more', { tab: 'backup', pending: true });
+      else restoreBackup();
     } catch (e) {
       // Tijdens de eerste start bestaat het scherm met instellingen nog niet.
       go(state.onboarded ? 'more' : 'onboarding', { tab: 'backup', message: 'Dit bestand is geen geldige back-up van deze app.' });
