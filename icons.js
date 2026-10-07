@@ -141,6 +141,7 @@ const UI_ART = {
   camera: '<path class="t" d="M4 10.500h5l2-3h10l2 3h5v15H4z"/><circle cx="16" cy="17.500" r="4.500"/>',
   waarschuwing: '<path class="t" d="M16 4.500L29 26.500H3z"/><path d="M16 13v6.500"/><path class="d" d="M16 23h.01"/>',
   kruis: '<path d="M9 9l14 14M23 9L9 23"/>',
+  streepjescode: '<rect class="t" x="3.500" y="7" width="25" height="18" rx="3"/><path d="M8.500 11.500v9M12 11.500v9M19 11.500v9M23.500 11.500v9"/><path class="d" d="M15.500 11.500v9"/>',
 };
 
 // Maakt de tekening op: <svg> met het gevraagde pictogram. Bij een gerecht komen de verfkleuren erin en

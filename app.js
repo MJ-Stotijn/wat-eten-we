@@ -211,8 +211,18 @@ const ALLERGY_GROUPS = {
 // Woorden waarin een ander woord toevallig zit: een aardappel is geen appel en pindakaas is geen kaas. Bij
 // een allergie voor het korte woord tellen deze langere woorden niet mee.
 const LOOKALIKES = {
-  appel: ['aardappel', 'sinaasappel', 'granaatappel'], kaas: ['pindakaas'], noot: ['nootmuskaat'],
+  appel: ['aardappel', 'sinaasappel', 'granaatappel'], kaas: ['pindakaas'], noot: ['nootmuskaat', 'kokosnoot'],
   ei: ['prei', 'aardbei', 'gelei'], sla: ['slagroom', 'slavink'], ham: ['hamburger', 'boterham'],
+  melk: ['kokosmelk', 'amandelmelk', 'sojamelk', 'havermelk', 'rijstmelk'], boter: ['cacaoboter', 'pindaboter', 'sheaboter', 'boterham'],
+};
+// Woorden in een ingrediëntenlijst die op een allergeen uit de lijst van veertien wijzen. Na het scannen van
+// een product kijkt de app daarmee ook zelf in de ingrediënten, voor het geval de allergenen er niet bij staan.
+const ALLERGEN_WORDS = {
+  gluten: ['gluten', 'tarwe', 'rogge', 'gerst', 'haver', 'spelt'], schaaldieren: ['garnaal', 'krab', 'kreeft', 'schaaldier'],
+  ei: ['ei', 'eigeel', 'eipoeder'], vis: ['vis', 'zalm', 'tonijn', 'ansjovis', 'kabeljauw'], pinda: ['pinda', 'aardnoot'], soja: ['soja'],
+  melk: ['melk', 'lactose', 'room', 'boter', 'kaas', 'wei', 'yoghurt'], noten: ['noot', 'amandel', 'cashew', 'pistache', 'pecan'],
+  selderij: ['selderij'], mosterd: ['mosterd'], sesam: ['sesam'], sulfiet: ['sulfiet'], lupine: ['lupine'],
+  weekdieren: ['mossel', 'oester', 'inktvis', 'weekdier'],
 };
 // Meervouden die niet volgens de regels gaan (zie wordForms).
 const ODD_PLURALS = [['ei', 'eieren']];
@@ -1242,6 +1252,9 @@ function render() {
     mountWorldMap();
     filterCountries();
   }
+  // De camera staat alleen aan zolang het scherm met de scanner open is.
+  if (view.name === 'scan' && view.stage === 'camera') mountScanner();
+  else stopScanner();
   nav.hidden = !state.onboarded;
   // Een recept dat je vanuit je favorieten opent, hoort bij het tabblad Favorieten.
   const tab = NAV_TAB[view.name] || NAV_TAB[view.back] || 'home';
@@ -1503,6 +1516,97 @@ function barHtml(item) {
     </button>`;
 }
 
+// ---------- Een product scannen (zie scan.js) ----------
+
+// Wat een gescand product voor deze gebruiker betekent: welke van zijn allergenen erin zitten (volgens de
+// gegevens, of omdat het woord in de naam of de ingrediënten staat), waarvan er sporen in kunnen zitten, en
+// welke zelf toegevoegde allergieën in de naam of de ingrediënten staan.
+function productRisks(product) {
+  const text = plainWords(`${product.name} ${product.ingredients}`);
+  const inText = key => ALLERGEN_WORDS[key].some(word => mentions(text, word));
+  const contains = state.allergies.filter(key => product.contains.known.includes(key) || inText(key));
+  return {
+    contains,
+    traces: state.allergies.filter(key => product.traces.known.includes(key) && !contains.includes(key)),
+    words: state.otherAllergies.filter(term => allergyWords(term).some(word => mentions(text, word))),
+  };
+}
+
+// Opent de scanner en zet de camera aan. Lukt dat niet (geen camera, of geen toestemming), dan zegt het scherm
+// dat en kan de gebruiker de cijfers onder de streepjescode intypen.
+function openScan() {
+  go('scan', { stage: 'camera' });
+  startScanner(scanLookup).catch(error => {
+    if (view.name !== 'scan' || view.stage !== 'camera') return;
+    view.cameraError = error && error.name === 'NotAllowedError'
+      ? 'De camera mag niet aan. Geef de app toestemming in de instellingen van je telefoon, of typ de cijfers hieronder.'
+      : 'Ik kan de camera niet aanzetten. Typ hieronder de cijfers die onder de streepjescode staan.';
+    render();
+  });
+}
+
+// Zoekt het product bij een streepjescode op en laat zien wat erover bekend is.
+async function scanLookup(code) {
+  go('scan', { stage: 'loading', code });
+  let stage = 'error';
+  let product = null;
+  try {
+    product = await lookupProduct(code);
+    stage = product ? 'result' : 'missing';
+  } catch (e) { /* geen internet, of geen antwoord */ }
+  // Is de gebruiker intussen iets anders gaan doen, dan blijft dat staan.
+  if (view.name !== 'scan' || view.stage !== 'loading' || view.code !== code) return;
+  go('scan', { stage, code, product });
+}
+
+// Het veld om de cijfers van een streepjescode in te typen, voor als de camera niet lukt.
+function scanTypedHtml() {
+  return `
+    <h2>Of typ de cijfers</h2>
+    <form data-form="scan-code" class="row">
+      <input name="code" type="text" inputmode="numeric" autocomplete="off" maxlength="20" value="${esc(view.typed || '')}" placeholder="De cijfers onder de streepjes" aria-label="De cijfers onder de streepjescode">
+      <button class="btn primary" type="submit">Zoek</button>
+    </form>
+    ${view.codeError ? `<p class="error" role="alert">${esc(view.codeError)}</p>` : ''}`;
+}
+
+// Wat er over een gescand product bekend is: de calorieën, de allergenen en een waarschuwing als een allergie
+// van de gebruiker erbij staat.
+function scanResultHtml(top) {
+  const product = view.product;
+  const risks = productRisks(product);
+  const label = key => ALLERGENS[key][0].toLowerCase();
+  const pills = group => [...group.known.map(key => [label(key), state.allergies.includes(key)]), ...group.other.map(text => [text, false])]
+    .map(([text, mine]) => `<span class="pill${mine ? ' mine' : ''}">${esc(text)}</span>`).join('');
+  const has = group => group.known.length + group.other.length > 0;
+  const alarms = [
+    risks.contains.length ? `dit product bevat ${listText(risks.contains.map(label))}` : '',
+    risks.traces.length ? `het kan sporen van ${listText(risks.traces.map(label))} bevatten` : '',
+    risks.words.length ? `in de naam of de ingrediënten staat ${listText(risks.words.map(word => esc(word.toLowerCase())))}` : '',
+  ].filter(Boolean);
+  const facts = has(product.contains) || has(product.traces) || product.ingredients;
+  return `${top}
+    <div class="hero"><h1>${esc(product.name)}</h1>
+      <p class="sub">${esc([product.brand, product.quantity].filter(Boolean).join(' · ')) || `code ${esc(product.code)}`}</p></div>
+    ${alarms.length ? `<div class="notice alarm" role="alert">${iconSvg('waarschuwing')} Let op: ${listText(alarms)}. Dat staat bij jouw allergieën.</div>`
+      : hasAllergy() ? `<div class="notice">${facts ? 'Ik zie geen van jouw allergieën bij dit product. Kijk voor de zekerheid ook op het etiket.'
+        : 'Van dit product zijn de ingrediënten niet ingevuld. Ik kan dus niet zeggen of jouw allergie erin zit: kijk op het etiket.'}</div>` : ''}
+    <div class="facts">
+      <span><b>${product.kcal == null ? '?' : product.kcal}</b>kcal per ${product.liquid ? '100 ml' : '100 g'}</span>
+      ${product.kcalServing == null ? '' : `<span><b>${product.kcalServing}</b>kcal per portie${product.serving ? ` (${esc(product.serving)})` : ''}</span>`}
+    </div>
+    ${product.kcal == null ? '<p class="small muted">De calorieën van dit product zijn niet ingevuld.</p>' : ''}
+    <h2>Allergenen</h2>
+    ${has(product.contains) ? `<p class="small muted">Bevat</p><div class="pills">${pills(product.contains)}</div>` : ''}
+    ${has(product.traces) ? `<p class="small muted">Kan sporen bevatten van</p><div class="pills">${pills(product.traces)}</div>` : ''}
+    ${has(product.contains) || has(product.traces) ? '' : `<p>${product.ingredients ? 'Bij dit product staan geen allergenen genoteerd.' : 'De allergenen van dit product zijn niet ingevuld.'}</p>`}
+    ${product.ingredients ? `<details><summary><span>Ingrediënten</span></summary><p class="small" style="margin-top:10px">${esc(product.ingredients)}</p></details>` : ''}
+    <p class="small muted" style="margin-top:14px">Deze gegevens komen van Open Food Facts en zijn ingevuld door vrijwilligers. Ze kunnen onvolledig of verouderd zijn: wat op de verpakking staat, is altijd leidend.</p>
+    <button class="btn primary" data-action="scan-log">Noteer dit als gegeten</button>
+    <button class="btn" data-action="scan-shop"${view.shopped ? ' disabled' : ''}>${view.shopped ? '✓ Op de boodschappenlijst gezet' : `${iconSvg('mand')} Zet op de boodschappenlijst`}</button>
+    <button class="btn" data-action="open-scan">${iconSvg('streepjescode')} Nog een product scannen</button>`;
+}
+
 const VIEWS = {
   // De eerste keer openen: de omslag van het kookboek.
   welcome() {
@@ -1620,6 +1724,11 @@ const VIEWS = {
           <button class="tile yellow" data-action="surprise"><span class="icon" aria-hidden="true">${iconSvg('dobbelsteen')}</span><b>Verras me</b><small>ik kies iets voor je</small></button>
           <button class="tile pink" data-action="nav" data-view="group-setup"><span class="icon" aria-hidden="true">${iconSvg('samen')}</span><b>Samen kiezen</b><small>ieder om de beurt</small></button>
         </div>`}
+      <button class="bar" data-action="open-scan">
+        <span class="icon" aria-hidden="true">${iconSvg('streepjescode')}</span>
+        <span class="bar-text"><span class="bar-name">Scan een product</span><br><span class="bar-meta">calorieën en allergenen van iets uit de winkel</span></span>
+        <span class="chev" aria-hidden="true">›</span>
+      </button>
       ${eaten.length ? `
         <div class="label-row"><h2>Vandaag gegeten</h2><button class="btn link" data-action="nav" data-view="week">Hele week</button></div>
         <ul class="list lines">${eaten.map(h => entryHtml(h, false, marks.get(h.id))).join('')}</ul>` : ''}`;
@@ -1686,25 +1795,25 @@ const VIEWS = {
     const dishes = [...state.dishes].sort((a, b) =>
       b.meals.includes(view.meal) - a.meals.includes(view.meal) || a.name.localeCompare(b.name, 'nl'));
     const shown = view.logAll ? dishes : dishes.slice(0, LOG_PREVIEW);
-    return `
-      ${topHtml('Iets noteren', backHtml('Week', 'data-action="log-cancel"'))}
-      <h1>Wat at je ${when}?</h1>
-      <div class="segments" role="group" aria-label="Maaltijd">${Object.entries(MEAL_SHORT).map(([value, label]) => `
-        <button data-action="log-meal" data-meal="${value}" aria-pressed="${value === view.meal}">${label}</button>`).join('')}
-      </div>
-      <h2>Tik een favoriet aan</h2>
+    // Na het scannen van een product staat dat al ingevuld; dan staat het formulier bovenaan.
+    const prefill = view.prefill;
+    const list = `
+      <h2>${prefill ? 'Of tik een favoriet aan' : 'Tik een favoriet aan'}</h2>
       <ul class="list">${shown.map(d => `
         <li><span class="icon" aria-hidden="true">${iconSvg(dishIcon(d))}</span>
         <span class="grow"><strong>${esc(d.name)}</strong><br><span class="small muted">${dishMeta(d)}</span></span>
         <button class="icon-btn" data-action="log-dish" data-id="${d.id}" aria-label="Noteer ${esc(d.name)}">+</button></li>`).join('')}
       </ul>
-      ${shown.length < dishes.length ? `<button class="btn link" data-action="log-all">Toon alle ${dishes.length} favorieten</button>` : ''}
-      <h2>Of iets anders gegeten?</h2>
+      ${shown.length < dishes.length ? `<button class="btn link" data-action="log-all">Toon alle ${dishes.length} favorieten</button>` : ''}`;
+    const form = `
+      <h2>${prefill ? 'Het gescande product' : 'Of iets anders gegeten?'}</h2>
+      ${prefill ? '<p class="small muted">Pas de calorieën aan als je meer of minder at dan één portie.</p>' : `
+        <button class="btn" data-action="open-scan">${iconSvg('streepjescode')} Scan een product</button>`}
       <form data-form="log" novalidate>
         <label for="f-logname">Wat was het?</label>
-        <input id="f-logname" name="name" type="text" maxlength="60" autocomplete="off" placeholder="Bijvoorbeeld: friet">
+        <input id="f-logname" name="name" type="text" maxlength="60" autocomplete="off" placeholder="Bijvoorbeeld: friet" value="${prefill ? esc(prefill.name.slice(0, 60)) : ''}">
         <label for="f-logkcal">Calorieën <span class="muted">(mag je overslaan)</span></label>
-        <input id="f-logkcal" name="kcal" type="number" inputmode="numeric" min="0" max="5000" placeholder="Bijvoorbeeld: 550">
+        <input id="f-logkcal" name="kcal" type="number" inputmode="numeric" min="0" max="5000" placeholder="Bijvoorbeeld: 550" value="${prefill && prefill.kcal != null ? prefill.kcal : ''}">
         <div class="checks" style="margin-top:14px">
           <label class="check"><input type="checkbox" name="healthy">${iconSvg('blad')} Het was gezond</label>
           <label class="check"><input type="checkbox" name="slow">${iconSvg('klok')} Uitgebreid gekookt (45+ min)</label>
@@ -1713,6 +1822,13 @@ const VIEWS = {
         <p></p>
         <button class="btn primary" type="submit">Noteren</button>
       </form>`;
+    return `
+      ${topHtml('Iets noteren', backHtml('Week', 'data-action="log-cancel"'))}
+      <h1>Wat at je ${when}?</h1>
+      <div class="segments" role="group" aria-label="Maaltijd">${Object.entries(MEAL_SHORT).map(([value, label]) => `
+        <button data-action="log-meal" data-meal="${value}" aria-pressed="${value === view.meal}">${label}</button>`).join('')}
+      </div>
+      ${prefill ? form + list : list + form}`;
   },
 
   rewards() {
@@ -1992,6 +2108,32 @@ const VIEWS = {
         <p></p>
         <button class="btn"${anyDone ? '' : ' disabled'} data-action="clear-done">Afgevinkte verwijderen</button>`
       : `<div class="hero"><div class="emoji">${iconSvg('mand')}</div><p class="sub">Je lijstje is nog leeg. Kies een gerecht met ingrediënten, of zet er zelf iets op.</p></div>`}`;
+  },
+
+  // Een product scannen: eerst de camera (of de cijfers intypen), dan het zoeken, dan wat er bekend is.
+  scan() {
+    const top = topHtml('Product scannen', backHtml('Terug', 'data-action="nav" data-view="home"'));
+    if (view.stage === 'result') return scanResultHtml(top);
+    if (view.stage === 'loading') return `${top}
+      <div class="hero"><div class="emoji">${iconSvg('streepjescode')}</div><h1>Even <em>zoeken</em>…</h1>
+        <p class="sub">Ik zoek het product op bij code ${esc(view.code)}.</p></div>`;
+    if (view.stage === 'missing' || view.stage === 'error') return `${top}
+      <div class="hero"><div class="emoji">${iconSvg('vraag')}</div>
+        <h1>${view.stage === 'missing' ? 'Dit product ken ik <em>niet</em>' : 'Opzoeken lukt <em>niet</em>'}</h1>
+        <p class="sub">${view.stage === 'missing'
+          ? `De code ${esc(view.code)} staat niet in de lijst van Open Food Facts. Kijk op de verpakking voor de calorieën en de allergenen.`
+          : 'Ik krijg nu geen antwoord. Heb je internet? Probeer het dan nog eens.'}</p></div>
+      ${view.stage === 'error' ? '<button class="btn primary" data-action="scan-retry">Probeer het opnieuw</button>' : ''}
+      <button class="btn${view.stage === 'error' ? '' : ' primary'}" data-action="open-scan">${iconSvg('streepjescode')} Een ander product scannen</button>
+      ${scanTypedHtml()}`;
+    return `${top}
+      <h1>Scan een <em>product</em></h1>
+      <p class="sub">Richt de camera op de streepjescode. Houd het product stil, ongeveer een handbreedte van de camera.</p>
+      <div class="scan-box"><div id="scan-host"></div><span class="scan-line" aria-hidden="true"></span></div>
+      <p class="small muted center" role="status">${view.cameraError ? esc(view.cameraError) : 'Ik zoek de streepjescode…'}</p>
+      ${view.cameraError ? '<button class="btn" data-action="open-scan">Probeer de camera opnieuw</button>' : ''}
+      ${scanTypedHtml()}
+      <p class="small muted">De camera werkt op je telefoon zelf: er gaat geen beeld naar internet. Alleen de cijfers van de streepjescode zoek ik op bij Open Food Facts, een open lijst van producten die door vrijwilligers wordt bijgehouden.</p>`;
   },
 
   // De instellingen zijn verdeeld over tabbladen; view.tab onthoudt welk tabblad open staat.
@@ -2372,6 +2514,23 @@ const ACTIONS = {
 
   'import-confirm'() { restoreBackup(); },
 
+  'open-scan'() { openScan(); },
+
+  'scan-retry'() { scanLookup(view.code); },
+
+  // Het gescande product noteren bij vandaag: het formulier staat dan al ingevuld.
+  'scan-log'() {
+    const day = dayKey(new Date());
+    go('log', { day, offset: 0, meal: openMeal(day), prefill: { name: view.product.name, kcal: view.product.kcalServing } });
+  },
+
+  'scan-shop'() {
+    state.shopping.push({ id: newId(), text: view.product.name.slice(0, SHOPPING_LENGTH), done: false, dish: '' });
+    save();
+    view.shopped = true;
+    render();
+  },
+
   // Een ander tabblad van de instellingen openen; de focus blijft op het gekozen tabblad.
   'settings-tab'(el) {
     view = { name: 'more', tab: el.dataset.tab };
@@ -2521,6 +2680,17 @@ const FORMS = {
     const reward = rewardFor(logEntry(source, view.day, view.meal, false));
     save();
     go('week', { offset: view.offset, day: view.day, reward });
+  },
+
+  // De cijfers van een streepjescode die de gebruiker zelf heeft ingetypt.
+  'scan-code'(form) {
+    const typed = new FormData(form).get('code');
+    const code = eanFromText(typed);
+    if (code) return scanLookup(code);
+    view.typed = typed.trim().slice(0, 20);
+    view.codeError = 'Die cijfers kloppen niet. Kijk nog eens goed: het zijn er meestal dertien, soms acht.';
+    render();
+    app.querySelector('[data-form="scan-code"] input').focus();
   },
 
   shopping(form) {
