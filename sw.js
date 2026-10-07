@@ -1,5 +1,5 @@
 const CACHE = 'wat-eten-we-v1';
-const FILES = ['./', 'index.html', 'style.css', 'world.js', 'world-dishes.js', 'icons.js', 'map.js', 'recipes.js', 'scan.js', 'app.js', 'countries-50m.json', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png'];
+const FILES = ['./', 'index.html', 'style.css', 'world.js', 'world-dishes.js', 'icons.js', 'map.js', 'recipes.js', 'app.js', 'countries-50m.json', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png'];
 // Zo lang (in milliseconden) krijgt het netwerk de tijd voordat de bewaarde versie wordt gebruikt.
 const PATIENCE = 4000;
 
@@ -20,9 +20,6 @@ self.addEventListener('activate', event => {
 // daarna toch nog binnenkomt, wordt bewaard voor de volgende keer.
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
-  // Alleen de bestanden van de app zelf. Wat de app elders opzoekt (een gescand product) gaat gewoon via het
-  // netwerk en wordt niet bewaard.
-  if (new URL(event.request.url).origin !== self.location.origin) return;
   let stored = Promise.resolve();
   const fresh = fetch(event.request).then(response => {
     if (response.ok) {
