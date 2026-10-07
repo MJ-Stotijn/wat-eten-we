@@ -216,6 +216,37 @@ const CRAVINGS = [
   ['pap', 'Pap en yoghurt', 'pap', ['pap', 'smoothie'], '', []],
   ['zoet', 'Pannen­koeken', 'pannenkoek', ['pannenkoek', 'poffertjes', 'wafel'], '', []],
 ];
+// Wat iemand niet lust: [sleutel, naam, pictogram (of niets), de woorden waaraan de app het in een gerecht
+// herkent, de soort die erbij hoort (of niets), woorden die niet meetellen]. De app zoekt de woorden in de
+// naam, de omschrijving en de ingrediënten van een gerecht, in enkelvoud en meervoud (zie mentions). Wie
+// geen olijven of paprika lust, heeft meestal niets tegen olijfolie of paprikapoeder; bij een allergie telt
+// dat wel mee, daarom staat die uitzondering hier en niet bij de allergieën.
+const DISLIKES = [
+  ['spruitjes', 'Spruitjes', 'broccoli', ['spruit'], ''],
+  ['witlof', 'Witlof', 'blad', ['witlof'], ''],
+  ['spinazie', 'Spinazie', 'blad', ['spinazie'], ''],
+  ['zuurkool', 'Zuurkool', 'stamppot', ['zuurkool'], ''],
+  ['champignons', 'Champig­nons', 'paddenstoel', ['champignon', 'paddenstoel'], ''],
+  ['aubergine', 'Auber­gine', 'aubergine', ['aubergine'], ''],
+  ['tomaat', 'Tomaat', 'tomaat', ['tomaat'], ''],
+  ['pompoen', 'Pompoen', 'pompoen', ['pompoen'], ''],
+  ['paprika', 'Paprika', '', ['paprika'], '', ['paprikapoeder']],
+  ['ui', 'Ui', '', ['ui'], ''],
+  ['knoflook', 'Knoflook', '', ['knoflook'], ''],
+  ['olijven', 'Olijven', '', ['olijf'], '', ['olijfolie']],
+  ['bonen', 'Bonen en linzen', 'bonen', ['boon', 'linze', 'kikkererwt'], ''],
+  ['kaas', 'Kaas', 'kaas', ['kaas', 'feta', 'mozzarella'], ''],
+  ['ei', 'Ei', 'ei', ['ei', 'omelet'], ''],
+  ['vis', 'Vis', 'vis', ['vis', 'zalm', 'tonijn', 'kibbeling', 'haring'], 'vis'],
+  ['garnalen', 'Garnalen', 'garnaal', ['garnaal', 'gamba', 'scampi'], ''],
+  ['mosselen', 'Mosselen', 'schelp', ['mossel'], ''],
+  ['tofu', 'Tofu', '', ['tofu', 'tempeh'], ''],
+  ['pittig', 'Pittig eten', 'chili', ['pittig', 'chili', 'sambal', 'curry', 'kerrie'], ''],
+];
+// Hoeveel tijd iemand doordeweeks heeft om te koken: [waarde, naam, toelichting]. Leeg betekent alle tijd.
+const WEEKDAY_TIMES = [['snel', 'Weinig', 'tot 20 minuten'], ['normaal', 'Een beetje', 'tot 45 minuten'], ['', 'Alle tijd', 'uitgebreid mag ook']];
+// Het weekmenu loopt over zoveel dagen, te beginnen bij vandaag.
+const PLAN_DAYS = 7;
 // Tijdzones van landen waar veel Nederlands wordt gesproken, om het land van de gebruiker te raden.
 const ZONE_COUNTRY = {
   'Europe/Amsterdam': 'NL', 'Europe/Brussels': 'BE', 'America/Paramaribo': 'SR',
@@ -416,6 +447,11 @@ function emptyState() {
     kcalGoal: null,
     // Wat de gebruiker lekker vindt, uit de kennismaking: sleutels uit CUISINES en CRAVINGS.
     tastes: { cuisines: [], cravings: [] },
+    // Wat de gebruiker niet lust (sleutels uit DISLIKES) en hoeveel tijd er doordeweeks is (zie WEEKDAY_TIMES).
+    dislikes: [],
+    weekdayTime: '',
+    // Het weekmenu: per dag (JJJJ-MM-DD) het gerecht dat voor het avondeten is gepland.
+    plan: [],
   };
 }
 
@@ -469,6 +505,16 @@ function cleanTastes(tastes) {
   const source = tastes && typeof tastes === 'object' ? tastes : {};
   const known = (choices, picked) => choices.map(choice => choice[0]).filter(key => Array.isArray(picked) && picked.includes(key));
   return { cuisines: known(CUISINES, source.cuisines), cravings: known(CRAVINGS, source.cravings) };
+}
+
+// Alleen bekende dingen die iemand niet lust, in vaste volgorde.
+function cleanDislikes(dislikes) {
+  return DISLIKES.map(item => item[0]).filter(key => Array.isArray(dislikes) && dislikes.includes(key));
+}
+
+// Weinig tijd ('snel'), een beetje ('normaal') of alle tijd (leeg).
+function cleanWeekdayTime(time) {
+  return WEEKDAY_TIMES.some(item => item[0] === time) ? time : '';
 }
 
 // De begroeting die bij het tijdstip past.
@@ -561,6 +607,12 @@ function sanitize(data) {
     otherAllergies: cleanTerms(data.otherAllergies),
     kcalGoal: cleanGoal(data.kcalGoal),
     tastes: cleanTastes(data.tastes),
+    dislikes: cleanDislikes(data.dislikes),
+    weekdayTime: cleanWeekdayTime(data.weekdayTime),
+    // Alleen dagen met een gerecht dat er nog is; per dag één, en niet meer dan een paar weken.
+    plan: list(data.plan)
+      .filter((item, i, all) => item && typeof item.day === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(item.day) && ids.has(item.dishId) && all.findIndex(other => other && other.day === item.day) === i)
+      .map(item => ({ day: item.day, dishId: item.dishId })).sort((a, b) => a.day.localeCompare(b.day)).slice(-28),
     dishes,
     history: list(data.history).map(h => {
       if (!h || isNaN(new Date(h.date).getTime())) return null;
@@ -830,15 +882,30 @@ function hasAllergy() {
 // gebruiker een allergie of een dieet heeft: van zo'n gerecht is alleen de naam zeker.
 function suitable(dish) {
   if (dish.unchecked && (hasAllergy() || state.diet.length > 0)) return false;
-  return fitsDiet(dish.type, dish.diets) && userAllergens(dish).length === 0;
+  return fitsDiet(dish.type, dish.diets) && userAllergens(dish).length === 0 && userDislikes(dish).length === 0;
 }
 
-// Waarom de app een gerecht niet voorstelt vanwege een allergie, of niets als dat niet speelt.
+// Wat de gebruiker niet lust en in een gerecht zit, als leesbare namen. De app herkent het aan een woord in
+// de naam, de omschrijving of de ingrediënten, of aan de soort van het gerecht.
+function userDislikes(dish) {
+  if (!state.dislikes.length) return [];
+  const text = plainWords([dish.name, dish.about || '', ...recipeOf(dish).ingredients].join(' '));
+  return DISLIKES.filter(([key, , , words, type, ignore = []]) => {
+    if (!state.dislikes.includes(key)) return false;
+    // Woorden die niet meetellen (zoals olijfolie bij olijven) gaan er eerst uit.
+    const rest = ignore.reduce((left, word) => left.split(word).join(' '), text);
+    return (type && type === dish.type) || words.some(word => mentions(rest, word));
+  }).map(item => plainName(item[1]).toLowerCase());
+}
+
+// Waarom de app een gerecht niet voorstelt (een allergie, of iets wat je niet lust), of niets als dat niet speelt.
 function allergyBlock(dish) {
   if (dish.unchecked && hasAllergy()) return 'allergenen nog niet ingevuld';
   if (dish.unchecked && state.diet.length > 0) return 'dieet en allergenen nog niet ingevuld';
   const found = userAllergens(dish);
-  return found.length ? `bevat ${found.join(', ')}` : '';
+  if (found.length) return `bevat ${found.join(', ')}`;
+  const disliked = userDislikes(dish);
+  return disliked.length ? `je lust geen ${listText(disliked)}` : '';
 }
 
 // Een gerecht uit de lijst met bekende gerechten, klaar om bij de favorieten te zetten.
@@ -1305,14 +1372,69 @@ function misses(dish, answers) {
   return n;
 }
 
-// Pas gegeten gerechten krijgen een kleinere kans om vooraan te komen.
-function weightedShuffle(dishes) {
+// Wat bij koud en bij warm weer past, aan het pictogram van een gerecht, en hoe zwaar die twee per seizoen
+// wegen: [koud, warm]. Meer dan 1 betekent dat zo'n gerecht vaker vooraan komt.
+const SEASON_ICONS = {
+  koud: ['stamppot', 'soep', 'stoofpot', 'ovenschotel', 'lasagne', 'chili'],
+  warm: ['salade', 'wrap', 'sandwich', 'spies', 'grill', 'smoothie', 'ijs', 'avocado'],
+};
+const SEASON_WEIGHT = { winter: [1.7, 0.6], lente: [0.85, 1.3], zomer: [0.5, 1.7], herfst: [1.5, 0.75] };
+const SEASON_NOTES = {
+  winter: 'Het is winter: stamppot, soep en stoof komen nu vaker voorbij.',
+  lente: 'Het is lente: salades en lichte gerechten komen nu wat vaker voorbij.',
+  zomer: 'Het is zomer: salades, wraps en lichte gerechten komen nu vaker voorbij.',
+  herfst: 'Het is herfst: stamppot, soep en stoof komen nu vaker voorbij.',
+};
+// Hoe zwaar de bereidingstijd doordeweeks weegt, voor wie weinig of een beetje tijd heeft.
+const TIME_WEIGHT = { snel: { snel: 2, normaal: 0.9, uitgebreid: 0.3 }, normaal: { snel: 1.3, normaal: 1.3, uitgebreid: 0.45 } };
+
+// Het seizoen op een dag. De app rekent alleen met seizoenen voor wie in Europa woont: elders vallen ze
+// anders, of zijn er geen.
+function seasonOf(date) {
+  if (COUNTRIES[state.country][1] !== 'europa') return '';
+  return ['winter', 'winter', 'lente', 'lente', 'lente', 'zomer', 'zomer', 'zomer', 'herfst', 'herfst', 'herfst', 'winter'][date.getMonth()];
+}
+
+// De zin die zegt wat het seizoen met de voorstellen doet, of niets als de app niet met seizoenen rekent.
+function seasonNote() {
+  return SEASON_NOTES[seasonOf(new Date())] || '';
+}
+
+// Uit welk land van de keukens (zie CUISINES) een gerecht komt, op naam; leeg als de app dat niet weet.
+let cuisineCountries = null;
+function dishCountry(name) {
+  if (!cuisineCountries) {
+    cuisineCountries = new Map();
+    for (const code of new Set(CUISINES.flatMap(cuisine => cuisine[3]))) {
+      for (const line of countryDishes(code)) {
+        const key = line.split('|')[0].toLowerCase();
+        if (!cuisineCountries.has(key)) cuisineCountries.set(key, code);
+      }
+    }
+  }
+  return cuisineCountries.get(name.toLowerCase()) || '';
+}
+
+// Hoe graag de app een gerecht voorstelt op een dag. Wat pas is gegeten, komt minder snel terug. Wat bij je
+// smaak past, bij het seizoen en bij de tijd die je doordeweeks hebt, komt eerder; in het weekend mag het
+// juist wat uitgebreider.
+function dishWeight(dish, date) {
+  const days = daysSinceChosen(dish.id);
+  const recent = days < 3 ? 0.15 : days < 7 ? 0.5 : 1;
+  const icon = dishIcon(dish);
+  const taste = 1 + Math.min(8, tasteScore({ name: dish.name, type: dish.type, icon, country: dishCountry(dish.name) }, state.tastes)) * 0.3;
+  const [cold, warm] = SEASON_WEIGHT[seasonOf(date)] || [1, 1];
+  const season = SEASON_ICONS.koud.includes(icon) ? cold : SEASON_ICONS.warm.includes(icon) ? warm : 1;
+  const workday = date.getDay() >= 1 && date.getDay() <= 5;
+  const time = !state.weekdayTime ? 1 : workday ? TIME_WEIGHT[state.weekdayTime][dish.time] : dish.time === 'uitgebreid' ? 1.3 : 1;
+  return recent * taste * season * time;
+}
+
+// Schudt gerechten zo dat wat zwaarder weegt (zie dishWeight) vaker vooraan komt. `date` is de dag waarvoor
+// er gekozen wordt.
+function weightedShuffle(dishes, date = new Date()) {
   return dishes
-    .map(dish => {
-      const days = daysSinceChosen(dish.id);
-      const weight = days < 3 ? 0.15 : days < 7 ? 0.5 : 1;
-      return { dish, key: Math.pow(Math.random(), 1 / weight) };
-    })
+    .map(dish => ({ dish, key: Math.pow(Math.random(), 1 / dishWeight(dish, date)) }))
     .sort((a, b) => b.key - a.key)
     .map(x => x.dish);
 }
@@ -1324,16 +1446,89 @@ function buildQueue(answers) {
   return groups.flatMap((group, i) => weightedShuffle(group).map(dish => ({ id: dish.id, exact: i === 0 })));
 }
 
-function choose(id, note) {
+// `mealKey` is de maaltijd waarvoor gekozen wordt: meestal die van dit moment, bij het weekmenu het avondeten.
+function choose(id, note, mealKey = meal) {
   const today = dayKey(new Date());
   // Een nieuwe keuze voor dezelfde maaltijd vervangt de vorige keuze van vandaag.
   // Wat je zelf in het weekoverzicht hebt genoteerd, blijft staan.
-  const replaced = state.history.filter(h => h.picked && h.meal === meal && dayKey(h.date) === today);
+  const replaced = state.history.filter(h => h.picked && h.meal === mealKey && dayKey(h.date) === today);
   state.history = state.history.filter(h => !replaced.includes(h));
-  const entry = logEntry(dishById(id), today, meal, true);
+  const entry = logEntry(dishById(id), today, mealKey, true);
   const reward = rewardFor(entry);
   save();
-  go('chosen', { id, note, entryId: entry.id, replaced, reward });
+  go('chosen', { id, note, entryId: entry.id, replaced, reward, meal: mealKey });
+}
+
+// ---------- Weekmenu ----------
+
+// De dagen van het weekmenu, te beginnen bij vandaag: de naam, de datum en de dag als JJJJ-MM-DD.
+function planDays() {
+  const start = new Date();
+  start.setHours(12, 0, 0, 0);
+  return Array.from({ length: PLAN_DAYS }, (unused, i) => {
+    const date = new Date(start);
+    date.setDate(start.getDate() + i);
+    return { label: DAYS[(date.getDay() + 6) % 7], date, key: dayKey(date) };
+  });
+}
+
+// Het gerecht dat voor een dag is gepland, of niets (ook als het gerecht intussen is verwijderd).
+function plannedDish(day) {
+  const item = state.plan.find(planned => planned.day === day);
+  return item ? dishById(item.dishId) : undefined;
+}
+
+// De gerechten waaruit het weekmenu kiest: je favorieten voor het avondeten die bij je passen.
+function planPool() {
+  return state.dishes.filter(d => d.meals.includes('avond') && suitable(d));
+}
+
+// Kiest een gerecht voor één dag. Liever geen gerecht dat deze week al gepland staat (`taken`), en liever
+// niet hetzelfde soort als de dag ervoor (`before`); kan het niet anders, dan toch.
+function planPick(date, taken, before) {
+  const pool = planPool();
+  const free = pool.filter(dish => !taken.has(dish.id));
+  const from = free.length ? free : pool;
+  const varied = before ? from.filter(dish => dishIcon(dish) !== dishIcon(before)) : from;
+  return weightedShuffle(varied.length ? varied : from, date)[0];
+}
+
+// Vult het weekmenu: elke dag die nog leeg is, krijgt een gerecht. Met `fresh` begint het menu opnieuw.
+// Het antwoord is hoeveel dagen er zijn ingevuld.
+function fillPlan(fresh) {
+  const days = planDays();
+  if (fresh) state.plan = state.plan.filter(item => !days.some(day => day.key === item.day));
+  if (!planPool().length) return 0;
+  const taken = new Set(days.map(day => plannedDish(day.key)).filter(Boolean).map(dish => dish.id));
+  let before = null;
+  let filled = 0;
+  for (const day of days) {
+    let dish = plannedDish(day.key);
+    if (!dish) {
+      dish = planPick(day.date, taken, before);
+      state.plan = [...state.plan.filter(item => item.day !== day.key), { day: day.key, dishId: dish.id }];
+      taken.add(dish.id);
+      filled++;
+    }
+    before = dish;
+  }
+  state.plan.sort((a, b) => a.day.localeCompare(b.day));
+  return filled;
+}
+
+// Zet de ingrediënten van een gerecht op de boodschappenlijst. Wat er al op staat en nog niet is afgevinkt,
+// komt er niet nog een keer bij. Het antwoord is hoeveel regels erbij kwamen.
+function shopFor(dish) {
+  const open = openShopping(dish);
+  let added = 0;
+  for (const ingredient of recipeOf(dish).ingredients) {
+    const text = ingredient.slice(0, SHOPPING_LENGTH);
+    if (open.has(text)) continue;
+    state.shopping.push({ id: newId(), text, done: false, dish: dish.name });
+    open.add(text);
+    added++;
+  }
+  return added;
 }
 
 // ---------- Beweging ----------
@@ -1442,14 +1637,14 @@ window.addEventListener('popstate', () => {
   if (!state.onboarded || view.name === 'home') return;
   // Staat het venster van de kennismaking open, dan sluit de terugknop alleen dat venster.
   if (view.quiz) {
-    delete view.quiz;
-    render();
+    closeQuiz();
     return syncHistory();
   }
   backward = true;
   if (view.name === 'ask' && view.step > 0) ACTIONS['ask-back']();
   else if (view.name === 'log') go('week', { offset: view.offset, day: view.day });
   else if (view.name === 'kcal') go('week', { offset: view.offset });
+  else if (view.name === 'plan') go('week');
   else if (view.name === 'country') go('world');
   else go('home');
 });
@@ -1476,11 +1671,11 @@ document.addEventListener('visibilitychange', () => {
 
 // Welk tabblad onderin oplicht bij een scherm. De instellingen open je vanaf het startscherm.
 const NAV_TAB = {
-  week: 'week', log: 'week', kcal: 'week', favorites: 'favorites', edit: 'favorites', discover: 'favorites',
+  week: 'week', log: 'week', kcal: 'week', plan: 'week', favorites: 'favorites', edit: 'favorites', discover: 'favorites',
   shopping: 'shopping', rewards: 'rewards',
 };
 // De tekst op de knop linksboven bij een recept, naar het scherm waar je vandaan kwam.
-const BACK_LABEL = { home: 'Terug', favorites: 'Favorieten' };
+const BACK_LABEL = { home: 'Terug', favorites: 'Favorieten', plan: 'Weekmenu' };
 
 function render() {
   if (!state.onboarded) view.name = state.welcomed ? 'onboarding' : 'welcome';
@@ -1598,8 +1793,10 @@ function localSuitable(dish) {
   const listed = CATALOG.find(item => item[0].toLowerCase() === dish.name.toLowerCase());
   if (listed) return suitable(catalogDish(listed));
   if (dish.type !== 'vega' && (state.diet.includes('vegetarisch') || state.diet.includes('vegan'))) return false;
-  // Staat een zelf toegevoegde allergie al in de naam of de omschrijving, dan blijft het gerecht weg.
-  return userAllergens({ name: dish.name, about: dish.text, allergens: [], ingredients: [] }).length === 0;
+  // Staat een zelf toegevoegde allergie, of iets wat je niet lust, al in de naam of de omschrijving, dan
+  // blijft het gerecht weg.
+  const known = { name: dish.name, about: dish.text, type: dish.type, allergens: [], ingredients: [] };
+  return userAllergens(known).length === 0 && userDislikes(known).length === 0;
 }
 
 // De lijst waaruit je gerechten kiest, met een keuze per maaltijd, een zoekveld en een balk om naar een
@@ -1666,6 +1863,7 @@ function catalogHtml(defaultMeal) {
     <p class="small muted" id="catalog-empty" hidden></p>
     ${state.diet.length ? `<p class="small muted">Je ziet alleen gerechten die passen bij je dieet: ${state.diet.map(key => DIETS[key].toLowerCase()).join(', ')}.</p>` : ''}
     ${allergyNames().length ? `<p class="small muted">Gerechten waar meestal ${allergyNames().join(', ')} in zit, laat ik weg. Controleer bij een allergie altijd zelf de ingrediënten.</p>` : ''}
+    ${state.dislikes.length ? `<p class="small muted">Ook wat je niet lust, laat ik weg: ${DISLIKES.filter(item => state.dislikes.includes(item[0])).map(item => plainName(item[1]).toLowerCase()).join(', ')}.</p>` : ''}
     <p class="small muted">Calorieën, het vinkje "gezond", de diëten en de allergenen zijn bij deze gerechten een schatting. Je kunt alles later aanpassen.</p>`;
 }
 
@@ -1770,7 +1968,7 @@ function barHtml(item) {
 
 // De stappen van de kennismaking. De eerste keer gaat het ook om je naam, je dieet en je allergieën; later,
 // vanuit de instellingen, alleen om je smaak.
-const QUIZ_STEPS = { first: ['naam', 'keuken', 'trek', 'dieet', 'allergie', 'klaar'], again: ['keuken', 'trek', 'klaar'] };
+const QUIZ_STEPS = { first: ['naam', 'keuken', 'trek', 'lust', 'tijd', 'dieet', 'allergie', 'klaar'], again: ['keuken', 'trek', 'lust', 'tijd', 'klaar'] };
 // Zoveel gerechten stelt de app eerst voor, en zoveel komen erbij als je om meer vraagt.
 const QUIZ_BATCH = 12;
 const QUIZ_MORE = 6;
@@ -1815,7 +2013,10 @@ function tasteCandidates(tastes, owned) {
     const name = dish.name.toLowerCase();
     if (have.has(name)) return;
     have.add(name);
-    found.push({ ...dish, score: tasteScore(dish, tastes), order: found.length });
+    // `quick` telt alleen mee bij de volgorde van de voorstellen: wie doordeweeks weinig tijd heeft, krijgt
+    // bij gelijke smaak eerst wat snel klaar is.
+    const quick = !state.weekdayTime ? 0 : dish.time === 'snel' ? 1 : dish.time === 'normaal' && state.weekdayTime === 'normaal' ? 1 : dish.time === 'uitgebreid' ? -1 : 0;
+    found.push({ ...dish, score: tasteScore(dish, tastes), quick, order: found.length });
   };
   CATALOG.forEach((item, index) => {
     const [name, meals, time, type] = item;
@@ -1831,6 +2032,8 @@ function tasteCandidates(tastes, owned) {
         // "Pizza margherita" hoeft er niet bij als "Pizza" er al staat.
         const name = dish.name.toLowerCase();
         if ([...have].some(other => name.startsWith(`${other} `) || other.startsWith(`${name} `))) return;
+        // Ook hier geldt wat je niet lust, voor zover dat aan de naam of de omschrijving te zien is.
+        if (!localSuitable(dish)) return;
         add({ key: `w${code}${index}`, name: dish.name, meals: dish.meals, time: dish.time, type: dish.type, icon: dish.icon, text: dish.text, country: code });
       });
     }
@@ -1855,9 +2058,10 @@ function tasteSuggestions(tastes, count) {
   const picked = [];
   for (const meal of Object.keys(TASTE_SHARE)) {
     const seen = {};
-    const pool = all.filter(dish => dish.meals[0] === meal).sort((a, b) => b.score - a.score || a.order - b.order)
+    const rank = dish => dish.score + dish.quick;
+    const pool = all.filter(dish => dish.meals[0] === meal).sort((a, b) => rank(b) - rank(a) || a.order - b.order)
       .map(dish => ({ dish, extra: (seen[dish.icon] = (seen[dish.icon] || 0) + 1) > 2 }))
-      .sort((a, b) => (b.dish.score > 0) - (a.dish.score > 0) || a.extra - b.extra || b.dish.score - a.dish.score || a.dish.order - b.dish.order);
+      .sort((a, b) => (b.dish.score > 0) - (a.dish.score > 0) || a.extra - b.extra || rank(b.dish) - rank(a.dish) || a.dish.order - b.dish.order);
     picked.push(...pool.slice(0, Math.round(count * TASTE_SHARE[meal] / QUIZ_BATCH)).map(item => item.dish));
   }
   return picked;
@@ -1875,6 +2079,9 @@ function tasteSummary(tastes) {
   if (!parts.length) parts.push('Je lust van alles. Dan begin ik met wat veel mensen lekker vinden.');
   if (state.diet.length) parts.push(`Je eet ${listText(state.diet.map(key => DIETS[key].toLowerCase()))}.`);
   if (allergyNames().length) parts.push(`Gerechten waar meestal ${listText(allergyNames())} in zit, laat ik weg.`);
+  const disliked = names(DISLIKES, state.dislikes).map(name => name.toLowerCase());
+  if (disliked.length) parts.push(`Je lust geen ${disliked.join(', ')}: dat sla ik over.`);
+  if (state.weekdayTime) parts.push(`Doordeweeks heb je ${state.weekdayTime === 'snel' ? 'weinig' : 'een beetje'} tijd om te koken.`);
   return parts.join(' ');
 }
 
@@ -1882,7 +2089,10 @@ function tasteSummary(tastes) {
 function openQuiz(mode) {
   view.quiz = {
     mode, from: view.name, step: 0, name: state.name, cuisines: [...state.tastes.cuisines], cravings: [...state.tastes.cravings],
+    dislikes: [...state.dislikes], time: state.weekdayTime ? [state.weekdayTime] : [],
     diet: [...state.diet], allergies: [...state.allergies], offer: [], picked: [], shown: QUIZ_BATCH,
+    // Wat er gold voor het venster openging, voor als het wordt gesloten zonder te bewaren (zie closeQuiz).
+    keep: { dislikes: state.dislikes, weekdayTime: state.weekdayTime },
     // Alleen bij het openen schuift het venster omhoog; bij een volgende stap blijft het staan.
     opening: true,
   };
@@ -1899,8 +2109,19 @@ function focusQuiz() {
   title.focus({ preventScroll: true });
 }
 
-// Naar een andere stap. Bij het voorstel aan het eind tellen het dieet en de allergieën al mee, zodat het
-// erbij past; bewaard wordt er pas als de gebruiker klaar is.
+// Sluit het venster zonder iets te bewaren. Wat het voorstel aan het eind al liet meetellen (wat je niet lust,
+// je tijd doordeweeks), gaat terug naar hoe het was.
+function closeQuiz() {
+  const quiz = view.quiz;
+  if (!quiz) return;
+  state.dislikes = quiz.keep.dislikes;
+  state.weekdayTime = quiz.keep.weekdayTime;
+  delete view.quiz;
+  render();
+}
+
+// Naar een andere stap. Bij het voorstel aan het eind telt alles wat is gekozen al mee (het dieet, de
+// allergieën, wat je niet lust), zodat het erbij past; bewaard wordt er pas als de gebruiker klaar is.
 function quizGo(step) {
   const quiz = view.quiz;
   quiz.step = step;
@@ -1909,6 +2130,8 @@ function quizGo(step) {
       state.diet = cleanDiets(quiz.diet, true);
       state.allergies = cleanAllergens(quiz.allergies);
     }
+    state.dislikes = cleanDislikes(quiz.dislikes);
+    state.weekdayTime = cleanWeekdayTime(quiz.time[0] || '');
     quiz.shown = QUIZ_BATCH;
     quiz.offer = tasteSuggestions(quiz, quiz.shown).map(dish => dish.key);
     // De eerste keer staat alles al aan: weghalen wat je niet lust gaat sneller dan alles aantikken.
@@ -1923,6 +2146,8 @@ function quizGo(step) {
 function quizApply(dishes) {
   const quiz = view.quiz;
   state.tastes = cleanTastes(quiz);
+  state.dislikes = cleanDislikes(quiz.dislikes);
+  state.weekdayTime = cleanWeekdayTime(quiz.time[0] || '');
   if (quiz.mode === 'first') {
     state.name = cleanName(quiz.name);
     state.diet = cleanDiets(quiz.diet, true);
@@ -2002,6 +2227,21 @@ function quizHtml() {
       <h2 id="quiz-title" tabindex="-1">Waar heb je vaak <em>trek</em> in?</h2>
       <p class="sub">Kies alles waar je blij van wordt.</p>
       <div class="bubbles" role="group" aria-label="Trek">${CRAVINGS.map(([key, label, icon]) => bubbleHtml('cravings', key, label, icon)).join('')}</div>`;
+  } else if (step === 'lust') {
+    body = `
+      <h2 id="quiz-title" tabindex="-1">Is er iets wat je <em>niet</em> lust?</h2>
+      <p class="sub">Gerechten waar dat in zit, sla ik over. Het hoeft geen allergie te zijn.</p>
+      <div class="bubbles" role="group" aria-label="Wat je niet lust">
+        ${bubbleHtml('dislikes', '', 'Ik lust alles')}${DISLIKES.map(([key, label, icon]) => bubbleHtml('dislikes', key, label, icon)).join('')}
+      </div>
+      <p class="small muted">Je kunt dit later aanpassen bij de instellingen, op het tabblad Dieet.</p>`;
+  } else if (step === 'tijd') {
+    body = `
+      <h2 id="quiz-title" tabindex="-1">Hoeveel <em>tijd</em> heb je doordeweeks?</h2>
+      <p class="sub">Dan zet ik op werkdagen vooraan wat daarbij past. In het weekend mag het uitgebreider.</p>
+      <div class="bubbles" role="group" aria-label="Tijd om te koken op een werkdag">
+        ${WEEKDAY_TIMES.map(([key, label, hint]) => bubbleHtml('time', key, label, '', hint)).join('')}
+      </div>`;
   } else if (step === 'dieet') {
     body = `
       <h2 id="quiz-title" tabindex="-1">Eet je op een bepaalde <em>manier?</em></h2>
@@ -2121,7 +2361,9 @@ const VIEWS = {
     const none = mealDishes().length === 0;
     // Zijn er wel gerechten voor deze maaltijd, maar passen ze niet bij het dieet of de allergieën?
     const dietBlocks = none && state.dishes.some(d => d.meals.includes(meal));
-    const limits = [state.diet.length && 'je dieet', allergyNames().length && 'je allergieën'].filter(Boolean).join(' en ');
+    const limits = listText([state.diet.length && 'je dieet', allergyNames().length && 'je allergieën', state.dislikes.length && 'wat je lust'].filter(Boolean));
+    // Wat er vandaag op het weekmenu staat, zolang er nog geen avondeten is genoteerd.
+    const tonight = eaten.some(h => h.meal === 'avond') ? undefined : plannedDish(homeDay);
     // Is er niets voor deze maaltijd, dan kun je meteen overstappen naar een maaltijd waar wel iets voor is.
     const others = none ? Object.keys(MEALS).filter(key => state.dishes.some(d => d.meals.includes(key) && suitable(d))) : [];
     // Op de grote knop liggen drie van je eigen gerechten voor deze maaltijd.
@@ -2148,6 +2390,14 @@ const VIEWS = {
           <span class="bar-text"><span class="no">Je ${MEALS[meal].toLowerCase()} van vandaag</span><br>
             <span class="bar-name">${esc(dishById(current.dishId).name)}</span><br>
             <span class="bar-meta">bekijk het recept</span></span>
+          <span class="chev" aria-hidden="true">›</span>
+        </button>` : ''}
+      ${tonight ? `
+        <button class="bar" data-action="open-plan">
+          <span class="icon" aria-hidden="true">${iconSvg(dishIcon(tonight))}</span>
+          <span class="bar-text"><span class="no">Vanavond op je weekmenu</span><br>
+            <span class="bar-name">${esc(tonight.name)}</span><br>
+            <span class="bar-meta">bekijk je weekmenu</span></span>
           <span class="chev" aria-hidden="true">›</span>
         </button>` : ''}
       ${none ? `<div class="notice">Je hebt nog niets voor ${MEALS[meal].toLowerCase()}${dietBlocks ? ` dat bij ${limits} past` : ''}. Zullen we er een toevoegen?</div>
@@ -2196,6 +2446,12 @@ const VIEWS = {
         <span class="icon" aria-hidden="true">${iconSvg('grafiek')}</span>
         <span class="bar-text"><span class="bar-name">Je calorieën</span><br>
           <span class="bar-meta">${filled.length ? `gemiddeld ${kcalText(average)} kcal per dag` : 'bekijk in grafieken hoeveel je eet'}</span></span>
+        <span class="chev" aria-hidden="true">›</span>
+      </button>
+      <button class="bar" data-action="open-plan">
+        <span class="icon" aria-hidden="true">${iconSvg('kalender')}</span>
+        <span class="bar-text"><span class="bar-name">Je weekmenu</span><br>
+          <span class="bar-meta">${plannedDish(today) ? `vanavond: ${esc(plannedDish(today).name)}` : 'zeven avonden gepland in één tik'}</span></span>
         <span class="chev" aria-hidden="true">›</span>
       </button>
       ${days.map(day => {
@@ -2338,6 +2594,55 @@ const VIEWS = {
       <div class="notice">De app telt alleen op wat je zelf noteert en geeft geen dieetadvies. De calorieën bij een gerecht zijn een schatting. Wil je afvallen of aankomen, of twijfel je wat goed voor je is? Vraag het je huisarts of een diëtist.</div>`;
   },
 
+  // Het weekmenu: voor vandaag en de zes dagen erna een avondgerecht uit je favorieten. Eén tik vult het;
+  // per dag kun je wisselen of weghalen, en de boodschappen gaan in één keer op de lijst.
+  plan() {
+    const days = planDays();
+    const today = days[0].key;
+    const dishes = days.map(day => plannedDish(day.key));
+    const count = dishes.filter(Boolean).length;
+    const pool = planPool().length;
+    const eaten = entriesOn(today).some(h => h.meal === 'avond');
+    const note = seasonNote();
+    return `
+      ${topHtml('Weekmenu', backHtml('Week', 'data-action="nav" data-view="week"'))}
+      <h1>Je <em>weekmenu</em></h1>
+      <p class="sub">Zeven avonden, gekozen uit je eigen favorieten: van vandaag tot en met ${days[6].label.toLowerCase()}.</p>
+      ${view.message ? `<div class="notice" role="status">${esc(view.message)}</div>` : ''}
+      ${!pool ? `
+        <div class="notice">Je hebt nog geen gerechten voor het avondeten die bij je passen. Voeg er eerst een paar toe.</div>
+        <button class="btn primary" data-action="discover" data-meal="avond">${iconSvg('zoek')} Gerechten ontdekken</button>` : !count ? `
+        <div class="hero"><div class="emoji">${iconSvg('kalender')}</div>
+          <p class="sub">Geen zin om elke dag te kiezen? Ik zet in één keer zeven gerechten voor je klaar. Daarna pas je aan wat je wilt.</p></div>
+        <button class="btn primary big" data-action="plan-fill">Maak mijn weekmenu<small>${pool < PLAN_DAYS ? `uit je ${dishCount(pool)} voor het avondeten` : 'zeven dagen in één tik'}</small></button>` : `
+        ${days.map((day, i) => `
+          <section class="day${i === 0 ? ' today' : ''}" data-day="${day.key}">
+            <h2 class="date" aria-label="${day.label} ${shortDate(day.date)}${i === 0 ? ', vandaag' : ''}">${day.label.slice(0, 2)}<b>${day.date.getDate()}</b></h2>
+            <div class="body">
+              ${dishes[i] ? `
+                <ul class="list lines"><li>
+                  <button class="row-link" data-action="open-recipe" data-id="${dishes[i].id}" aria-label="${esc(dishes[i].name)}: bekijk het recept">
+                    <span class="icon" aria-hidden="true">${iconSvg(dishIcon(dishes[i]))}</span>
+                    <span class="grow"><strong>${esc(dishes[i].name)}</strong><span class="small">${dishMeta(dishes[i])}</span></span></button>
+                </li></ul>
+                <div class="foot plan-foot">
+                  ${i === 0 && !eaten ? '<button class="btn link" data-action="plan-eat">Dit eet ik vandaag</button>' : ''}
+                  <button class="btn link" data-action="plan-swap" data-day="${day.key}" aria-label="Kies iets anders voor ${day.label.toLowerCase()}"${pool < 2 ? ' disabled' : ''}>Iets anders</button>
+                  <button class="btn link" data-action="plan-remove" data-day="${day.key}" aria-label="Haal ${esc(dishes[i].name)} van ${day.label.toLowerCase()}">Weghalen</button>
+                </div>`
+                : `<p class="none">Nog niets gepland.</p>
+                  <div class="foot"><button class="btn link" data-action="plan-swap" data-day="${day.key}" aria-label="Kies iets voor ${day.label.toLowerCase()}">+ kies iets</button></div>`}
+            </div>
+          </section>`).join('')}
+        <p></p>
+        <button class="btn primary" data-action="plan-shop"${view.shopped ? ' disabled' : ''}>${view.shopped ? '✓ De boodschappen staan op je lijst' : `${iconSvg('mand')} Zet de boodschappen op mijn lijst`}</button>
+        ${view.shopped ? `<button class="btn" data-action="nav" data-view="shopping">Bekijk je boodschappenlijst</button>` : ''}
+        ${count < PLAN_DAYS ? '<button class="btn" data-action="plan-fill">Vul de lege dagen</button>' : ''}
+        <button class="btn" data-action="plan-fill" data-fresh="1">${iconSvg('wissel')} Maak een nieuw weekmenu</button>`}
+      ${note ? `<p class="small muted">${note}</p>` : ''}
+      ${state.weekdayTime ? `<p class="small muted">Doordeweeks kies ik vooral gerechten die ${state.weekdayTime === 'snel' ? 'snel klaar zijn' : 'niet te lang duren'}; in het weekend mag het uitgebreider.</p>` : ''}`;
+  },
+
   log() {
     const date = new Date(`${view.day}T12:00:00`);
     const when = view.day === dayKey(new Date()) ? '<em>vandaag</em>'
@@ -2452,7 +2757,8 @@ const VIEWS = {
         <div class="row">
           ${view.queue.length > PER_PAGE ? '<button class="btn" data-action="more-results">Iets anders</button>' : ''}
           <button class="btn" data-action="surprise">${iconSvg('dobbelsteen')} Verras me</button>
-        </div>`}`;
+        </div>`}
+      ${seasonNote() ? `<p class="small muted">${seasonNote()}</p>` : ''}`;
   },
 
   pass() {
@@ -2494,7 +2800,7 @@ const VIEWS = {
     const open = openShopping(dish);
     const onList = ingredients.every(text => open.has(text.slice(0, SHOPPING_LENGTH)));
     return `
-      ${back ? topHtml('Recept', backHtml(BACK_LABEL[back], `data-action="nav" data-view="${back}"`)) : topHtml(`Je ${MEALS[meal].toLowerCase()} wordt`)}
+      ${back ? topHtml('Recept', backHtml(BACK_LABEL[back], `data-action="nav" data-view="${back}"`)) : topHtml(`Je ${MEALS[view.meal || meal].toLowerCase()} wordt`)}
       <div class="hero"><div class="emoji pop">${iconSvg(dishIcon(dish))}</div>
         <h1>${esc(dish.name)}</h1>
         <p class="sub">${dishMeta(dish)}${dish.kcal == null ? '' : ' · ' + kcalLabel(dish)}</p>
@@ -2684,7 +2990,12 @@ const VIEWS = {
         ${view.tasteSaved ? `<div class="notice" role="status">${esc(view.tasteSaved)}</div>` : ''}
         <p class="muted small">${state.tastes.cuisines.length + state.tastes.cravings.length ? tasteSummary(state.tastes)
           : 'Vertel welke keukens je lekker vindt en waar je vaak trek in hebt. Dan zet ik bij "Gerechten ontdekken" bovenaan wat bij je past.'}</p>
-        <button class="btn" data-action="quiz-open" data-mode="again">${state.tastes.cuisines.length + state.tastes.cravings.length ? 'Kies je smaak opnieuw' : 'Vertel wat je lekker vindt'}</button>`,
+        <button class="btn" data-action="quiz-open" data-mode="again">${state.tastes.cuisines.length + state.tastes.cravings.length ? 'Kies je smaak opnieuw' : 'Vertel wat je lekker vindt'}</button>
+        <h2>Koken op een werkdag <span>hoeveel tijd heb je?</span></h2>
+        <div class="segments boxed" role="group" aria-label="Tijd om te koken op een werkdag">${WEEKDAY_TIMES.map(([key, label]) => `
+          <button data-action="set-weekday-time" data-time="${key}" aria-pressed="${key === state.weekdayTime}">${label}</button>`).join('')}
+        </div>
+        <p class="muted small">${state.weekdayTime ? 'Van maandag tot en met vrijdag stel ik eerst voor wat daarbij past. In het weekend mag het uitgebreider.' : 'Kies je "Weinig" of "Een beetje", dan stel ik op werkdagen eerst voor wat snel klaar is.'}</p>`,
 
       allergie: () => `
         <p class="muted small">Vink aan waar je allergisch voor bent. Gerechten waar dat in zit, stel ik niet meer voor.</p>
@@ -2708,6 +3019,11 @@ const VIEWS = {
         <fieldset aria-label="Mijn dieet">${dietChecksHtml(true)}</fieldset>
         <p class="muted small" style="margin-top:10px">Ik stel alleen gerechten voor die passen bij alles wat je hier aanvinkt. Per gerecht geef je bij Favorieten aan bij welk dieet het past.</p>
         <p class="muted small">Let op: de diëten bij gerechten zijn een schatting en geen garantie. Heb je een allergie? Vink die dan aan op het tabblad Allergie.</p>
+        <h2>Dit lust ik niet</h2>
+        <p class="muted small">Tik aan wat je niet lust. Gerechten waar dat in zit, stel ik niet voor. Het hoeft geen allergie te zijn.</p>
+        <div class="chips" role="group" aria-label="Wat ik niet lust">${DISLIKES.map(([key, label]) => `
+          <button class="chip" data-action="toggle-dislike" data-key="${key}" aria-pressed="${state.dislikes.includes(key)}">${plainName(label)}</button>`).join('')}
+        </div>
         <h2>Op je calorieën letten</h2>
         <p class="muted small">In grafieken zie je hoeveel calorieën je eet, per dag en per week. Je kunt er ook een doel bij kiezen.</p>
         <button class="btn" data-action="open-kcal">${iconSvg('grafiek')} Bekijk je calorieën</button>`,
@@ -2802,7 +3118,9 @@ const ACTIONS = {
     const quiz = view.quiz;
     const { list, key } = el.dataset;
     if (!quiz || !Array.isArray(quiz[list])) return;
-    quiz[list] = !key ? [] : quiz[list].includes(key) ? quiz[list].filter(item => item !== key) : [...quiz[list], key];
+    // Bij de tijd die je doordeweeks hebt, kies je er maar één.
+    if (list === 'time') quiz.time = !key || quiz.time.includes(key) ? [] : [key];
+    else quiz[list] = !key ? [] : quiz[list].includes(key) ? quiz[list].filter(item => item !== key) : [...quiz[list], key];
     quizSync();
   },
 
@@ -2829,8 +3147,7 @@ const ACTIONS = {
   'quiz-skip'() {
     const quiz = view.quiz;
     if (quiz.mode === 'again') {
-      delete view.quiz;
-      render();
+      closeQuiz();
       const opener = app.querySelector('[data-action="quiz-open"]');
       if (opener) opener.focus();
       return;
@@ -3014,15 +3331,79 @@ const ACTIONS = {
 
   // Wat al op de lijst staat en nog niet is afgevinkt, komt er niet nog een keer bij.
   'add-to-shopping'() {
-    const dish = dishById(view.id);
-    const open = openShopping(dish);
-    for (const ingredient of recipeOf(dish).ingredients) {
-      const text = ingredient.slice(0, SHOPPING_LENGTH);
-      if (!open.has(text)) state.shopping.push({ id: newId(), text, done: false, dish: dish.name });
-    }
+    shopFor(dishById(view.id));
     save();
     view.added = true;
     render();
+  },
+
+  // Iets wat je niet lust aan- of uitzetten bij de instellingen; het werkt meteen.
+  'toggle-dislike'(el) {
+    const key = el.dataset.key;
+    state.dislikes = cleanDislikes(state.dislikes.includes(key) ? state.dislikes.filter(item => item !== key) : [...state.dislikes, key]);
+    save();
+    render();
+    app.querySelector(`[data-action="toggle-dislike"][data-key="${key}"]`).focus();
+  },
+
+  'set-weekday-time'(el) {
+    state.weekdayTime = cleanWeekdayTime(el.dataset.time);
+    save();
+    render();
+    app.querySelector(`[data-action="set-weekday-time"][data-time="${el.dataset.time}"]`).focus();
+  },
+
+  // Het weekmenu openen, vullen of opnieuw maken.
+  'open-plan'() { go('plan'); },
+
+  'plan-fill'(el) {
+    const filled = fillPlan(el.dataset.fresh === '1');
+    save();
+    go('plan', { message: filled ? '' : 'Ik heb geen gerechten voor het avondeten om uit te kiezen.' });
+  },
+
+  // Een ander gerecht voor één dag: liever iets wat deze week nog niet gepland staat.
+  'plan-swap'(el) {
+    const day = planDays().find(one => one.key === el.dataset.day);
+    const now = day && plannedDish(day.key);
+    if (!day) return;
+    const taken = new Set(planDays().map(one => plannedDish(one.key)).filter(Boolean).map(dish => dish.id));
+    const pool = planPool().filter(dish => !now || dish.id !== now.id);
+    if (!pool.length) return;
+    const free = pool.filter(dish => !taken.has(dish.id));
+    const dish = weightedShuffle(free.length ? free : pool, day.date)[0];
+    state.plan = [...state.plan.filter(item => item.day !== day.key), { day: day.key, dishId: dish.id }].sort((a, b) => a.day.localeCompare(b.day));
+    save();
+    delete view.message;
+    render();
+    app.querySelector(`[data-action="plan-swap"][data-day="${day.key}"]`).focus();
+  },
+
+  'plan-remove'(el) {
+    state.plan = state.plan.filter(item => item.day !== el.dataset.day);
+    save();
+    delete view.message;
+    render();
+    const again = app.querySelector(`[data-action="plan-swap"][data-day="${el.dataset.day}"]`);
+    if (again) again.focus();
+  },
+
+  // De boodschappen voor alle gerechten van het weekmenu in één keer op de lijst.
+  'plan-shop'() {
+    const dishes = [...new Set(planDays().map(day => plannedDish(day.key)).filter(Boolean))];
+    const added = dishes.reduce((sum, dish) => sum + shopFor(dish), 0);
+    const unknown = dishes.filter(dish => !recipeOf(dish).ingredients.length).map(dish => dish.name);
+    save();
+    view.message = `${added ? `Er ${added === 1 ? 'staat 1 boodschap' : `staan ${added} boodschappen`} bij op je lijst.` : 'Alles stond al op je lijst.'}${
+      unknown.length ? ` Van ${listText(unknown)} ken ik de ingrediënten niet; die zet je er zelf bij.` : ''}`;
+    view.shopped = true;
+    render();
+  },
+
+  // Het gerecht van vandaag uit het weekmenu wordt het avondeten van vandaag.
+  'plan-eat'() {
+    const dish = plannedDish(dayKey(new Date()));
+    if (dish) choose(dish.id, 'Dit stond op je weekmenu.', 'avond');
   },
 
   // Haalt de notitie van deze keuze weg en zet terug wat ze verving.
@@ -3110,7 +3491,7 @@ const ACTIONS = {
 
   // Het recept van een gerecht opnieuw bekijken, vanaf het startscherm of vanuit je favorieten.
   'open-recipe'(el) {
-    if (dishById(el.dataset.id)) go('chosen', { id: el.dataset.id, back: view.name === 'favorites' ? 'favorites' : 'home' });
+    if (dishById(el.dataset.id)) go('chosen', { id: el.dataset.id, back: Object.hasOwn(BACK_LABEL, view.name) ? view.name : 'home' });
   },
 
   // Wie een gerecht aanpast vanaf het recept, komt daarna weer bij dat recept uit.

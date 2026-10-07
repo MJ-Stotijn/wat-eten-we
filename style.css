@@ -223,6 +223,8 @@ form.row { align-items: flex-end; margin-bottom: 12px; }
 .chip {
   max-width: 100%;
   overflow-wrap: anywhere;
+  /* Ook een heel kort woord ("Ei") blijft breed genoeg om aan te tikken */
+  min-width: 48px;
   min-height: 44px;
   padding: 8px 15px;
   border: 1px solid var(--border);
@@ -604,6 +606,8 @@ span.person.on i { background: var(--card); box-shadow: 0 0 0 2px var(--accent),
 .day .none { margin: 12px 0 2px; font-style: italic; color: var(--muted); }
 .day .foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 0.84rem; color: var(--muted); }
 .day .foot .btn.link { justify-content: flex-start; width: auto; margin: 0; padding: 0; font-size: 0.92rem; }
+/* In het weekmenu staan onder elk gerecht de knoppen naast elkaar; past dat niet, dan onder elkaar */
+.day .plan-foot { flex-wrap: wrap; justify-content: flex-start; gap: 0 20px; }
 
 /* Calorieën in beeld. Elke maaltijd heeft overal dezelfde kleur: in de ring, in de staven en in de lijstjes.
    De kleuren staan los van de steunkleur, zodat ze bij elke kleur van de app uit elkaar te houden zijn. */
