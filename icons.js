@@ -139,6 +139,8 @@ const UI_ART = {
   maan: '<path class="t" d="M26.500 18.500A11.500 11.500 0 1 1 13.500 5.500a9 9 0 0 0 13 13z"/>',
   wissel: '<path d="M6 13a10.500 10.500 0 0 1 19.500-3.500M26 19a10.500 10.500 0 0 1-19.500 3.500"/><path d="M26 4v5.500h-5.500M6 28v-5.500h5.500"/>',
   camera: '<path class="t" d="M4 10.500h5l2-3h10l2 3h5v15H4z"/><circle cx="16" cy="17.500" r="4.500"/>',
+  foto: '<rect class="t" x="4" y="6.500" width="24" height="19" rx="3"/><path d="M4.500 22.500l6.500-6.500 5 5 3.500-3 8 6.500"/><path class="d" d="M21 12.500h.01"/>',
+  sleutel: '<circle class="t" cx="10.500" cy="21.500" r="5.500"/><path d="M14.500 17.500L26 6M21.500 10.500l3.500 3.500M18.500 13.500l2.500 2.500"/>',
   waarschuwing: '<path class="t" d="M16 4.500L29 26.500H3z"/><path d="M16 13v6.500"/><path class="d" d="M16 23h.01"/>',
   kruis: '<path d="M9 9l14 14M23 9L9 23"/>',
   streepjescode: '<rect class="t" x="3.500" y="7" width="25" height="18" rx="3"/><path d="M8.500 11.500v9M12 11.500v9M19 11.500v9M23.500 11.500v9"/><path class="d" d="M15.500 11.500v9"/>',

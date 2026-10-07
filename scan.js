@@ -1,8 +1,11 @@
 'use strict';
 
-// Een product scannen. De camera leest de streepjescode op de telefoon zelf: er gaat geen beeld naar internet.
-// Bij de cijfers van de code zoekt de app de calorieën en de allergenen op bij Open Food Facts, een open lijst
-// van producten die door vrijwilligers wordt bijgehouden.
+// Herkennen wat je eet, op twee manieren met dezelfde camera.
+// 1. Een streepjescode leest de camera op de telefoon zelf: daarvoor gaat er geen beeld naar internet. Bij de
+//    cijfers van de code zoekt de app de calorieën en de allergenen op bij Open Food Facts, een open lijst van
+//    producten die door vrijwilligers wordt bijgehouden.
+// 2. Een foto van eten gaat naar een AI op internet (zie "Eten herkennen op een foto" onderaan), die zegt wat
+//    het is en de calorieën en de allergenen schat. Dat gebeurt alleen als de gebruiker zelf op de knop drukt.
 
 // ---------- De streepjescode lezen (EAN-13 en EAN-8) ----------
 
@@ -418,5 +421,253 @@ function cleanProduct(code, raw) {
     contains: allergens(raw.allergens_tags),
     traces: allergens(raw.traces_tags),
     ingredients: text(raw.ingredients_text_nl, 1500) || text(raw.ingredients_text, 1500),
+  };
+}
+
+// ---------- Eten herkennen op een foto ----------
+
+// De foto gaat naar Claude, een AI van het bedrijf Anthropic. Dat kost geld per foto; de gebruiker betaalt dat
+// zelf, met een eigen sleutel. Die sleutel staat los van de gegevens van de app, alleen op dit apparaat: hij
+// gaat dus niet mee in een back-up.
+const FOOD_API = 'https://api.anthropic.com/v1/messages';
+const FOOD_MODEL = 'claude-sonnet-5-5';
+const FOOD_KEY_STORE = 'wat-eten-we-sleutel';
+// Zo lang (in milliseconden) mag het herkennen duren.
+const FOOD_PATIENCE = 60000;
+// De foto gaat verkleind de deur uit: hooguit zoveel pixels aan de lange kant. Groter kost meer en helpt weinig.
+const FOOD_PHOTO_SIZE = 1024;
+const FOOD_KINDS = ['gerecht', 'product', 'ingredient', 'drank', 'geen'];
+const FOOD_SURE = ['hoog', 'redelijk', 'laag'];
+const FOOD_ALLERGENS = Object.values(PRODUCT_ALLERGENS);
+
+// Wat de herkenner te horen krijgt.
+const FOOD_RULES = `Je bent de herkenner in een Nederlandse app die mensen helpt kiezen wat ze eten. Je krijgt één foto. Zeg wat voor eten of drinken erop staat en schat de calorieën en de allergenen. Schrijf alles in gewoon Nederlands.
+
+De velden:
+- soort: "gerecht" (bereid eten, op een bord of in een pan), "product" (iets in een verpakking), "ingredient" (los en onbewerkt, zoals een appel of een ei), "drank", of "geen" als er geen eten of drinken op de foto staat. Bij "geen" laat je de andere velden leeg.
+- naam: de gewone Nederlandse naam, kort, met alleen een hoofdletter aan het begin. Bij een product: het merk en de naam zoals op de verpakking.
+- zeker: "hoog" als je het duidelijk ziet, "redelijk" als het erop lijkt, "laag" als je gokt.
+- anders: hooguit drie andere dingen die het ook zouden kunnen zijn. Leeg als je zeker bent.
+- portie: wat er te zien is, in gewone woorden en met een schatting in gram of milliliter. Bijvoorbeeld: "één bord, ongeveer 400 gram".
+- kcal: je beste schatting voor alles wat er te zien is (de hele portie, of de hele verpakking als de inhoud leesbaar is). kcal_min en kcal_max geven de marge. Kun je het echt niet schatten, geef dan null.
+- kcal_per_100: alleen als de voedingswaarde op een verpakking leesbaar is; anders null.
+- onderdelen: de losse onderdelen die je op het bord ziet, elk met een schatting in gram en kcal. Leeg bij een product of bij één los ding.
+- bevat: allergenen die er zeker of bijna zeker in zitten. Je ziet ze (kaas, ei, garnalen, pinda's, brood), ze horen bij de kern van het gerecht (pasta is gluten, tenzij er iets anders staat), of ze staan op het etiket.
+- kan_bevatten: allergenen die vaak in dit gerecht verwerkt zijn maar die je niet kunt zien (boter of room, sojasaus, selderij in bouillon, mosterd in dressing, noten in pesto), en wat op een etiket bij "kan sporen bevatten van" staat.
+- etiket_gelezen: true als je de ingrediënten of de allergenen van een verpakking echt hebt kunnen lezen.
+- ingredienten: wat er waarschijnlijk in zit, elk in een of twee woorden, hooguit twintig. Bij een leesbaar etiket: wat daar staat.
+- opmerking: één korte zin als de gebruiker iets moet weten, bijvoorbeeld dat de saus niet te zien is en veel kan uitmaken. Anders leeg.
+
+Bij allergenen is missen erger dan te veel noemen: twijfel je, zet het allergeen dan bij kan_bevatten. Gebruik alleen deze veertien namen: ${FOOD_ALLERGENS.join(', ')}. Daarbij is "noten" boomnoten (hazelnoot, walnoot, amandel, cashew) en "pinda" alleen pinda; "weekdieren" zijn mosselen, inktvis en slakken; "schaaldieren" zijn garnalen, krab en kreeft.
+
+Zeg nooit wie er op een foto staat.`;
+
+// De vorm van het antwoord. De herkenner houdt zich hier precies aan.
+const FOOD_NUMBER = { anyOf: [{ type: 'integer' }, { type: 'null' }] };
+const FOOD_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['soort', 'naam', 'zeker', 'anders', 'portie', 'kcal', 'kcal_min', 'kcal_max', 'kcal_per_100', 'onderdelen', 'bevat', 'kan_bevatten', 'etiket_gelezen', 'ingredienten', 'opmerking'],
+  properties: {
+    soort: { type: 'string', enum: FOOD_KINDS },
+    naam: { type: 'string' },
+    zeker: { type: 'string', enum: FOOD_SURE },
+    anders: { type: 'array', items: { type: 'string' } },
+    portie: { type: 'string' },
+    kcal: FOOD_NUMBER,
+    kcal_min: FOOD_NUMBER,
+    kcal_max: FOOD_NUMBER,
+    kcal_per_100: FOOD_NUMBER,
+    onderdelen: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['naam', 'gram', 'kcal'],
+        properties: { naam: { type: 'string' }, gram: FOOD_NUMBER, kcal: FOOD_NUMBER },
+      },
+    },
+    bevat: { type: 'array', items: { type: 'string', enum: FOOD_ALLERGENS } },
+    kan_bevatten: { type: 'array', items: { type: 'string', enum: FOOD_ALLERGENS } },
+    etiket_gelezen: { type: 'boolean' },
+    ingredienten: { type: 'array', items: { type: 'string' } },
+    opmerking: { type: 'string' },
+  },
+};
+
+// De sleutel van de gebruiker. Wil de telefoon niets bewaren, dan blijft hij in het geheugen tot de app sluit.
+let looseKey = '';
+
+function foodKey() {
+  try { return localStorage.getItem(FOOD_KEY_STORE) || looseKey; } catch (e) { return looseKey; }
+}
+
+// Bewaart de sleutel; een lege sleutel haalt hem weg.
+function setFoodKey(key) {
+  looseKey = key;
+  try {
+    if (key) localStorage.setItem(FOOD_KEY_STORE, key);
+    else localStorage.removeItem(FOOD_KEY_STORE);
+  } catch (e) { /* dan alleen in het geheugen */ }
+}
+
+// Maakt van wat iemand plakt een sleutel: zonder spaties en regeleinden. Geeft niets terug als het er geen is.
+function foodKeyFromText(text) {
+  const key = String(text).replace(/\s+/g, '');
+  return /^sk-ant-[\w-]{20,300}$/.test(key) ? key : '';
+}
+
+// Maakt van een beeld (de camera, of een gekozen foto) een verkleinde foto: `url` om haar te laten zien en
+// `data`, dezelfde foto als tekst, om haar te versturen.
+function shrinkPhoto(source, width, height) {
+  if (!width || !height) throw new Error('geen beeld');
+  const scale = Math.min(1, FOOD_PHOTO_SIZE / Math.max(width, height));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(width * scale));
+  canvas.height = Math.max(1, Math.round(height * scale));
+  canvas.getContext('2d').drawImage(source, 0, 0, canvas.width, canvas.height);
+  const url = canvas.toDataURL('image/jpeg', 0.85);
+  return { url, data: url.slice(url.indexOf(',') + 1) };
+}
+
+// De foto van wat de camera nu ziet, of niets als de camera nog geen beeld geeft.
+function cameraPhoto() {
+  const video = scanner.video;
+  if (!video || video.readyState < 2) return null;
+  return shrinkPhoto(video, video.videoWidth, video.videoHeight);
+}
+
+// Opent een foto die de gebruiker heeft gekozen. Staat er een streepjescode op, dan komt die mee als `code`.
+function filePhoto(file) {
+  return new Promise((resolve, reject) => {
+    const address = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+      try {
+        const photo = shrinkPhoto(image, image.naturalWidth, image.naturalHeight);
+        let code = '';
+        try { code = readBarcode(image, image.naturalWidth, image.naturalHeight); } catch (e) { /* dan zonder code */ }
+        resolve({ ...photo, code });
+      } catch (error) {
+        reject(error);
+      } finally {
+        URL.revokeObjectURL(address);
+      }
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(address);
+      reject(new Error('geen foto'));
+    };
+    image.src = address;
+  });
+}
+
+// Laat een foto herkennen. `hint` is wat de gebruiker zelf zegt dat het is, als de eerste gok niet klopte.
+// Geeft terug wat er op de foto staat (zie cleanFood). Lukt het niet, dan volgt een fout met een `reason`
+// (offline, sleutel, tegoed, toegang, druk, storing, geweigerd of fout) en in `detail` wat Anthropic erover zegt.
+async function recogniseFood(photo, key, hint) {
+  const fail = (reason, detail) => Object.assign(new Error(reason), { reason, detail: detail || '' });
+  const said = String(hint || '').replace(/["\s]+/g, ' ').trim().slice(0, 60);
+  const control = new AbortController();
+  const timer = setTimeout(() => control.abort(), FOOD_PATIENCE);
+  let response;
+  let data = null;
+  try {
+    response = await fetch(FOOD_API, {
+      method: 'POST',
+      signal: control.signal,
+      headers: {
+        'content-type': 'application/json',
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        // Zonder deze regel weigert Anthropic een aanvraag die rechtstreeks uit een browser komt.
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model: FOOD_MODEL,
+        // Ruim genoeg voor het antwoord en voor wat de herkenner er eerst bij bedenkt.
+        max_tokens: 4000,
+        system: FOOD_RULES,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: photo.data } },
+            { type: 'text', text: said
+              ? `De gebruiker zegt dat dit "${said}" is. Ga daarvan uit: vul de gegevens in voor "${said}" en schat de portie op wat je op de foto ziet.`
+              : 'Wat staat er op deze foto?' },
+          ],
+        }],
+        output_config: { effort: 'low', format: { type: 'json_schema', schema: FOOD_SCHEMA } },
+      }),
+    });
+    data = await response.json().catch(() => null);
+  } catch (e) {
+    throw fail('offline');
+  } finally {
+    clearTimeout(timer);
+  }
+  if (!response.ok) {
+    const detail = data && data.error && typeof data.error.message === 'string' ? data.error.message.slice(0, 300) : `antwoord ${response.status}`;
+    throw fail(response.status === 401 ? 'sleutel'
+      : response.status === 402 || (response.status === 400 && /credit|billing|balance|spend/i.test(detail)) ? 'tegoed'
+      : response.status === 403 ? 'toegang'
+      : response.status === 429 ? 'druk'
+      : response.status >= 500 ? 'storing'
+      : 'fout', detail);
+  }
+  if (!data) throw fail('fout', 'het antwoord is niet te lezen');
+  if (data.stop_reason === 'refusal') throw fail('geweigerd');
+  // Voor het antwoord kan een blok met gedachten staan; het antwoord zelf is het blok met tekst.
+  const block = (Array.isArray(data.content) ? data.content : []).find(part => part && part.type === 'text' && typeof part.text === 'string');
+  if (!block || data.stop_reason === 'max_tokens') throw fail('fout', `geen volledig antwoord (${String(data.stop_reason).slice(0, 30)})`);
+  try {
+    return cleanFood(JSON.parse(block.text));
+  } catch (e) {
+    throw fail('fout', 'het antwoord is niet te lezen');
+  }
+}
+
+// Haalt uit het antwoord van de herkenner wat de app nodig heeft, in dezelfde vorm als een gescand product
+// (zie cleanProduct), en vertrouwt daarbij niets: alles wordt tekst of getal van een redelijke lengte en grootte.
+function cleanFood(raw) {
+  const source = raw && typeof raw === 'object' ? raw : {};
+  const text = (value, length) => typeof value === 'string' ? value.replace(/\s+/g, ' ').trim().slice(0, length) : '';
+  const amount = (value, most) => typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= most ? Math.round(value) : null;
+  const list = (value, most) => (Array.isArray(value) ? value : []).slice(0, most);
+  // De herkenner kan een woord uit een vaste lijst met een hoofdletter schrijven.
+  const word = value => text(value, 20).toLowerCase();
+  const allergens = value => [...new Set(list(value, 20).map(word).filter(key => FOOD_ALLERGENS.includes(key)))];
+  const name = text(source.naam, 80);
+  const kind = FOOD_KINDS.includes(word(source.soort)) ? word(source.soort) : 'gerecht';
+  const low = amount(source.kcal_min, 9999);
+  const high = amount(source.kcal_max, 9999);
+  const middle = amount(source.kcal, 9999);
+  // Een marge telt alleen als ze klopt: van laag naar hoog, met de schatting ertussen.
+  const ranged = low != null && high != null && low < high && (middle == null || (middle >= low && middle <= high));
+  const contains = allergens(source.bevat);
+  return {
+    photo: true,
+    code: '',
+    // Zonder naam is er niets herkend.
+    kind: name ? kind : 'geen',
+    name,
+    brand: '',
+    quantity: '',
+    serving: text(source.portie, 90),
+    sure: FOOD_SURE.includes(word(source.zeker)) ? word(source.zeker) : 'laag',
+    others: [...new Set(list(source.anders, 3).map(other => text(other, 50)).filter(other => other && other.toLowerCase() !== name.toLowerCase()))],
+    kcal: amount(source.kcal_per_100, 950),
+    // Geeft de herkenner alleen een marge, dan is het midden daarvan de schatting.
+    kcalServing: middle != null ? middle : ranged ? Math.round((low + high) / 2) : null,
+    kcalLow: ranged ? low : null,
+    kcalHigh: ranged ? high : null,
+    liquid: kind === 'drank',
+    parts: list(source.onderdelen, 8).map(part => part && typeof part === 'object'
+      ? { name: text(part.naam, 50), grams: amount(part.gram, 5000), kcal: amount(part.kcal, 9999) } : { name: '' }).filter(part => part.name),
+    contains: { known: contains, other: [] },
+    traces: { known: allergens(source.kan_bevatten).filter(key => !contains.includes(key)), other: [] },
+    label: source.etiket_gelezen === true,
+    ingredients: list(source.ingredienten, 25).map(item => text(item, 40)).filter(Boolean).join(', '),
+    note: text(source.opmerking, 200),
   };
 }

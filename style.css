@@ -396,7 +396,7 @@ form.row { align-items: flex-end; margin-bottom: 12px; }
 /* ---------- Invullen ---------- */
 
 label { display: block; margin: 16px 0 6px; }
-input[type="text"], input[type="number"], input[type="search"], select, textarea {
+input[type="text"], input[type="number"], input[type="search"], input[type="password"], select, textarea {
   width: 100%;
   min-height: 50px;
   padding: 12px 14px;
@@ -406,7 +406,7 @@ input[type="text"], input[type="number"], input[type="search"], select, textarea
   font-size: 1rem;
 }
 /* Zonder de eigen opmaak van de telefoon: een iPhone tekent een zoekveld anders rond en grijs */
-input[type="text"], input[type="number"], input[type="search"], textarea { -webkit-appearance: none; appearance: none; }
+input[type="text"], input[type="number"], input[type="search"], input[type="password"], textarea { -webkit-appearance: none; appearance: none; }
 input::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; }
 input[type="search"] { margin-bottom: 12px; }
 select { cursor: pointer; }
@@ -525,13 +525,48 @@ span.person.on i { background: var(--card); box-shadow: 0 0 0 2px var(--accent),
 .country-card strong { font: 400 1.25rem var(--serif); }
 .country-card .btn { flex: none; width: auto; min-height: 44px; margin: 0; padding: 8px 18px; font-size: 1rem; box-shadow: none; }
 
-/* Een product scannen: het beeld van de camera in een donker vak, met een lijn waar de streepjescode hoort */
+/* Herkennen wat je eet: het beeld van de camera in een donker vak, met vier hoekjes om op te richten en
+   onderin de knop waarmee je de foto maakt */
 .scan-box { position: relative; overflow: hidden; margin-bottom: 10px; border-radius: 24px; background: #1e1914; box-shadow: 0 0 0 1px var(--border), var(--lift); }
-/* Het vak is altijd drie kwart zo hoog als breed, ook op telefoons die dat niet uit zichzelf kunnen */
-.scan-box::before { content: ""; display: block; padding-top: 75%; }
+/* Het vak is altijd vierkant, ook op telefoons die dat niet uit zichzelf kunnen; op een laag scherm wat lager */
+.scan-box::before { content: ""; display: block; padding-top: 100%; }
+@media (max-height: 640px) { .scan-box::before { padding-top: 75%; } }
 #scan-host { position: absolute; left: 0; top: 0; width: 100%; height: 100%; }
 #scan-host video { display: block; width: 100%; height: 100%; object-fit: cover; }
-.scan-line { position: absolute; left: 8%; right: 8%; top: 50%; height: 2px; border-radius: 1px; background: #ff6b4a; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.35); }
+.scan-corners {
+  position: absolute; left: 11%; right: 11%; top: 9%; bottom: 27%;
+  pointer-events: none; opacity: 0.92; filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.55));
+  background:
+    linear-gradient(#fff, #fff) left top / 28px 3px, linear-gradient(#fff, #fff) left top / 3px 28px,
+    linear-gradient(#fff, #fff) right top / 28px 3px, linear-gradient(#fff, #fff) right top / 3px 28px,
+    linear-gradient(#fff, #fff) left bottom / 28px 3px, linear-gradient(#fff, #fff) left bottom / 3px 28px,
+    linear-gradient(#fff, #fff) right bottom / 28px 3px, linear-gradient(#fff, #fff) right bottom / 3px 28px;
+  background-repeat: no-repeat;
+}
+/* De ronde knop: wit met een ring in de kleur van de app */
+.shutter {
+  position: absolute; left: 50%; bottom: 16px; width: 70px; height: 70px; margin: 0 0 0 -35px; padding: 0;
+  border: 4px solid #fff; border-radius: 50%; background: var(--accent) linear-gradient(160deg, var(--accent), var(--accent-deep));
+  box-shadow: 0 0 0 3px rgba(30, 25, 20, 0.35), 0 10px 20px -8px rgba(0, 0, 0, 0.7); cursor: pointer;
+}
+/* Links ervan: een foto kiezen die je al hebt */
+.scan-side {
+  position: absolute; left: 16px; bottom: 26px; display: grid; place-items: center; width: 50px; height: 50px; padding: 0;
+  border: none; border-radius: 50%; background: rgba(30, 25, 20, 0.62); color: #fff; font-size: 1.5rem; cursor: pointer;
+}
+.scan-side svg.ic { --accent: #fff; }
+/* De foto die bekeken wordt of is, als een brede band boven het antwoord */
+.shot { position: relative; overflow: hidden; margin-bottom: 6px; border-radius: 24px; background: #1e1914; box-shadow: 0 0 0 1px var(--border), var(--lift); }
+.shot img { display: block; width: 100%; height: 190px; object-fit: cover; }
+.shot.looking img { height: 260px; }
+/* Zolang de foto bekeken wordt, glijdt er een lichte streep overheen */
+.shot.looking::after { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 38%; background: linear-gradient(rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.32)); border-bottom: 2px solid rgba(255, 255, 255, 0.85); transform: translateY(-100%); }
+/* De uitleg in stappen, met een gewone link erin */
+a { color: var(--accent-ink); font-weight: 600; }
+.steps li > span { flex: 1; min-width: 0; align-self: center; }
+/* Een link in een zin is laag; zo is hij toch goed te raken zonder dat de regel hoger wordt */
+.steps a { display: inline-block; max-width: 100%; margin: -12px 0; padding: 12px 0; overflow-wrap: anywhere; }
+.notice .btn.link { justify-content: flex-start; width: auto; min-height: 44px; margin: 0; padding: 0; }
 /* Wat er over het product bekend is: de calorieën in vakken, de allergenen als ovale plaatjes */
 .facts { display: flex; gap: 8px; margin: 4px 0 6px; }
 .facts span { flex: 1; min-width: 0; padding: 12px 6px; border-radius: 18px; background: var(--butter); text-align: center; font-size: 0.84rem; color: var(--muted); }
@@ -674,6 +709,10 @@ span.person.on i { background: var(--card); box-shadow: 0 0 0 2px var(--accent),
   #nav button.active .nav-icon { animation: hop 0.4s cubic-bezier(0.3, 1.6, 0.5, 1); }
   /* Zolang de kaart laadt */
   .map-status.muted { animation: pulse 1.4s ease-in-out infinite; }
+  /* Zolang een foto bekeken wordt */
+  .shot.looking::after { animation: sweep 1.9s ease-in-out infinite; }
+  .shutter { transition: transform 0.12s; }
+  .shutter:active { transform: scale(0.92); }
   /* Knoppen veren in onder je vinger */
   .icon-btn, .chip, .check, .theme, .seal { transition: transform 0.12s; }
   .icon-btn:active:not(:disabled), .seal:active { transform: scale(0.9); }
@@ -689,6 +728,7 @@ span.person.on i { background: var(--card); box-shadow: 0 0 0 2px var(--accent),
 @keyframes wiggle { 20%, 60% { transform: rotate(-14deg); } 40%, 80% { transform: rotate(14deg); } }
 @keyframes hop { 45% { transform: translateY(-6px) scale(1.12); } }
 @keyframes pulse { 50% { opacity: 0.45; } }
+@keyframes sweep { to { transform: translateY(265%); } }
 
 /* Snippers bij een nieuwe badge: een laag over het hele scherm waar je doorheen kunt tikken */
 .confetti { position: fixed; inset: 0; z-index: 5; overflow: hidden; pointer-events: none; }

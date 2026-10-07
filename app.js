@@ -1252,9 +1252,11 @@ function render() {
     mountWorldMap();
     filterCountries();
   }
-  // De camera staat alleen aan zolang het scherm met de scanner open is.
+  // De camera staat alleen aan zolang het scherm met de camera open is, en de foto blijft niet langer bewaard
+  // dan dat de gebruiker ermee bezig is.
   if (view.name === 'scan' && view.stage === 'camera') mountScanner();
   else stopScanner();
+  if (view.name !== 'scan') scanPhoto = null;
   nav.hidden = !state.onboarded;
   // Een recept dat je vanuit je favorieten opent, hoort bij het tabblad Favorieten.
   const tab = NAV_TAB[view.name] || NAV_TAB[view.back] || 'home';
@@ -1532,17 +1534,56 @@ function productRisks(product) {
   };
 }
 
-// Opent de scanner en zet de camera aan. Lukt dat niet (geen camera, of geen toestemming), dan zegt het scherm
-// dat en kan de gebruiker de cijfers onder de streepjescode intypen.
+// De foto die de gebruiker net nam of koos (zie shrinkPhoto). Ze staat alleen in het geheugen, tot het scherm
+// met de camera dichtgaat. `scanTurn` telt de keren dat er iets herkend wordt, zodat een laat antwoord op een
+// eerdere foto niet meer telt.
+let scanPhoto = null;
+let scanTurn = 0;
+
+// Opent de camera. Lukt dat niet (geen camera, of geen toestemming), dan zegt het scherm dat en kan de
+// gebruiker een foto kiezen of de cijfers onder een streepjescode intypen.
 function openScan() {
+  scanPhoto = null;
+  scanTurn++;
   go('scan', { stage: 'camera' });
   startScanner(scanLookup).catch(error => {
     if (view.name !== 'scan' || view.stage !== 'camera') return;
     view.cameraError = error && error.name === 'NotAllowedError'
-      ? 'De camera mag niet aan. Geef de app toestemming in de instellingen van je telefoon, of typ de cijfers hieronder.'
-      : 'Ik kan de camera niet aanzetten. Typ hieronder de cijfers die onder de streepjescode staan.';
+      ? 'De camera mag niet aan. Geef de app toestemming in de instellingen van je telefoon, of kies hieronder een foto.'
+      : 'Ik kan de camera niet aanzetten. Kies hieronder een foto, of typ de cijfers die onder een streepjescode staan.';
     render();
   });
+}
+
+// De ronde knop: maakt een foto van wat de camera ziet en laat die herkennen.
+function scanShoot() {
+  let photo = null;
+  try { photo = cameraPhoto(); } catch (e) { /* dan is er nog geen beeld */ }
+  if (!photo) {
+    view.status = 'De camera is nog niet klaar. Wacht even en tik dan nog eens.';
+    return render();
+  }
+  scanPhoto = photo;
+  scanRecognise();
+}
+
+// Laat de foto herkennen en toont wat eruit komt. `hint` is wat de gebruiker zelf zegt dat het is. Staat er nog
+// geen sleutel in de app, dan komt eerst de uitleg hoe je daaraan komt; de foto blijft zolang bewaard.
+async function scanRecognise(hint) {
+  if (!scanPhoto) return openScan();
+  if (!foodKey()) return go('scan', { stage: 'key' });
+  const turn = ++scanTurn;
+  go('scan', { stage: 'looking', hint });
+  let next;
+  try {
+    const food = await recogniseFood(scanPhoto, foodKey(), hint);
+    next = food.kind === 'geen' ? { stage: 'nofood' } : { stage: 'food', product: food };
+  } catch (error) {
+    next = { stage: 'fooderror', reason: Object.hasOwn(FOOD_ERRORS, error.reason) ? error.reason : 'fout', detail: error.detail || '', hint };
+  }
+  // Is de gebruiker intussen iets anders gaan doen, dan blijft dat staan.
+  if (view.name !== 'scan' || view.stage !== 'looking' || turn !== scanTurn) return;
+  go('scan', next);
 }
 
 // Zoekt het product bij een streepjescode op en laat zien wat erover bekend is.
@@ -1604,7 +1645,101 @@ function scanResultHtml(top) {
     <p class="small muted" style="margin-top:14px">Deze gegevens komen van Open Food Facts en zijn ingevuld door vrijwilligers. Ze kunnen onvolledig of verouderd zijn: wat op de verpakking staat, is altijd leidend.</p>
     <button class="btn primary" data-action="scan-log">Noteer dit als gegeten</button>
     <button class="btn" data-action="scan-shop"${view.shopped ? ' disabled' : ''}>${view.shopped ? '✓ Op de boodschappenlijst gezet' : `${iconSvg('mand')} Zet op de boodschappenlijst`}</button>
-    <button class="btn" data-action="open-scan">${iconSvg('streepjescode')} Nog een product scannen</button>`;
+    <button class="btn" data-action="open-scan">${iconSvg('camera')} Nog iets bekijken</button>`;
+}
+
+// Wat er mis kan gaan bij het herkennen van een foto (zie recogniseFood): de kop en de uitleg.
+const FOOD_ERRORS = {
+  offline: ['Herkennen lukt <em>niet</em>', 'Ik krijg geen antwoord. Heb je internet? Probeer het dan nog eens.'],
+  sleutel: ['De sleutel <em>klopt niet</em>', 'Anthropic herkent je sleutel niet. Misschien is hij ingetrokken, of niet helemaal geplakt. Zet er een nieuwe in.'],
+  tegoed: ['Je tegoed is <em>op</em>', 'Er staat geen tegoed meer bij je sleutel, of je hebt de limiet bereikt die je zelf hebt ingesteld. Vul het aan bij Anthropic en probeer het dan nog eens.'],
+  toegang: ['Deze sleutel mag dit <em>niet</em>', 'Je sleutel heeft geen toegang tot het herkennen. Kijk bij Anthropic of je account in orde is, of maak een nieuwe sleutel.'],
+  druk: ['Even <em>te druk</em>', 'Het is nu te druk, of je hebt het maximum van deze maand bereikt. Wacht een minuut en probeer het nog eens.'],
+  storing: ['Even een <em>storing</em>', 'De herkenner heeft een storing. Probeer het over een paar minuten nog eens.'],
+  geweigerd: ['Deze foto bekijk ik <em>niet</em>', 'De herkenner wil niets over deze foto zeggen. Probeer een andere foto, met alleen het eten in beeld.'],
+  fout: ['Er ging iets <em>mis</em>', 'Het herkennen is niet gelukt. Probeer het nog eens.'],
+};
+const FOOD_WARNING = 'Dit is een schatting van een AI op basis van één foto. De calorieën kunnen er flink naast zitten, en wat er in het eten verwerkt is, zie je niet op een foto. Heb je een allergie? Vraag dan na wat erin zit, of lees het etiket.';
+
+// De foto waar het om gaat, bovenaan het scherm.
+function shotHtml(extra = '') {
+  return scanPhoto ? `<div class="shot${extra}"><img src="${esc(scanPhoto.url)}" alt="De foto die je nam"></div>` : '';
+}
+
+// Wat de herkenner op de foto zag: de naam, de calorieën en de allergenen. Alles is een schatting, en dat
+// staat er steeds bij. Klopt de naam niet, dan kan de gebruiker zeggen wat het wel is.
+function foodResultHtml(top) {
+  const food = view.product;
+  const risks = productRisks(food);
+  const label = key => ALLERGENS[key][0].toLowerCase();
+  const pills = keys => keys.map(key => `<span class="pill${state.allergies.includes(key) ? ' mine' : ''}">${label(key)}</span>`).join('');
+  const alarms = [
+    risks.contains.length ? `dit bevat waarschijnlijk ${listText(risks.contains.map(label))}` : '',
+    risks.traces.length ? `het kan ${listText(risks.traces.map(label))} bevatten` : '',
+    risks.words.length ? `ik vermoed dat er ${listText(risks.words.map(word => esc(word.toLowerCase())))} in zit` : '',
+  ].filter(Boolean);
+  const unit = food.liquid ? '100 ml' : '100 g';
+  const doubt = { hoog: '', redelijk: 'Ik denk dat het dit is, maar zeker weet ik het niet.', laag: 'Dit is een gok: ik zie het niet goed.' }[food.sure];
+  return `${top}
+    ${shotHtml()}
+    <div class="hero"><h1>${esc(food.name)}</h1>
+      <p class="sub">${esc(food.serving) || 'Hoeveel het is, kan ik niet goed zien.'}</p></div>
+    ${alarms.length ? `<div class="notice alarm" role="alert">${iconSvg('waarschuwing')} Let op: ${listText(alarms)}. Dat staat bij jouw allergieën.</div>`
+      : hasAllergy() ? '<div class="notice">Ik zie geen van jouw allergieën op deze foto. Dat zegt weinig: wat erin verwerkt is, zie je niet. Vraag het na of lees het etiket.</div>' : ''}
+    <div class="facts">
+      <span><b>${food.kcalServing == null ? '?' : `±${food.kcalServing}`}</b>kcal voor wat ik zie</span>
+      ${food.kcal == null ? '' : `<span><b>${food.kcal}</b>kcal per ${unit}${food.label ? ', volgens het etiket' : ''}</span>`}
+    </div>
+    ${food.kcalServing == null ? '<p class="small muted">De calorieën kan ik op deze foto niet schatten.</p>'
+      : food.kcalLow == null ? '' : `<p class="small muted">Het zit ergens tussen de ${food.kcalLow} en de ${food.kcalHigh} kcal.</p>`}
+    ${food.note ? `<div class="notice">${esc(food.note)}</div>` : ''}
+    <details${food.sure === 'hoog' ? '' : ' open'}><summary><span>Klopt het niet?</span></summary>
+      <p class="small muted" style="margin-top:10px">${doubt ? `${doubt} ` : ''}Zeg wat het wel is, dan reken ik het opnieuw uit. Dat kost nog een keer een foto.</p>
+      ${food.others.length ? `<div class="chips">${food.others.map(other => `<button class="chip" data-action="scan-other" data-name="${esc(other)}">${esc(other)}</button>`).join('')}</div>` : ''}
+      <form data-form="scan-fix" class="row">
+        <input name="name" type="text" maxlength="60" autocomplete="off" placeholder="Bijvoorbeeld: nasi goreng" aria-label="Wat het wel is">
+        <button class="btn primary" type="submit">Opnieuw</button>
+      </form>
+    </details>
+    ${food.parts.length ? `<h2>Wat ik zie</h2>
+      <ul class="list lines">${food.parts.map(part => `
+        <li><span class="grow"><strong>${esc(part.name)}</strong>${part.grams == null ? '' : `<span class="small">ongeveer ${part.grams} ${food.liquid ? 'ml' : 'gram'}</span>`}</span>
+          ${part.kcal == null ? '' : `<span class="bar-kcal"><b>${part.kcal}</b>kcal</span>`}</li>`).join('')}</ul>` : ''}
+    <h2>Allergenen <span>${food.label ? 'van het etiket gelezen' : 'een schatting'}</span></h2>
+    ${food.contains.known.length ? `<p class="small muted">${food.label ? 'Bevat' : 'Zit er waarschijnlijk in'}</p><div class="pills">${pills(food.contains.known)}</div>` : ''}
+    ${food.traces.known.length ? `<p class="small muted">${food.label ? 'Kan ook bevatten' : 'Zit er vaak in, maar zie ik niet'}</p><div class="pills">${pills(food.traces.known)}</div>` : ''}
+    ${food.contains.known.length + food.traces.known.length ? '' : '<p>Ik zie niets dat op een van de veertien bekende allergenen wijst. Dat is geen garantie.</p>'}
+    ${food.ingredients ? `<details><summary><span>${food.label ? 'Wat ik op het etiket lees' : 'Wat er vermoedelijk in zit'}</span></summary><p class="small" style="margin-top:10px">${esc(food.ingredients)}</p></details>` : ''}
+    <p class="small muted" style="margin-top:14px">${FOOD_WARNING}</p>
+    <button class="btn primary" data-action="scan-log">Noteer dit als gegeten</button>
+    ${food.kind === 'gerecht' ? '' : `<button class="btn" data-action="scan-shop"${view.shopped ? ' disabled' : ''}>${view.shopped ? '✓ Op de boodschappenlijst gezet' : `${iconSvg('mand')} Zet op de boodschappenlijst`}</button>`}
+    <button class="btn" data-action="open-scan">${iconSvg('camera')} Nog iets bekijken</button>`;
+}
+
+// De uitleg bij het herkennen van foto's, en het veld voor de sleutel die daarvoor nodig is.
+function foodKeyHtml(top) {
+  const key = foodKey();
+  return `${top}
+    <div class="hero"><div class="emoji">${iconSvg('sleutel')}</div><h1>Eten <em>herkennen</em></h1>
+      <p class="sub">Een foto van je eten laat ik bekijken door Claude, een slimme AI van het bedrijf Anthropic. Daarvoor heb je een eigen sleutel nodig. Dat regel je één keer.</p></div>
+    ${view.message ? `<div class="notice" role="status">${esc(view.message)}</div>` : ''}
+    ${key ? `<div class="notice">Er staat een sleutel in de app. Hij eindigt op <b>${esc(key.slice(-4))}</b>.</div>` : `
+      <h2>Zo kom je aan een sleutel</h2>
+      <ol class="steps">
+        <li><span>Ga naar <a href="https://platform.claude.com/" target="_blank" rel="noopener">platform.claude.com</a> en maak een account.</span></li>
+        <li><span>Zet er een klein bedrag op, bijvoorbeeld vijf dollar. Een foto kost één à twee cent.</span></li>
+        <li><span>Kies daar "API keys", maak een nieuwe sleutel en kopieer hem.</span></li>
+        <li><span>Plak de sleutel hieronder.</span></li>
+      </ol>`}
+    <form data-form="food-key">
+      <label for="f-key">${key ? 'Een andere sleutel' : 'Je sleutel'}</label>
+      <input id="f-key" name="key" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Begint met sk-ant-">
+      <p class="error" role="alert" hidden></p>
+      <button class="btn primary" type="submit" style="margin-top:12px">Bewaar de sleutel</button>
+    </form>
+    ${key ? '<button class="btn danger" data-action="food-key-remove">Haal de sleutel uit de app</button>' : ''}
+    <button class="btn" data-action="open-scan">${iconSvg('camera')} Terug naar de camera</button>
+    <div class="notice">Goed om te weten: de sleutel blijft op dit apparaat staan en gaat niet mee in je back-up. Geef hem aan niemand, want wie hem heeft, kan op jouw kosten foto's laten herkennen. Stel bij Anthropic een limiet in voor wat je per maand wilt uitgeven. Alleen de foto's waarbij je zelf op de knop drukt, gaan naar Anthropic.</div>`;
 }
 
 const VIEWS = {
@@ -1725,8 +1860,8 @@ const VIEWS = {
           <button class="tile pink" data-action="nav" data-view="group-setup"><span class="icon" aria-hidden="true">${iconSvg('samen')}</span><b>Samen kiezen</b><small>ieder om de beurt</small></button>
         </div>`}
       <button class="bar" data-action="open-scan">
-        <span class="icon" aria-hidden="true">${iconSvg('streepjescode')}</span>
-        <span class="bar-text"><span class="bar-name">Scan een product</span><br><span class="bar-meta">calorieën en allergenen van iets uit de winkel</span></span>
+        <span class="icon" aria-hidden="true">${iconSvg('camera')}</span>
+        <span class="bar-text"><span class="bar-name">Wat is dit?</span><br><span class="bar-meta">richt je camera op eten: calorieën en allergenen</span></span>
         <span class="chev" aria-hidden="true">›</span>
       </button>
       ${eaten.length ? `
@@ -1806,9 +1941,9 @@ const VIEWS = {
       </ul>
       ${shown.length < dishes.length ? `<button class="btn link" data-action="log-all">Toon alle ${dishes.length} favorieten</button>` : ''}`;
     const form = `
-      <h2>${prefill ? 'Het gescande product' : 'Of iets anders gegeten?'}</h2>
-      ${prefill ? '<p class="small muted">Pas de calorieën aan als je meer of minder at dan één portie.</p>' : `
-        <button class="btn" data-action="open-scan">${iconSvg('streepjescode')} Scan een product</button>`}
+      <h2>${prefill ? 'Wat de camera zag' : 'Of iets anders gegeten?'}</h2>
+      ${prefill ? '<p class="small muted">Pas de calorieën aan als je meer of minder at.</p>' : `
+        <button class="btn" data-action="open-scan">${iconSvg('camera')} Herken het met de camera</button>`}
       <form data-form="log" novalidate>
         <label for="f-logname">Wat was het?</label>
         <input id="f-logname" name="name" type="text" maxlength="60" autocomplete="off" placeholder="Bijvoorbeeld: friet" value="${prefill ? esc(prefill.name.slice(0, 60)) : ''}">
@@ -2110,10 +2245,38 @@ const VIEWS = {
       : `<div class="hero"><div class="emoji">${iconSvg('mand')}</div><p class="sub">Je lijstje is nog leeg. Kies een gerecht met ingrediënten, of zet er zelf iets op.</p></div>`}`;
   },
 
-  // Een product scannen: eerst de camera (of de cijfers intypen), dan het zoeken, dan wat er bekend is.
+  // Herkennen wat je eet: eerst de camera, dan het opzoeken (bij een streepjescode) of het bekijken van de
+  // foto, dan wat er bekend is.
   scan() {
-    const top = topHtml('Product scannen', backHtml('Terug', 'data-action="nav" data-view="home"'));
+    const top = topHtml('Wat is dit?', backHtml('Terug', 'data-action="nav" data-view="home"'));
     if (view.stage === 'result') return scanResultHtml(top);
+    if (view.stage === 'food') return foodResultHtml(top);
+    if (view.stage === 'key') return foodKeyHtml(top);
+    if (view.stage === 'looking') return `${top}
+      ${shotHtml(' looking')}
+      <div class="hero"><h1>Even <em>kijken</em>…</h1>
+        <p class="sub" role="status">${view.hint ? `Ik reken het opnieuw uit voor ${esc(view.hint)}.` : 'Ik laat de foto bekijken. Dat duurt een paar tellen.'}</p></div>
+      <button class="btn" data-action="open-scan">Stop</button>`;
+    if (view.stage === 'nofood') return `${top}
+      ${shotHtml()}
+      <div class="hero"><h1>Ik zie hier geen <em>eten</em></h1>
+        <p class="sub">Op deze foto herken ik geen eten of drinken. Probeer het nog eens, wat dichterbij en met meer licht.</p></div>
+      <button class="btn primary" data-action="open-scan">${iconSvg('camera')} Probeer het opnieuw</button>
+      <form data-form="scan-fix" class="row">
+        <input name="name" type="text" maxlength="60" autocomplete="off" placeholder="Of zeg wat het is" aria-label="Wat er op de foto staat">
+        <button class="btn primary" type="submit">Zoek</button>
+      </form>`;
+    if (view.stage === 'fooderror') {
+      const [title, text] = FOOD_ERRORS[view.reason];
+      const key = view.reason === 'sleutel' || view.reason === 'toegang';
+      return `${top}
+        ${shotHtml()}
+        <div class="hero">${scanPhoto ? '' : `<div class="emoji">${iconSvg(key ? 'sleutel' : 'vraag')}</div>`}<h1>${title}</h1><p class="sub">${text}</p></div>
+        ${key ? `<button class="btn primary" data-action="food-key-open">${iconSvg('sleutel')} Naar de sleutel</button>` : ''}
+        <button class="btn${key ? '' : ' primary'}" data-action="scan-again">Probeer het opnieuw</button>
+        <button class="btn" data-action="open-scan">${iconSvg('camera')} Een nieuwe foto</button>
+        ${view.detail ? `<details><summary><span>Wat Anthropic erover zegt</span></summary><p class="small" style="margin-top:10px" lang="en">${esc(view.detail)}</p></details>` : ''}`;
+    }
     if (view.stage === 'loading') return `${top}
       <div class="hero"><div class="emoji">${iconSvg('streepjescode')}</div><h1>Even <em>zoeken</em>…</h1>
         <p class="sub">Ik zoek het product op bij code ${esc(view.code)}.</p></div>`;
@@ -2124,16 +2287,28 @@ const VIEWS = {
           ? `De code ${esc(view.code)} staat niet in de lijst van Open Food Facts. Kijk op de verpakking voor de calorieën en de allergenen.`
           : 'Ik krijg nu geen antwoord. Heb je internet? Probeer het dan nog eens.'}</p></div>
       ${view.stage === 'error' ? '<button class="btn primary" data-action="scan-retry">Probeer het opnieuw</button>' : ''}
-      <button class="btn${view.stage === 'error' ? '' : ' primary'}" data-action="open-scan">${iconSvg('streepjescode')} Een ander product scannen</button>
+      <button class="btn${view.stage === 'error' ? '' : ' primary'}" data-action="open-scan">${iconSvg('camera')} Terug naar de camera</button>
       ${scanTypedHtml()}`;
     return `${top}
-      <h1>Scan een <em>product</em></h1>
-      <p class="sub">Richt de camera op de streepjescode. Houd het product stil, ongeveer een handbreedte van de camera.</p>
-      <div class="scan-box"><div id="scan-host"></div><span class="scan-line" aria-hidden="true"></span></div>
-      <p class="small muted center" role="status">${view.cameraError ? esc(view.cameraError) : 'Ik zoek de streepjescode…'}</p>
-      ${view.cameraError ? '<button class="btn" data-action="open-scan">Probeer de camera opnieuw</button>' : ''}
+      <h1>Wat is <em>dit?</em></h1>
+      <p class="sub">Richt de camera op je eten en tik op de ronde knop. Is er een streepjescode in beeld, dan zoek ik dat product vanzelf op.</p>
+      ${view.cameraError ? `
+        <div class="notice">${esc(view.cameraError)}</div>
+        <button class="btn primary" data-action="scan-pick">${iconSvg('foto')} Maak of kies een foto</button>
+        <button class="btn" data-action="open-scan">Probeer de camera opnieuw</button>` : `
+        <div class="scan-box">
+          <div id="scan-host"></div><span class="scan-corners" aria-hidden="true"></span>
+          <button class="scan-side" data-action="scan-pick" aria-label="Kies een foto die je al hebt">${iconSvg('foto')}</button>
+          <button class="shutter" data-action="scan-shoot" aria-label="Maak een foto en laat het eten herkennen"></button>
+        </div>
+        <p class="small muted center" role="status">${esc(view.status || 'Ik kijk mee of er een streepjescode in beeld is…')}</p>`}
+      <input id="scan-file" type="file" accept="image/*" data-change="scan-file" hidden>
+      ${view.photoError ? `<p class="error" role="alert">${esc(view.photoError)}</p>` : ''}
+      ${foodKey() ? '' : `<div class="notice">Eten op een foto herkennen staat nog niet aan. Een streepjescode lezen kan al wel.
+        <button class="btn link" data-action="food-key-open">Zet het herkennen aan</button></div>`}
       ${scanTypedHtml()}
-      <p class="small muted">De camera werkt op je telefoon zelf: er gaat geen beeld naar internet. Alleen de cijfers van de streepjescode zoek ik op bij Open Food Facts, een open lijst van producten die door vrijwilligers wordt bijgehouden.</p>`;
+      <p class="small muted">Een streepjescode leest de app op je telefoon zelf; alleen de cijfers zoek ik op bij Open Food Facts, een open lijst van producten die door vrijwilligers wordt bijgehouden. Tik je op de ronde knop of kies je een foto, dan gaat die ene foto naar Anthropic, het bedrijf achter de AI Claude, om het eten te herkennen.</p>
+      ${foodKey() ? '<button class="btn link" data-action="food-key-open">De sleutel voor het herkennen</button>' : ''}`;
   },
 
   // De instellingen zijn verdeeld over tabbladen; view.tab onthoudt welk tabblad open staat.
@@ -2518,6 +2693,22 @@ const ACTIONS = {
 
   'scan-retry'() { scanLookup(view.code); },
 
+  'scan-shoot'() { scanShoot(); },
+
+  'scan-pick'() { document.getElementById('scan-file').click(); },
+
+  // Dezelfde foto nog een keer laten bekijken, of opnieuw met wat de gebruiker zegt dat het is.
+  'scan-again'() { scanRecognise(view.hint); },
+
+  'scan-other'(el) { scanRecognise(el.dataset.name); },
+
+  'food-key-open'() { go('scan', { stage: 'key' }); },
+
+  'food-key-remove'() {
+    setFoodKey('');
+    go('scan', { stage: 'key', message: 'De sleutel is uit de app gehaald.' });
+  },
+
   // Het gescande product noteren bij vandaag: het formulier staat dan al ingevuld.
   'scan-log'() {
     const day = dayKey(new Date());
@@ -2563,6 +2754,7 @@ const ACTIONS = {
   reset() {
     if (!view.confirm) { view.confirm = true; return render(); }
     state = emptyState();
+    setFoodKey('');
     save();
     applyTheme();
     go('onboarding');
@@ -2693,6 +2885,22 @@ const FORMS = {
     app.querySelector('[data-form="scan-code"] input').focus();
   },
 
+  // De gebruiker zegt zelf wat er op de foto staat; de calorieën en de allergenen worden daarvoor opnieuw geschat.
+  'scan-fix'(form) {
+    const name = new FormData(form).get('name').trim();
+    if (!name) return form.querySelector('input').focus();
+    scanRecognise(name);
+  },
+
+  // De sleutel voor het herkennen van foto's. Lag er al een foto klaar, dan wordt die meteen bekeken.
+  'food-key'(form) {
+    const key = foodKeyFromText(new FormData(form).get('key'));
+    if (!key) return formError(form, 'Dit is geen sleutel van Anthropic. Zo\'n sleutel begint met sk-ant- en is een lange rij letters en cijfers. Kopieer hem nog eens helemaal.', 'key');
+    setFoodKey(key);
+    if (scanPhoto) scanRecognise();
+    else go('scan', { stage: 'key', message: 'De sleutel is bewaard. Je kunt nu eten laten herkennen.' });
+  },
+
   shopping(form) {
     const text = new FormData(form).get('text').trim();
     if (!text) return;
@@ -2715,6 +2923,24 @@ const CHANGES = {
       render();
     } catch (e) {
       go('more', { tab: 'profiel', photoError: 'Dit bestand kan ik niet als foto gebruiken. Probeer een andere foto.' });
+    }
+  },
+
+  // Een foto die de gebruiker kiest in plaats van de camera. Staat er een streepjescode op, dan wordt dat
+  // product opgezocht; anders gaat de foto naar de herkenner.
+  async 'scan-file'(el) {
+    const file = el.files[0];
+    if (!file) return;
+    try {
+      const { code, ...photo } = await filePhoto(file);
+      if (view.name !== 'scan') return;
+      if (code) return scanLookup(code);
+      scanPhoto = photo;
+      scanRecognise();
+    } catch (e) {
+      if (view.name !== 'scan') return;
+      view.photoError = 'Dit bestand kan ik niet als foto openen. Probeer een andere foto.';
+      render();
     }
   },
 
