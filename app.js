@@ -436,6 +436,10 @@ let meal = defaultMeal();
 let manualMeal = null;
 // De dag waarvan het startscherm laat zien wat je at; na middernacht is dat een andere dag.
 let homeDay = '';
+// De dag waarop het scherm voor het laatst is getekend, en de schermen die om "vandaag" draaien: daar begint
+// na middernacht de nieuwe dag (zie tickMeal).
+let shownDay = '';
+const DAY_VIEWS = ['week', 'plan', 'kcal'];
 // Een back-up die is gekozen om terug te zetten, tot de gebruiker dat bevestigt.
 let pendingImport = null;
 
@@ -1649,6 +1653,11 @@ window.addEventListener('popstate', () => {
   else if (view.name === 'kcal') go('week', { offset: view.offset });
   else if (view.name === 'plan') go('week');
   else if (view.name === 'country') go('world');
+  // Een recept, het aanpassen van een gerecht en de lijst om uit te kiezen gaan terug naar waar je vandaan
+  // kwam, net als de knop op het scherm zelf.
+  else if (view.name === 'chosen' && view.back && view.back !== 'home') go(view.back);
+  else if (view.name === 'edit') leaveEdit();
+  else if (view.name === 'discover') go('favorites');
   else go('home');
 });
 
@@ -1656,9 +1665,17 @@ window.addEventListener('popstate', () => {
 // Na een half uur op de achtergrond vervalt ook een maaltijd die je zelf had gekozen. Na middernacht
 // begint "vandaag gegeten" opnieuw.
 function tickMeal() {
-  if (document.hidden || !state.onboarded || view.name !== 'home') return;
-  const changed = syncMeal();
-  if (changed || homeDay !== dayKey(new Date())) render();
+  if (document.hidden || !state.onboarded) return;
+  const today = dayKey(new Date());
+  if (view.name === 'home') {
+    const changed = syncMeal();
+    if (changed || homeDay !== today) render();
+    return;
+  }
+  // Ook je week, je weekmenu en je calorieën draaien om vandaag. Wie daar na middernacht terugkomt, ziet de
+  // nieuwe dag. Alleen niet midden in het typen: dan zou wat je intikte verdwijnen.
+  const typing = document.activeElement && document.activeElement.matches('input, textarea, select');
+  if (DAY_VIEWS.includes(view.name) && shownDay !== today && !typing) render();
 }
 setInterval(tickMeal, 60000);
 
@@ -1695,7 +1712,10 @@ function render() {
     mountWorldMap();
     filterCountries();
   }
+  shownDay = dayKey(new Date());
   nav.hidden = !state.onboarded;
+  // Onder het venster van de kennismaking doet ook de menubalk even niet mee.
+  nav.inert = Boolean(view.quiz);
   // Een recept dat je vanuit je favorieten opent, hoort bij het tabblad Favorieten.
   const tab = NAV_TAB[view.name] || NAV_TAB[view.back] || 'home';
   for (const button of nav.querySelectorAll('button')) {
@@ -2186,8 +2206,8 @@ function quizDoneText() {
   const count = quiz.picked.length;
   if (quiz.mode === 'again') return count ? `Bewaar en zet ${count === 1 ? 'dit gerecht' : `deze ${count}`} erbij` : 'Bewaar mijn smaak';
   const left = MIN_DISHES - count;
-  return !count ? 'Kies zelf uit de hele lijst' : left > 0 ? `Zet ${count === 1 ? 'dit gerecht' : `deze ${count}`} erin en kies er nog ${left} bij`
-    : `Zet deze ${count} in mijn kookboek`;
+  return !count ? 'Kies zelf uit de hele lijst' : left > 0 ? `Bewaar ${count === 1 ? 'dit gerecht' : `deze ${count}`} en kies er nog ${left} bij`
+    : `Zet deze ${count} bij mijn favorieten`;
 }
 
 // Een bolletje om aan te tikken. Zonder `key` is het het bolletje voor "geen van deze".
@@ -2380,7 +2400,7 @@ const VIEWS = {
         <button class="icon-btn" data-action="nav" data-view="more" aria-label="Instellingen">${iconSvg('tandwiel')}</button>
       </div>
       ${saveWarningHtml()}
-      ${view.hello ? `<div class="notice reward">Je kookboek staat klaar met ${dishCount(state.dishes.length)}. Tik op "Help mij kiezen" en ik stel iets voor.</div>` : ''}
+      ${view.hello ? `<div class="notice reward">Je favorieten staan klaar: ${dishCount(state.dishes.length)}. Tik op "Help mij kiezen" en ik stel iets voor.</div>` : ''}
       <h1>Zin in iets <em>lekkers?</em></h1>
       <p class="sub">${current && !none ? `Je ${MEALS[meal].toLowerCase()} is gekozen. Liever iets anders? Kies gerust opnieuw.`
         : `${manualMeal ? `Je kiest nu voor ${MEALS[meal].toLowerCase()}.` : `Tijd voor ${MEALS[meal].toLowerCase()}.`} Ik help je kiezen uit je favorieten.`}</p>
@@ -2576,6 +2596,7 @@ const VIEWS = {
               <input name="kcal" type="number" inputmode="numeric" min="0" max="5000" placeholder="kcal" aria-label="De calorieën van ${esc(entry.name)}">
               <button class="icon-btn" type="submit" aria-label="Bewaar de calorieën van ${esc(entry.name)}">✓</button>
             </form></li>`).join('')}</ul>
+        ${view.fillError ? '<div class="notice" role="alert">Dat aantal calorieën klopt niet. Kies een getal tussen 0 en 5000.</div>' : ''}
         ${missing.length > 6 ? `<p class="small muted">En nog ${missing.length - 6} andere.</p>` : ''}` : ''}
       ${anything ? `
         <h2>De laatste acht weken <span>gemiddeld per dag</span></h2>
@@ -3437,6 +3458,7 @@ const ACTIONS = {
   'kcal-move'(el) {
     view.offset = Math.min(0, Math.max(-MAX_WEEKS_BACK, (view.offset || 0) + Number(el.dataset.step)));
     delete view.day;
+    delete view.fillError;
     render();
     // Aan het eind van de reeks is de knop uitgeschakeld; dan gaat de aanwijzer naar de andere knop.
     const [back, forward] = app.querySelectorAll('[data-action="kcal-move"]');
@@ -3705,7 +3727,14 @@ const FORMS = {
     const entry = state.history.find(h => h.id === form.dataset.id);
     const typed = new FormData(form).get('kcal').trim();
     const kcal = cleanKcal(Number(typed));
-    if (!entry || !typed || kcal == null) return form.querySelector('input').focus();
+    if (!entry || !typed) return form.querySelector('input').focus();
+    // Een getal dat niet kan, krijgt dezelfde uitleg als bij een gerecht, en het vakje blijft klaarstaan.
+    if (kcal == null) {
+      view.fillError = true;
+      render();
+      return app.querySelector(`[data-form="kcal-fill"][data-id="${entry.id}"] input`).focus();
+    }
+    delete view.fillError;
     entry.kcal = kcal;
     save();
     render();

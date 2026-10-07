@@ -300,14 +300,14 @@ form.row { align-items: flex-end; margin-bottom: 12px; }
 .bar .icon { width: 64px; height: 64px; font-size: 2.6rem; }
 .bar-text { flex: 1; min-width: 0; }
 .bar-name { font: 400 1.3rem/1.15 var(--serif); overflow-wrap: anywhere; }
-.bar-meta { font-size: 0.84rem; color: var(--muted); }
+.bar-meta { font-size: 0.84rem; color: var(--muted); overflow-wrap: anywhere; }
 .bar-kcal { flex: none; text-align: right; font-size: 0.76rem; line-height: 1.15; color: var(--muted); }
 .bar-kcal b { display: block; font-size: 1.12rem; font-weight: 600; color: var(--text); }
 /* Een voorstel dat net niet bij de antwoorden past */
 .bar.near { box-shadow: inset 0 0 0 1.5px var(--border); }
 /* Een regeltje in de steunkleur boven een naam */
 .no { font-size: 0.8rem; font-weight: 600; color: var(--accent-ink); }
-.tag { display: inline-block; padding: 2px 9px; border-radius: 999px; background: var(--butter); font: 600 0.72rem/1.5 var(--sans); }
+.tag { display: inline-block; padding: 2px 9px; border-radius: 999px; background: var(--butter); font: 600 0.75rem/1.5 var(--sans); }
 .chev { flex: none; font-size: 1.5rem; color: var(--muted); }
 /* De pictogrammen die zeggen waarvoor iets meetelt bij je badges */
 .marks { display: inline-flex; gap: 3px; vertical-align: -0.2em; font-size: 1.05rem; color: var(--text); }
@@ -453,6 +453,10 @@ legend { margin: 0 0 8px; padding: 0; }
   .check:has(input:checked) { border-color: var(--text); background: var(--text); color: var(--bg); }
   .check:has(input:checked) .muted { color: inherit; opacity: 0.8; }
   .check:has(input:focus-visible) { outline: 3px solid var(--accent-ink); outline-offset: 2px; }
+  /* Een hele regel om aan te vinken (je allergieën) krijgt vooraan een rondje, zoals op de boodschappenlijst:
+     zo zie je meteen dat je kunt aanvinken, en wat er aan staat */
+  .check.wide::before { content: ""; flex: none; display: grid; place-items: center; width: 22px; height: 22px; border: 1.5px solid var(--muted); border-radius: 50%; font-size: 13px; line-height: 1; }
+  .check.wide:has(input:checked)::before { content: "✓"; border-color: currentColor; }
 }
 
 /* Het pictogram van een gerecht kiezen: bordjes om aan te tikken */
@@ -705,7 +709,7 @@ span.person.on i { background: var(--card); box-shadow: 0 0 0 2px var(--accent),
 .seals { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px 4px; margin: 0 -8px 8px; }
 .seal { display: block; padding: 4px 0; border: none; background: none; font-size: 0.78rem; line-height: 1.25; text-align: center; color: var(--text); overflow-wrap: anywhere; cursor: pointer; }
 .seal .icon { width: 62px; height: 62px; margin: 0 auto 6px; background: var(--butter); font-size: 2rem; }
-.seal small { display: block; margin-top: 2px; font-size: 0.72rem; font-weight: 600; color: var(--muted); }
+.seal small { display: block; margin-top: 2px; font-size: 0.75rem; font-weight: 600; color: var(--muted); }
 /* Nog niet verdiend: het pictogram is grijs, de tekst blijft goed leesbaar */
 .seal.locked { color: var(--muted); }
 .seal.locked .icon { background: var(--tint); }
@@ -750,7 +754,7 @@ span.person.on i { background: var(--card); box-shadow: 0 0 0 2px var(--accent),
   padding: 15px 1px 10px;
   border: none;
   background: none;
-  font: 600 min(0.72rem, 3.5vw)/1.2 var(--sans);
+  font: 600 min(0.75rem, 3.5vw)/1.2 var(--sans);
   text-align: center;
   color: var(--muted);
   cursor: pointer;
