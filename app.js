@@ -20,6 +20,10 @@ const DIETS = {
 const DAYS =['Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag', 'Zaterdag', 'Zondag'];
 const MAX_WEEKS_BACK = 52;
 const MAX_HISTORY = 2000;
+// Het doel in calorieën per dag dat iemand kiest, ligt tussen deze grenzen; daarbuiten is het een tikfout.
+// Ze staan hier bovenaan omdat het inlezen van de bewaarde gegevens ze al bij het starten nodig heeft.
+const GOAL_MIN = 1000;
+const GOAL_MAX = 6000;
 // Zo lang mag een regel op de boodschappenlijst zijn; een langer ingrediënt wordt ingekort.
 const SHOPPING_LENGTH = 80;
 
@@ -364,6 +368,8 @@ function emptyState() {
     dishes: [], history: [], shopping: [], badges: {},
     onboarded: false, welcomed: false, name: '', photo: '', theme: 'tomaat', dark: 'auto', country: guessCountry(), diet: [],
     allergies: [], otherAllergies: [],
+    // Hoeveel calorieën de gebruiker per dag wil eten; leeg zolang er geen doel is gekozen.
+    kcalGoal: null,
   };
 }
 
@@ -500,6 +506,7 @@ function sanitize(data) {
     diet: cleanDiets(data.diet, true),
     allergies: cleanAllergens(data.allergies),
     otherAllergies: cleanTerms(data.otherAllergies),
+    kcalGoal: cleanGoal(data.kcalGoal),
     dishes,
     history: list(data.history).map(h => {
       if (!h || isNaN(new Date(h.date).getTime())) return null;
@@ -912,6 +919,25 @@ function shortDate(date) {
   return date.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' });
 }
 
+// De zeven dagen van een week, `offset` weken vanaf nu: de naam, de datum en de dag als JJJJ-MM-DD.
+function weekDays(offset) {
+  const start = weekStart(offset);
+  return DAYS.map((label, i) => {
+    const date = new Date(start);
+    date.setDate(start.getDate() + i);
+    return { label, date, key: dayKey(date) };
+  });
+}
+
+// Van wanneer tot wanneer een week loopt, in twee stukken: "5 – 11" en "oktober", of "29 september – 5"
+// en "oktober" als de week over twee maanden loopt.
+function weekRange(days) {
+  const start = days[0].date;
+  const end = days[6].date;
+  const month = date => date.toLocaleDateString('nl-NL', { month: 'long' });
+  return [start.getMonth() === end.getMonth() ? `${start.getDate()} – ${end.getDate()}` : `${start.getDate()} ${month(start)} – ${end.getDate()}`, month(end)];
+}
+
 function entriesOn(day) {
   const order = Object.keys(MEALS);
   return state.history.filter(h => dayKey(h.date) === day).sort((a, b) => order.indexOf(a.meal) - order.indexOf(b.meal));
@@ -958,6 +984,171 @@ function entryHtml(entry, removable, marks) {
     <li><span class="icon" aria-hidden="true">${iconSvg(dishIcon(entry))}</span>
     <span class="grow"><strong>${esc(entry.name)}</strong><span class="small">${meta} ${marksHtml(marks && { healthy: marks.healthy, slow: marks.slow })}</span></span>
     ${removable ? `<button class="icon-btn" data-action="remove-entry" data-id="${entry.id}" aria-label="Verwijder ${esc(entry.name)}">${iconSvg('kruis')}</button>` : ''}</li>`;
+}
+
+// ---------- Calorieën in beeld ----------
+
+// Onder dit doel zegt de app erbij dat het weinig is.
+const GOAL_LOW = 1500;
+// Wat een volwassene volgens het Voedingscentrum gemiddeld per dag nodig heeft.
+const GOAL_AVERAGES = [[2000, 'gemiddeld voor een vrouw'], [2500, 'gemiddeld voor een man']];
+// Zo hoog (in pixels) is het vlak waarin de staven en de lijn staan.
+const CHART_HEIGHT = 150;
+// Over zoveel weken loopt de lijn van het verloop.
+const TREND_WEEKS = 8;
+// Een dag waar niets bij staat.
+const NO_KCAL = Object.freeze({ ontbijt: 0, middag: 0, avond: 0, total: 0, known: 0, unknown: 0 });
+
+function cleanGoal(goal) {
+  return Number.isFinite(goal) && goal >= GOAL_MIN && goal <= GOAL_MAX ? Math.round(goal) : null;
+}
+
+// Bewaart het doel (of haalt het weg) en zet de melding klaar die het scherm daarna laat zien.
+function setGoal(goal) {
+  state.kcalGoal = goal;
+  save();
+  delete view.goalError;
+  delete view.goalTyped;
+  view.goalSaved = goal ? `Je doel is ${kcalText(goal)} kcal per dag.` : 'Je hebt nu geen doel meer.';
+}
+
+// Een aantal calorieën met een punt tussen de duizendtallen: 1.850.
+function kcalText(amount) {
+  return String(Math.round(amount)).replace(/\B(?=(\d{3})+$)/g, '.');
+}
+
+// Wat er per dag aan calorieën is genoteerd: per maaltijd en samen, met hoeveel notities calorieën hebben
+// (`known`) en hoeveel niet (`unknown`; die tellen niet mee). De sleutel is de dag als JJJJ-MM-DD.
+function kcalDays() {
+  const days = new Map();
+  for (const entry of state.history) {
+    const key = dayKey(entry.date);
+    if (!days.has(key)) days.set(key, { ...NO_KCAL });
+    const day = days.get(key);
+    if (entry.kcal == null) {
+      day.unknown++;
+      continue;
+    }
+    day[entry.meal] += entry.kcal;
+    day.total += entry.kcal;
+    day.known++;
+  }
+  return days;
+}
+
+// Het weeknummer zoals het in Nederland op de kalender staat: week 1 is de week met de eerste donderdag.
+function weekNumber(date) {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+  return Math.ceil(((d - Date.UTC(d.getUTCFullYear(), 0, 1)) / 86400000 + 1) / 7);
+}
+
+// Tot welk aantal calorieën een grafiek loopt: een rond getal, met wat lucht boven het hoogste dat erin staat.
+function chartTop(amounts, goal) {
+  const most = Math.max(goal || 0, ...amounts, 1);
+  const step = most > 4000 ? 1000 : most > 1600 ? 500 : 250;
+  return Math.ceil(most * 1.08 / step) * step;
+}
+
+// Twee dunne lijnen achter een grafiek, halverwege en bovenaan. Bij de bovenste staat tot hoeveel de grafiek
+// loopt; met `goal` komt het doel er als stippellijn doorheen.
+function gridHtml(top, goal) {
+  const line = (amount, extra, text) => `<span class="grid-line${extra}" style="bottom:calc(var(--axis) + ${Math.round(amount / top * CHART_HEIGHT)}px)" aria-hidden="true">${text}</span>`;
+  return `${line(top / 2, '', '')}${line(top, '', `<small>${kcalText(top)}</small>`)}${goal ? line(goal, ' goal', '') : ''}`;
+}
+
+// De uitleg boven een grafiek van wat de stippellijn is.
+function goalKeyHtml(goal) {
+  return goal ? `<p class="chart-key small muted"><i aria-hidden="true"></i>je doel: ${kcalText(goal)} kcal</p>` : '';
+}
+
+// De kleur en de naam van elke maaltijd, als lijstje naast of onder een grafiek. `amounts` zegt wat erachter staat.
+function legendHtml(amounts) {
+  return `<ul class="meal-key">${Object.keys(MEALS).map(meal => `
+    <li><i class="dot m-${meal}" aria-hidden="true"></i>${MEAL_SHORT[meal]}<b>${amounts[meal]}</b></li>`).join('')}</ul>`;
+}
+
+// De ring van vandaag, met per maaltijd een boog. Met een doel is de hele ring dat doel; zonder doel, of als
+// je erboven zit, is de ring alles wat er vandaag is genoteerd.
+function ringHtml(day, goal) {
+  const round = 2 * Math.PI * 52;
+  const whole = Math.max(goal || 0, day.total);
+  let at = 0;
+  const arcs = Object.keys(MEALS).map(meal => {
+    const length = whole ? day[meal] / whole * round : 0;
+    const start = at;
+    at += length;
+    // Een smalle opening tussen twee bogen, zodat je ze ook zonder kleur uit elkaar houdt.
+    return length < 1 ? '' : `<circle class="m-${meal}" cx="60" cy="60" r="52" stroke-dasharray="${Math.max(1, length - 2).toFixed(1)} ${round.toFixed(1)}" stroke-dashoffset="${(-start).toFixed(1)}"/>`;
+  }).join('');
+  return `
+    <div class="dial" role="img" aria-label="Vandaag ${kcalText(day.total)} kcal${goal ? ` van de ${kcalText(goal)}` : ''}">
+      <svg viewBox="0 0 120 120" aria-hidden="true"><circle class="track" cx="60" cy="60" r="52"/><g transform="rotate(-90 60 60)">${arcs}</g></svg>
+      <span class="dial-text" aria-hidden="true"><b>${kcalText(day.total)}</b><small>kcal vandaag</small></span>
+    </div>`;
+}
+
+// De week als staven: per dag één staaf, opgebouwd uit de maaltijden, met het doel als stippellijn. Een dag
+// tik je aan om de getallen te zien; een dag die nog moet komen niet.
+function barsHtml(days, week, goal, picked, today) {
+  const top = chartTop(week.map(day => day.total), goal);
+  const px = amount => Math.round(amount / top * CHART_HEIGHT);
+  return `
+    ${goalKeyHtml(goal)}
+    <div class="bars" role="group" aria-label="Calorieën per dag">
+      ${gridHtml(top, goal)}
+      ${days.map((day, i) => `
+        <button class="col${day.key === picked ? ' on' : ''}${day.key === today ? ' today' : ''}" data-action="kcal-day" data-day="${day.key}" aria-pressed="${day.key === picked}"${day.key > today ? ' disabled' : ''}
+          aria-label="${day.label} ${shortDate(day.date)}: ${week[i].known ? `${kcalText(week[i].total)} kcal` : 'geen calorieën genoteerd'}">
+          ${week[i].total ? `<span class="stack" style="height:${Math.max(6, px(week[i].total))}px">${Object.keys(MEALS).reverse().map(meal =>
+            week[i][meal] ? `<i class="m-${meal}" style="flex:${week[i][meal]}"></i>` : '').join('')}</span>` : '<span class="nothing"></span>'}
+          <span class="axis">${day.label.slice(0, 2).toLowerCase()}</span>
+        </button>`).join('')}
+    </div>`;
+}
+
+// Het verloop: per week het gemiddelde van de dagen waar calorieën bij staan, als lijn over de laatste weken.
+function trendHtml(data, goal) {
+  const weeks = [];
+  for (let back = TREND_WEEKS - 1; back >= 0; back--) {
+    const days = weekDays(-back);
+    const totals = days.map(day => data.get(day.key)).filter(day => day && day.known).map(day => day.total);
+    weeks.push({ number: weekNumber(days[0].date), average: totals.length ? totals.reduce((sum, total) => sum + total, 0) / totals.length : null });
+  }
+  const top = chartTop(weeks.map(week => week.average || 0), goal);
+  const px = amount => amount / top * CHART_HEIGHT;
+  // De lijn loopt alleen tussen weken die op elkaar volgen en waar allebei iets bij staat.
+  let path = '';
+  let drawing = false;
+  weeks.forEach((week, i) => {
+    if (week.average != null) path += `${drawing ? 'L' : 'M'}${i * 100 + 50} ${(CHART_HEIGHT - px(week.average)).toFixed(1)}`;
+    drawing = week.average != null;
+  });
+  const said = weeks.filter(week => week.average != null).map(week => `week ${week.number} ${kcalText(week.average)}`);
+  return `
+    ${goalKeyHtml(goal)}
+    <div class="trend" role="img" aria-label="Gemiddeld aantal kcal per dag: ${said.length ? listText(said) : 'nog niets genoteerd'}">
+      ${gridHtml(top, goal)}
+      <svg viewBox="0 0 ${TREND_WEEKS * 100} ${CHART_HEIGHT}" preserveAspectRatio="none"><path d="${path}"/></svg>
+      ${weeks.map((week, i) => week.average == null ? '' :
+        `<i class="point${i === TREND_WEEKS - 1 ? ' now' : ''}" style="left:${((i + 0.5) / TREND_WEEKS * 100).toFixed(2)}%;bottom:calc(var(--axis) + ${Math.round(px(week.average))}px)"></i>`).join('')}
+      <div class="trend-axis">${weeks.map(week => `<span>${week.number}</span>`).join('')}</div>
+    </div>`;
+}
+
+// De regel op het startscherm onder "Vandaag gegeten": wat er vandaag aan calorieën staat, en hoe ver dat is
+// tot het doel. Tikken opent de grafieken.
+function meterHtml(eaten) {
+  const known = eaten.filter(h => h.kcal != null);
+  if (!known.length) return '';
+  const total = known.reduce((sum, h) => sum + h.kcal, 0);
+  const goal = state.kcalGoal;
+  return `
+    <button class="meter" data-action="open-kcal" aria-label="Vandaag ${kcalText(total)} kcal${goal ? ` van de ${kcalText(goal)}` : ''}. Bekijk je calorieën">
+      <span class="meter-text"><b>${kcalText(total)}</b> kcal${goal ? ` <span class="muted">van ${kcalText(goal)}</span>` : ' vandaag'}</span>
+      ${goal ? `<span class="meter-bar"><i style="width:${Math.min(100, Math.round(total / goal * 100))}%"></i></span>` : '<span class="meter-bar none"></span>'}
+      <span class="chev" aria-hidden="true">›</span>
+    </button>`;
 }
 
 // ---------- Beloningen ----------
@@ -1198,6 +1389,7 @@ window.addEventListener('popstate', () => {
   backward = true;
   if (view.name === 'ask' && view.step > 0) ACTIONS['ask-back']();
   else if (view.name === 'log') go('week', { offset: view.offset, day: view.day });
+  else if (view.name === 'kcal') go('week', { offset: view.offset });
   else if (view.name === 'country') go('world');
   else go('home');
 });
@@ -1224,7 +1416,7 @@ document.addEventListener('visibilitychange', () => {
 
 // Welk tabblad onderin oplicht bij een scherm. De instellingen open je vanaf het startscherm.
 const NAV_TAB = {
-  week: 'week', log: 'week', favorites: 'favorites', edit: 'favorites', discover: 'favorites',
+  week: 'week', log: 'week', kcal: 'week', favorites: 'favorites', edit: 'favorites', discover: 'favorites',
   shopping: 'shopping', rewards: 'rewards',
 };
 // De tekst op de knop linksboven bij een recept, naar het scherm waar je vandaan kwam.
@@ -1622,28 +1814,24 @@ const VIEWS = {
         </div>`}
       ${eaten.length ? `
         <div class="label-row"><h2>Vandaag gegeten</h2><button class="btn link" data-action="nav" data-view="week">Hele week</button></div>
-        <ul class="list lines">${eaten.map(h => entryHtml(h, false, marks.get(h.id))).join('')}</ul>` : ''}`;
+        <ul class="list lines">${eaten.map(h => entryHtml(h, false, marks.get(h.id))).join('')}</ul>
+        ${meterHtml(eaten)}` : ''}`;
   },
 
   week() {
     const offset = view.offset || 0;
-    const start = weekStart(offset);
     const today = dayKey(new Date());
-    const days = DAYS.map((label, i) => {
-      const date = new Date(start);
-      date.setDate(start.getDate() + i);
-      return { label, date, key: dayKey(date) };
-    });
-    const end = days[6].date;
-    const month = date => date.toLocaleDateString('nl-NL', { month: 'long' });
-    // "5 – 11 oktober", of "29 september – 5 oktober" als de week over twee maanden loopt.
-    const range = start.getMonth() === end.getMonth()
-      ? `${start.getDate()} – ${end.getDate()} <em>${month(end)}</em>`
-      : `${start.getDate()} ${month(start)} – ${end.getDate()} <em>${month(end)}</em>`;
+    const days = weekDays(offset);
+    const [lead, month] = weekRange(days);
+    const range = `${lead} <em>${month}</em>`;
     const title = offset === 0 ? 'Deze week' : offset === -1 ? 'Vorige week' : `${-offset} weken geleden`;
     const marks = entryMarks();
     const keys = days.map(day => day.key);
     const counts = countEntries(state.history.filter(h => keys.includes(dayKey(h.date))));
+    // Het gemiddelde van de dagen waar calorieën bij staan, voor op de knop naar de grafieken.
+    const kcal = kcalDays();
+    const filled = days.map(day => kcal.get(day.key)).filter(day => day && day.known);
+    const average = filled.length ? filled.reduce((sum, day) => sum + day.total, 0) / filled.length : 0;
     return `
       ${topHtml('Mijn week')}
       <div class="weeknav">
@@ -1654,6 +1842,12 @@ const VIEWS = {
       <p class="sub">${title}.${offset === 0 ? ' Wat je kiest, noteer ik vanzelf bij vandaag.' : ''}</p>
       <button class="stats" data-action="nav" data-view="rewards" aria-label="${counts.healthy} keer gezond, ${counts.slow} keer uitgebreid, ${counts.distinct} verschillende gerechten. Bekijk je badges">
         <span><b>${counts.healthy}</b>gezond</span><span><b>${counts.slow}</b>uitgebreid</span><span><b>${counts.distinct}</b>verschillend</span></button>
+      <button class="bar" data-action="open-kcal">
+        <span class="icon" aria-hidden="true">${iconSvg('grafiek')}</span>
+        <span class="bar-text"><span class="bar-name">Je calorieën</span><br>
+          <span class="bar-meta">${filled.length ? `gemiddeld ${kcalText(average)} kcal per dag` : 'bekijk in grafieken hoeveel je eet'}</span></span>
+        <span class="chev" aria-hidden="true">›</span>
+      </button>
       ${days.map(day => {
         const entries = entriesOn(day.key);
         const future = day.key > today;
@@ -1676,6 +1870,122 @@ const VIEWS = {
             </div>
           </section>`;
       }).join('')}`;
+  },
+
+  // Je calorieën in grafieken: vandaag als ring, de week als staven per dag, de verdeling over de maaltijden,
+  // wat het meest meetelde en het verloop over de laatste weken. Onderaan kies je een doel per dag.
+  kcal() {
+    const offset = view.offset || 0;
+    const goal = state.kcalGoal;
+    const data = kcalDays();
+    const today = dayKey(new Date());
+    const now = data.get(today) || NO_KCAL;
+    const days = weekDays(offset);
+    const keys = days.map(day => day.key);
+    const week = days.map(day => data.get(day.key) || NO_KCAL);
+    const filled = week.filter(day => day.known);
+    const total = week.reduce((sum, day) => sum + day.total, 0);
+    const average = filled.length ? total / filled.length : 0;
+    // De dag die uitgelicht is: de dag die je aantikt, anders vandaag, anders de laatste dag waar iets bij staat.
+    const last = days.filter((day, i) => week[i].known).pop() || days[0];
+    const picked = keys.includes(view.day) && view.day <= today ? view.day : keys.includes(today) ? today : last.key;
+    const shown = days[keys.indexOf(picked)];
+    const one = week[keys.indexOf(picked)];
+    const title = offset === 0 ? 'Deze week' : offset === -1 ? 'Vorige week' : `${-offset} weken geleden`;
+    // Wat deze week het meest meetelde: hetzelfde gerecht telt samen.
+    const entries = state.history.filter(h => keys.includes(dayKey(h.date)));
+    const byName = new Map();
+    for (const entry of entries.filter(h => h.kcal != null)) {
+      const key = entry.name.toLowerCase();
+      if (!byName.has(key)) byName.set(key, { entry, kcal: 0, times: 0 });
+      byName.get(key).kcal += entry.kcal;
+      byName.get(key).times++;
+    }
+    const most = [...byName.values()].filter(item => item.kcal > 0).sort((a, b) => b.kcal - a.kcal).slice(0, 5);
+    const missing = entries.filter(h => h.kcal == null);
+    const percent = meal => total ? Math.round(week.reduce((sum, day) => sum + day[meal], 0) / total * 100) : 0;
+    const apart = amount => goal == null || !amount ? '' : amount === goal ? ' · precies je doel'
+      : ` · ${kcalText(Math.abs(goal - amount))} ${amount < goal ? 'onder' : 'boven'} je doel`;
+    const anything = [...data.values()].some(day => day.known);
+    return `
+      ${topHtml('Calorieën', backHtml('Week', 'data-action="kcal-back"'))}
+      <h1>Je <em>calorieën</em></h1>
+      <p class="sub">Zo veel at je, volgens wat je hebt genoteerd.</p>
+      ${anything ? `
+        <div class="card kcal-today">
+          ${ringHtml(now, goal)}
+          ${legendHtml({ ontbijt: kcalText(now.ontbijt), middag: kcalText(now.middag), avond: kcalText(now.avond) })}
+        </div>
+        <p class="small muted">${now.known === 0 ? 'Vandaag staat er nog niets met calorieën.'
+          : goal == null ? 'Kies onderaan een doel, dan zie je hier hoe ver je bent.'
+          : now.total === goal ? `Precies je doel van ${kcalText(goal)} kcal.`
+          : now.total < goal ? `Nog ${kcalText(goal - now.total)} kcal tot je doel van ${kcalText(goal)}.`
+          : `${kcalText(now.total - goal)} kcal boven je doel van ${kcalText(goal)}.`}${now.unknown ? ` Bij ${now.unknown} ${now.unknown === 1 ? 'notitie' : 'notities'} van vandaag staan geen calorieën.` : ''}</p>` : `
+        <div class="hero"><div class="emoji">${iconSvg('grafiek')}</div>
+          <p class="sub">Er staat nog niets met calorieën in je week. Noteer wat je eet, met de calorieën erbij, dan zie je hier in grafieken hoeveel je eet.</p></div>
+        <button class="btn primary" data-action="log-day" data-day="${today}">+ Iets noteren bij vandaag</button>`}
+
+      <div class="weeknav">
+        <button class="icon-btn soft" data-action="kcal-move" data-step="-1" aria-label="Vorige week"${offset <= -MAX_WEEKS_BACK ? ' disabled' : ''}>‹</button>
+        <h2>${days[0].date.getMonth() === days[6].date.getMonth() ? weekRange(days).join(' ') : `${shortDate(days[0].date)} – ${shortDate(days[6].date)}`} <span>${title.toLowerCase()}</span></h2>
+        <button class="icon-btn soft" data-action="kcal-move" data-step="1" aria-label="Volgende week"${offset >= 0 ? ' disabled' : ''}>›</button>
+      </div>
+      <div class="card chart">
+        ${barsHtml(days, week, goal, picked, today)}
+        <div class="day-info" role="status">
+          <span class="grow"><strong>${shown.label} ${shortDate(shown.date)}</strong>
+            <span class="small">${one.known ? `${kcalText(one.total)} kcal${apart(one.total)}` : 'Geen calorieën genoteerd'}</span>
+            ${one.total ? `<span class="small muted">${Object.keys(MEALS).filter(meal => one[meal]).map(meal => `${MEAL_SHORT[meal].toLowerCase()} ${kcalText(one[meal])}`).join(' · ')}</span>` : ''}</span>
+          <button class="btn link" data-action="log-day" data-day="${shown.key}" aria-label="Iets noteren bij ${shown.label.toLowerCase()}">+ noteren</button>
+        </div>
+      </div>
+      ${filled.length ? `
+        <div class="tiles">
+          <span><b>${kcalText(average)}</b>gemiddeld per dag</span>
+          <span><b>${kcalText(total)}</b>in de hele week</span>
+          ${goal ? `<span><b>${Math.round(average / goal * 100)}%</b>van je doel, gemiddeld</span>`
+            : `<span><b>${kcalText(Math.max(...week.map(day => day.total)))}</b>op de hoogste dag</span>`}
+        </div>
+        ${filled.length < 7 ? `<p class="small muted">Het gemiddelde gaat over de ${filled.length === 1 ? 'ene dag' : `${filled.length} dagen`} waar calorieën bij staan.</p>` : ''}
+        <h2>Per maaltijd</h2>
+        <div class="split" role="img" aria-label="${Object.keys(MEALS).map(meal => `${MEALS[meal]} ${percent(meal)} procent`).join(', ')}">
+          ${Object.keys(MEALS).map(meal => percent(meal) ? `<i class="m-${meal}" style="flex:${percent(meal)}"></i>` : '').join('')}</div>
+        ${legendHtml({ ontbijt: `${percent('ontbijt')}%`, middag: `${percent('middag')}%`, avond: `${percent('avond')}%` })}
+        ${most.length ? `
+          <h2>Wat het meest meetelde</h2>
+          <ul class="list lines">${most.map(item => `
+            <li><span class="icon" aria-hidden="true">${iconSvg(dishIcon(item.entry))}</span>
+              <span class="grow"><strong>${esc(item.entry.name)}</strong><span class="small">${item.times === 1 ? '1 keer' : `${item.times} keer`}</span>
+                <span class="share" aria-hidden="true"><i style="width:${Math.max(4, Math.round(item.kcal / most[0].kcal * 100))}%"></i></span></span>
+              <span class="bar-kcal"><b>${kcalText(item.kcal)}</b>kcal</span></li>`).join('')}</ul>` : ''}` : ''}
+      ${missing.length ? `
+        <h2>Calorieën aanvullen</h2>
+        <p class="small muted">Bij ${missing.length === 1 ? 'deze notitie' : 'deze notities'} staan geen calorieën. Zolang dat zo is, ${missing.length === 1 ? 'telt ze' : 'tellen ze'} niet mee.</p>
+        <ul class="list">${missing.slice(0, 6).map(entry => `
+          <li><span class="grow"><strong>${esc(entry.name)}</strong><br><span class="small muted">${DAYS[(new Date(entry.date).getDay() + 6) % 7].toLowerCase()} · ${MEAL_SHORT[entry.meal].toLowerCase()}</span></span>
+            <form data-form="kcal-fill" data-id="${entry.id}" class="fill" novalidate>
+              <input name="kcal" type="number" inputmode="numeric" min="0" max="5000" placeholder="kcal" aria-label="De calorieën van ${esc(entry.name)}">
+              <button class="icon-btn" type="submit" aria-label="Bewaar de calorieën van ${esc(entry.name)}">✓</button>
+            </form></li>`).join('')}</ul>
+        ${missing.length > 6 ? `<p class="small muted">En nog ${missing.length - 6} andere.</p>` : ''}` : ''}
+      ${anything ? `
+        <h2>De laatste acht weken <span>gemiddeld per dag</span></h2>
+        <div class="card chart">${trendHtml(data, goal)}<p class="small muted center">weeknummer</p></div>` : ''}
+
+      <h2><label for="f-goal">Je doel per dag</label></h2>
+      <form data-form="kcal-goal" class="row" novalidate>
+        <input id="f-goal" name="goal" type="number" inputmode="numeric" min="${GOAL_MIN}" max="${GOAL_MAX}" step="50" value="${view.goalTyped != null ? esc(view.goalTyped) : goal || ''}" placeholder="Bijvoorbeeld: 2000">
+        <button class="btn primary" type="submit">Bewaar</button>
+      </form>
+      ${view.goalError ? `<p class="error" role="alert">${esc(view.goalError)}</p>` : ''}
+      ${view.goalSaved ? `<div class="notice" role="status">${esc(view.goalSaved)}</div>` : ''}
+      <div class="chips">
+        ${GOAL_AVERAGES.map(([amount, who]) => `<button class="chip" data-action="kcal-quick" data-goal="${amount}" aria-pressed="${goal === amount}">${kcalText(amount)} · ${who}</button>`).join('')}
+        ${goal ? '<button class="chip" data-action="kcal-quick" data-goal="0">Geen doel</button>' : ''}
+      </div>
+      ${goal && goal < GOAL_LOW ? `<div class="notice">${kcalText(goal)} kcal per dag is weinig voor een volwassene. Eet niet lang zo weinig zonder overleg met je huisarts of een diëtist.</div>` : ''}
+      <p class="small muted">Volgens het Voedingscentrum heeft een vrouw gemiddeld 2.000 en een man gemiddeld 2.500 kcal per dag nodig. Hoeveel jij nodig hebt, hangt af van je leeftijd, je lengte en hoeveel je beweegt.</p>
+      <div class="notice">De app telt alleen op wat je zelf noteert en geeft geen dieetadvies. De calorieën bij een gerecht zijn een schatting. Wil je afvallen of aankomen, of twijfel je wat goed voor je is? Vraag het je huisarts of een diëtist.</div>`;
   },
 
   log() {
@@ -2039,7 +2349,10 @@ const VIEWS = {
       dieet: () => `
         <fieldset aria-label="Mijn dieet">${dietChecksHtml(true)}</fieldset>
         <p class="muted small" style="margin-top:10px">Ik stel alleen gerechten voor die passen bij alles wat je hier aanvinkt. Per gerecht geef je bij Favorieten aan bij welk dieet het past.</p>
-        <p class="muted small">Let op: de diëten bij gerechten zijn een schatting en geen garantie. Heb je een allergie? Vink die dan aan op het tabblad Allergie.</p>`,
+        <p class="muted small">Let op: de diëten bij gerechten zijn een schatting en geen garantie. Heb je een allergie? Vink die dan aan op het tabblad Allergie.</p>
+        <h2>Op je calorieën letten</h2>
+        <p class="muted small">In grafieken zie je hoeveel calorieën je eet, per dag en per week. Je kunt er ook een doel bij kiezen.</p>
+        <button class="btn" data-action="open-kcal">${iconSvg('grafiek')} Bekijk je calorieën</button>`,
 
       thema: () => `
         <div class="themes" role="group" aria-label="Kleur">${Object.entries(THEMES).map(([id, name]) => `
@@ -2294,6 +2607,36 @@ const ACTIONS = {
     go('log', { day: el.dataset.day, offset: view.offset || 0, meal: openMeal(el.dataset.day) });
   },
 
+  // De grafieken van je calorieën. Vanuit het weekoverzicht openen ze bij de week die daar in beeld is.
+  'open-kcal'() { go('kcal', { offset: view.name === 'week' ? view.offset || 0 : 0 }); },
+
+  'kcal-back'() { go('week', { offset: view.offset || 0 }); },
+
+  // Een week terug of vooruit. Het scherm blijft staan waar het stond, want de grafiek staat halverwege.
+  'kcal-move'(el) {
+    view.offset = Math.min(0, Math.max(-MAX_WEEKS_BACK, (view.offset || 0) + Number(el.dataset.step)));
+    delete view.day;
+    render();
+    // Aan het eind van de reeks is de knop uitgeschakeld; dan gaat de aanwijzer naar de andere knop.
+    const [back, forward] = app.querySelectorAll('[data-action="kcal-move"]');
+    const same = el.dataset.step === '-1' ? back : forward;
+    (same.disabled ? (same === back ? forward : back) : same).focus();
+  },
+
+  // Een dag in de grafiek aantikken laat de getallen van die dag zien.
+  'kcal-day'(el) {
+    view.day = el.dataset.day;
+    render();
+    app.querySelector(`.col[data-day="${view.day}"]`).focus();
+  },
+
+  // Een doel kiezen uit de voorzetten, of het doel weghalen.
+  'kcal-quick'(el) {
+    setGoal(cleanGoal(Number(el.dataset.goal)));
+    render();
+    (app.querySelector(`[data-action="kcal-quick"][data-goal="${el.dataset.goal}"]`) || document.getElementById('f-goal')).focus();
+  },
+
   'log-meal'(el) {
     view.meal = el.dataset.meal;
     render();
@@ -2521,6 +2864,32 @@ const FORMS = {
     const reward = rewardFor(logEntry(source, view.day, view.meal, false));
     save();
     go('week', { offset: view.offset, day: view.day, reward });
+  },
+
+  // Het doel per dag. Een leeg veld haalt het doel weg; een getal dat niet kan, blijft staan met een melding.
+  'kcal-goal'(form) {
+    const typed = new FormData(form).get('goal').trim();
+    const goal = cleanGoal(Number(typed));
+    if (typed && goal == null) {
+      view.goalError = `Kies een getal tussen de ${kcalText(GOAL_MIN)} en de ${kcalText(GOAL_MAX)}.`;
+      view.goalTyped = typed.slice(0, 8);
+      delete view.goalSaved;
+    } else {
+      setGoal(typed ? goal : null);
+    }
+    render();
+    document.getElementById('f-goal').focus();
+  },
+
+  // De calorieën bij een notitie die ze nog niet had.
+  'kcal-fill'(form) {
+    const entry = state.history.find(h => h.id === form.dataset.id);
+    const typed = new FormData(form).get('kcal').trim();
+    const kcal = cleanKcal(Number(typed));
+    if (!entry || !typed || kcal == null) return form.querySelector('input').focus();
+    entry.kcal = kcal;
+    save();
+    render();
   },
 
   shopping(form) {
