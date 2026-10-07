@@ -1524,13 +1524,15 @@ function barHtml(item) {
 // gegevens, of omdat het woord in de naam of de ingrediënten staat), waarvan er sporen in kunnen zitten, en
 // welke zelf toegevoegde allergieën in de naam of de ingrediënten staan.
 function productRisks(product) {
-  const text = plainWords(`${product.name} ${product.ingredients}`);
-  const inText = key => ALLERGEN_WORDS[key].some(word => mentions(text, word));
-  const contains = state.allergies.filter(key => product.contains.known.includes(key) || inText(key));
+  // Allergenen die er in andere woorden bij staan ("hazelnoten" in plaats van "noten") tellen als tekst mee.
+  const text = plainWords(`${product.name} ${product.ingredients} ${product.contains.other.join(' ')}`);
+  const loose = plainWords(product.traces.other.join(' '));
+  const within = (where, key) => ALLERGEN_WORDS[key].some(word => mentions(where, word));
+  const contains = state.allergies.filter(key => product.contains.known.includes(key) || within(text, key));
   return {
     contains,
-    traces: state.allergies.filter(key => product.traces.known.includes(key) && !contains.includes(key)),
-    words: state.otherAllergies.filter(term => allergyWords(term).some(word => mentions(text, word))),
+    traces: state.allergies.filter(key => !contains.includes(key) && (product.traces.known.includes(key) || within(loose, key))),
+    words: state.otherAllergies.filter(term => allergyWords(term).some(word => mentions(`${text} ${loose}`, word))),
   };
 }
 
@@ -1672,7 +1674,11 @@ function foodResultHtml(top) {
   const food = view.product;
   const risks = productRisks(food);
   const label = key => ALLERGENS[key][0].toLowerCase();
-  const pills = keys => keys.map(key => `<span class="pill${state.allergies.includes(key) ? ' mine' : ''}">${label(key)}</span>`).join('');
+  // Een allergeen dat de herkenner in eigen woorden opschreef, kleurt mee als het bij een allergie van de gebruiker hoort.
+  const mine = text => state.allergies.some(key => ALLERGEN_WORDS[key].some(word => mentions(plainWords(text), word)));
+  const pills = group => [...group.known.map(key => [label(key), state.allergies.includes(key)]), ...group.other.map(text => [esc(text), mine(text)])]
+    .map(([text, own]) => `<span class="pill${own ? ' mine' : ''}">${text}</span>`).join('');
+  const has = group => group.known.length + group.other.length > 0;
   const alarms = [
     risks.contains.length ? `dit bevat waarschijnlijk ${listText(risks.contains.map(label))}` : '',
     risks.traces.length ? `het kan ${listText(risks.traces.map(label))} bevatten` : '',
@@ -1693,7 +1699,7 @@ function foodResultHtml(top) {
     ${food.kcalServing == null ? '<p class="small muted">De calorieën kan ik op deze foto niet schatten.</p>'
       : food.kcalLow == null ? '' : `<p class="small muted">Het zit ergens tussen de ${food.kcalLow} en de ${food.kcalHigh} kcal.</p>`}
     ${food.note ? `<div class="notice">${esc(food.note)}</div>` : ''}
-    <details${food.sure === 'hoog' ? '' : ' open'}><summary><span>Klopt het niet?</span></summary>
+    <details data-remember="fixOpen"${(view.fixOpen == null ? food.sure !== 'hoog' : view.fixOpen) ? ' open' : ''}><summary><span>Klopt het niet?</span></summary>
       <p class="small muted" style="margin-top:10px">${doubt ? `${doubt} ` : ''}Zeg wat het wel is, dan reken ik het opnieuw uit. Dat kost nog een keer een foto.</p>
       ${food.others.length ? `<div class="chips">${food.others.map(other => `<button class="chip" data-action="scan-other" data-name="${esc(other)}">${esc(other)}</button>`).join('')}</div>` : ''}
       <form data-form="scan-fix" class="row">
@@ -1706,9 +1712,9 @@ function foodResultHtml(top) {
         <li><span class="grow"><strong>${esc(part.name)}</strong>${part.grams == null ? '' : `<span class="small">ongeveer ${part.grams} ${food.liquid ? 'ml' : 'gram'}</span>`}</span>
           ${part.kcal == null ? '' : `<span class="bar-kcal"><b>${part.kcal}</b>kcal</span>`}</li>`).join('')}</ul>` : ''}
     <h2>Allergenen <span>${food.label ? 'van het etiket gelezen' : 'een schatting'}</span></h2>
-    ${food.contains.known.length ? `<p class="small muted">${food.label ? 'Bevat' : 'Zit er waarschijnlijk in'}</p><div class="pills">${pills(food.contains.known)}</div>` : ''}
-    ${food.traces.known.length ? `<p class="small muted">${food.label ? 'Kan ook bevatten' : 'Zit er vaak in, maar zie ik niet'}</p><div class="pills">${pills(food.traces.known)}</div>` : ''}
-    ${food.contains.known.length + food.traces.known.length ? '' : '<p>Ik zie niets dat op een van de veertien bekende allergenen wijst. Dat is geen garantie.</p>'}
+    ${has(food.contains) ? `<p class="small muted">${food.label ? 'Bevat' : 'Zit er waarschijnlijk in'}</p><div class="pills">${pills(food.contains)}</div>` : ''}
+    ${has(food.traces) ? `<p class="small muted">${food.label ? 'Kan ook bevatten' : 'Zit er vaak in, maar zie ik niet'}</p><div class="pills">${pills(food.traces)}</div>` : ''}
+    ${has(food.contains) || has(food.traces) ? '' : '<p>Ik zie niets dat op een van de veertien bekende allergenen wijst. Dat is geen garantie.</p>'}
     ${food.ingredients ? `<details><summary><span>${food.label ? 'Wat ik op het etiket lees' : 'Wat er vermoedelijk in zit'}</span></summary><p class="small" style="margin-top:10px">${esc(food.ingredients)}</p></details>` : ''}
     <p class="small muted" style="margin-top:14px">${FOOD_WARNING}</p>
     <button class="btn primary" data-action="scan-log">Noteer dit als gegeten</button>

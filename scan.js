@@ -495,6 +495,11 @@ const FOOD_SCHEMA = {
   },
 };
 
+// Dezelfde vorm in woorden, voor als Anthropic de vaste vorm hierboven niet aanneemt (zie recogniseFood).
+const FOOD_SHAPE = `Antwoord met alleen JSON, zonder tekst ervoor of erna, dat past bij dit schema: ${JSON.stringify(FOOD_SCHEMA)}`;
+// Zo lang (in milliseconden) wacht de app voor ze het na een storing bij Anthropic nog één keer probeert.
+const FOOD_RETRY_PAUSE = 1500;
+
 // De sleutel van de gebruiker. Wil de telefoon niets bewaren, dan blijft hij in het geheugen tot de app sluit.
 let looseKey = '';
 
@@ -562,18 +567,13 @@ function filePhoto(file) {
   });
 }
 
-// Laat een foto herkennen. `hint` is wat de gebruiker zelf zegt dat het is, als de eerste gok niet klopte.
-// Geeft terug wat er op de foto staat (zie cleanFood). Lukt het niet, dan volgt een fout met een `reason`
-// (offline, sleutel, tegoed, toegang, druk, storing, geweigerd of fout) en in `detail` wat Anthropic erover zegt.
-async function recogniseFood(photo, key, hint) {
-  const fail = (reason, detail) => Object.assign(new Error(reason), { reason, detail: detail || '' });
-  const said = String(hint || '').replace(/["\s]+/g, ' ').trim().slice(0, 60);
+// Stuurt één aanvraag naar Anthropic en geeft terug wat er terugkomt: de status, de gegevens (of niets als die
+// niet te lezen zijn) en, bij een fout, wat Anthropic erover zegt. Komt er geen antwoord, dan volgt een fout.
+async function foodRequest(key, body) {
   const control = new AbortController();
   const timer = setTimeout(() => control.abort(), FOOD_PATIENCE);
-  let response;
-  let data = null;
   try {
-    response = await fetch(FOOD_API, {
+    const response = await fetch(FOOD_API, {
       method: 'POST',
       signal: control.signal,
       headers: {
@@ -583,45 +583,81 @@ async function recogniseFood(photo, key, hint) {
         // Zonder deze regel weigert Anthropic een aanvraag die rechtstreeks uit een browser komt.
         'anthropic-dangerous-direct-browser-access': 'true',
       },
-      body: JSON.stringify({
-        model: FOOD_MODEL,
-        // Ruim genoeg voor het antwoord en voor wat de herkenner er eerst bij bedenkt.
-        max_tokens: 4000,
-        system: FOOD_RULES,
-        messages: [{
-          role: 'user',
-          content: [
-            { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: photo.data } },
-            { type: 'text', text: said
-              ? `De gebruiker zegt dat dit "${said}" is. Ga daarvan uit: vul de gegevens in voor "${said}" en schat de portie op wat je op de foto ziet.`
-              : 'Wat staat er op deze foto?' },
-          ],
-        }],
-        output_config: { effort: 'low', format: { type: 'json_schema', schema: FOOD_SCHEMA } },
-      }),
+      body: JSON.stringify(body),
     });
-    data = await response.json().catch(() => null);
-  } catch (e) {
-    throw fail('offline');
+    const data = await response.json().catch(() => null);
+    return {
+      status: response.status,
+      ok: response.ok,
+      data,
+      detail: response.ok ? '' : data && data.error && typeof data.error.message === 'string' ? data.error.message.slice(0, 300) : `antwoord ${response.status}`,
+    };
   } finally {
     clearTimeout(timer);
   }
-  if (!response.ok) {
-    const detail = data && data.error && typeof data.error.message === 'string' ? data.error.message.slice(0, 300) : `antwoord ${response.status}`;
-    throw fail(response.status === 401 ? 'sleutel'
-      : response.status === 402 || (response.status === 400 && /credit|billing|balance|spend/i.test(detail)) ? 'tegoed'
-      : response.status === 403 ? 'toegang'
-      : response.status === 429 ? 'druk'
-      : response.status >= 500 ? 'storing'
-      : 'fout', detail);
+}
+
+// Laat een foto herkennen. `hint` is wat de gebruiker zelf zegt dat het is, als de eerste gok niet klopte.
+// Geeft terug wat er op de foto staat (zie cleanFood). Lukt het niet, dan volgt een fout met een `reason`
+// (offline, sleutel, tegoed, toegang, druk, storing, geweigerd of fout) en in `detail` wat Anthropic erover zegt.
+async function recogniseFood(photo, key, hint) {
+  const fail = (reason, detail) => Object.assign(new Error(reason), { reason, detail: detail || '' });
+  const said = String(hint || '').replace(/["\s]+/g, ' ').trim().slice(0, 60);
+  const noMoney = answer => answer.status === 402 || (answer.status === 400 && /credit|billing|balance|spend/i.test(answer.detail));
+  // `strict` vraagt het antwoord in een vaste vorm; zonder staat de vorm in woorden bij de regels.
+  const body = strict => ({
+    model: FOOD_MODEL,
+    // Ruim genoeg voor het antwoord en voor wat de herkenner er eerst bij bedenkt.
+    max_tokens: 4000,
+    system: strict ? FOOD_RULES : `${FOOD_RULES}\n\n${FOOD_SHAPE}`,
+    messages: [{
+      role: 'user',
+      content: [
+        { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: photo.data } },
+        { type: 'text', text: said
+          ? `De gebruiker zegt dat dit "${said}" is. Ga daarvan uit: vul de gegevens in voor "${said}" en schat de portie op wat je op de foto ziet.`
+          : 'Wat staat er op deze foto?' },
+      ],
+    }],
+    ...(strict ? { output_config: { effort: 'low', format: { type: 'json_schema', schema: FOOD_SCHEMA } } } : {}),
+  });
+  let answer;
+  try {
+    answer = await foodRequest(key, body(true));
+    // Een storing bij Anthropic is vaak zo voorbij: na een korte pauze nog één keer.
+    if (answer.status >= 500) {
+      await new Promise(done => setTimeout(done, FOOD_RETRY_PAUSE));
+      answer = await foodRequest(key, body(true));
+    }
+    // Neemt Anthropic de aanvraag zelf niet aan (bijvoorbeeld de vaste vorm van het antwoord), dan nog een
+    // keer op de eenvoudigste manier. Een aanvraag die geweigerd wordt, kost niets.
+    if (answer.status === 400 && !noMoney(answer)) {
+      const plain = await foodRequest(key, body(false));
+      // Lukt dat ook niet, dan blijft de eerste melding staan: die zegt wat er mis is.
+      if (plain.ok || plain.status !== 400) answer = plain;
+    }
+  } catch (e) {
+    throw fail('offline');
   }
+  if (!answer.ok) {
+    throw fail(answer.status === 401 ? 'sleutel'
+      : noMoney(answer) ? 'tegoed'
+      : answer.status === 403 ? 'toegang'
+      : answer.status === 429 ? 'druk'
+      : answer.status >= 500 ? 'storing'
+      : 'fout', answer.detail);
+  }
+  const data = answer.data;
   if (!data) throw fail('fout', 'het antwoord is niet te lezen');
   if (data.stop_reason === 'refusal') throw fail('geweigerd');
   // Voor het antwoord kan een blok met gedachten staan; het antwoord zelf is het blok met tekst.
   const block = (Array.isArray(data.content) ? data.content : []).find(part => part && part.type === 'text' && typeof part.text === 'string');
   if (!block || data.stop_reason === 'max_tokens') throw fail('fout', `geen volledig antwoord (${String(data.stop_reason).slice(0, 30)})`);
   try {
-    return cleanFood(JSON.parse(block.text));
+    // Staat er toch tekst omheen, dan telt wat er tussen de eerste en de laatste accolade staat.
+    const from = block.text.indexOf('{');
+    const to = block.text.lastIndexOf('}');
+    return cleanFood(JSON.parse(from >= 0 && to > from ? block.text.slice(from, to + 1) : block.text));
   } catch (e) {
     throw fail('fout', 'het antwoord is niet te lezen');
   }
@@ -636,7 +672,12 @@ function cleanFood(raw) {
   const list = (value, most) => (Array.isArray(value) ? value : []).slice(0, most);
   // De herkenner kan een woord uit een vaste lijst met een hoofdletter schrijven.
   const word = value => text(value, 20).toLowerCase();
-  const allergens = value => [...new Set(list(value, 20).map(word).filter(key => FOOD_ALLERGENS.includes(key)))];
+  // Bekende allergenen als de sleutels van de app; wat de herkenner er anders opschrijft, blijft als tekst
+  // staan, zodat het niet wegvalt (zie productRisks).
+  const allergens = value => {
+    const words = [...new Set(list(value, 20).map(item => text(item, 30).toLowerCase()).filter(Boolean))];
+    return { known: words.filter(key => FOOD_ALLERGENS.includes(key)), other: words.filter(key => !FOOD_ALLERGENS.includes(key)).slice(0, 8) };
+  };
   const name = text(source.naam, 80);
   const kind = FOOD_KINDS.includes(word(source.soort)) ? word(source.soort) : 'gerecht';
   const low = amount(source.kcal_min, 9999);
@@ -645,6 +686,7 @@ function cleanFood(raw) {
   // Een marge telt alleen als ze klopt: van laag naar hoog, met de schatting ertussen.
   const ranged = low != null && high != null && low < high && (middle == null || (middle >= low && middle <= high));
   const contains = allergens(source.bevat);
+  const maybe = allergens(source.kan_bevatten);
   return {
     photo: true,
     code: '',
@@ -664,8 +706,9 @@ function cleanFood(raw) {
     liquid: kind === 'drank',
     parts: list(source.onderdelen, 8).map(part => part && typeof part === 'object'
       ? { name: text(part.naam, 50), grams: amount(part.gram, 5000), kcal: amount(part.kcal, 9999) } : { name: '' }).filter(part => part.name),
-    contains: { known: contains, other: [] },
-    traces: { known: allergens(source.kan_bevatten).filter(key => !contains.includes(key)), other: [] },
+    contains,
+    // Wat er al zeker in zit, hoeft niet nog eens bij "kan bevatten" te staan.
+    traces: { known: maybe.known.filter(key => !contains.known.includes(key)), other: maybe.other.filter(key => !contains.other.includes(key)) },
     label: source.etiket_gelezen === true,
     ingredients: list(source.ingredienten, 25).map(item => text(item, 40)).filter(Boolean).join(', '),
     note: text(source.opmerking, 200),
