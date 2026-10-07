@@ -52,7 +52,8 @@ const BADGES = [
 // De steunkleuren om uit te kiezen; de kleuren zelf staan in style.css onder dezelfde naam.
 const THEMES = { tomaat: 'Tomaat', olijf: 'Olijf', bosbes: 'Bosbes', mosterd: 'Mosterd' };
 // De avondstand: het donkere papier voor in het donker. Automatisch volgt het apparaat.
-const DARK_MODES = { auto: 'Automatisch', uit: 'Uit', aan: 'Aan' };
+// (­ is een afbreekplek: je ziet er alleen een streepje als het woord niet op de regel past.)
+const DARK_MODES = { auto: 'Auto­matisch', uit: 'Uit', aan: 'Aan' };
 // De thema's van voor het kookboekontwerp: [de kleur die er het meest op lijkt, de avondstand]. Het thema
 // Standaard volgde het apparaat; de andere waren altijd licht of altijd donker.
 const OLD_THEMES = {
@@ -413,6 +414,8 @@ const CATALOG_DIETS = {
 };
 // De korte namen van de maaltijden, voor de tabbladen en de regels in je week.
 const MEAL_SHORT = { ontbijt: 'Ontbijt', middag: 'Middag', avond: 'Avond' };
+// Dezelfde namen voor op een knop, met een afbreekplek voor als de knop te smal is (smal scherm, grote letters)
+const MEAL_TAB = { ontbijt: 'Ont­bijt', middag: 'Mid­dag', avond: 'Avond' };
 // Zoveel favorieten zie je bij "Iets noteren" voordat je om de rest vraagt.
 const LOG_PREVIEW = 5;
 // De profielfoto wordt vierkant en klein opgeslagen, als tekst in de opslag van de browser.
@@ -1844,7 +1847,7 @@ function catalogHtml(defaultMeal) {
       }),
   }))].map(section => ({ ...section, rows: section.rows.filter(Boolean) })).filter(section => section.rows.length);
   return `
-    <div class="segments" role="group" aria-label="Maaltijd">${[['alles', 'Alles'], ...Object.entries(MEAL_SHORT)].map(([value, label]) => `
+    <div class="segments" role="group" aria-label="Maaltijd">${[['alles', 'Alles'], ...Object.entries(MEAL_TAB)].map(([value, label]) => `
       <button data-action="catalog-meal" data-meal="${value}" aria-pressed="${value === filter}">${label}</button>`).join('')}
     </div>
     <input type="search" data-input="catalog-search" value="${esc(view.catalogQuery || '')}" placeholder="Zoek een gerecht" aria-label="Zoek een gerecht">
@@ -2381,7 +2384,7 @@ const VIEWS = {
       <h1>Zin in iets <em>lekkers?</em></h1>
       <p class="sub">${current && !none ? `Je ${MEALS[meal].toLowerCase()} is gekozen. Liever iets anders? Kies gerust opnieuw.`
         : `${manualMeal ? `Je kiest nu voor ${MEALS[meal].toLowerCase()}.` : `Tijd voor ${MEALS[meal].toLowerCase()}.`} Ik help je kiezen uit je favorieten.`}</p>
-      <div class="segments" role="group" aria-label="Maaltijd">${Object.entries(MEAL_SHORT).map(([value, label]) => `
+      <div class="segments" role="group" aria-label="Maaltijd">${Object.entries(MEAL_TAB).map(([value, label]) => `
         <button data-action="set-meal" data-meal="${value}" aria-pressed="${value === meal}">${label}</button>`).join('')}
       </div>
       ${current ? `
@@ -2405,8 +2408,8 @@ const VIEWS = {
         <button class="btn" data-action="edit-dish">+ Zelf een gerecht toevoegen</button>
         ${others.map(key => `<button class="btn" data-action="set-meal" data-meal="${key}">Of kies nu voor ${MEALS[key].toLowerCase()}</button>`).join('')}` : `
         <button class="hero-card" data-action="start-ask">
+          <span class="bubs" aria-hidden="true">${plates.map((key, i) => `<span class="bub b${i + 1}">${iconSvg(key)}</span>`).join('')}</span>
           <b>Help mij kiezen</b><small>drie vragen, vier voorstellen</small><span class="go">Begin →</span>
-          ${plates.map((key, i) => `<span class="bub b${i + 1}" aria-hidden="true">${iconSvg(key)}</span>`).join('')}
         </button>
         <div class="duo">
           <button class="tile yellow" data-action="surprise"><span class="icon" aria-hidden="true">${iconSvg('dobbelsteen')}</span><b>Verras me</b><small>ik kies iets voor je</small></button>
@@ -2654,7 +2657,7 @@ const VIEWS = {
     return `
       ${topHtml('Iets noteren', backHtml('Week', 'data-action="log-cancel"'))}
       <h1>Wat at je ${when}?</h1>
-      <div class="segments" role="group" aria-label="Maaltijd">${Object.entries(MEAL_SHORT).map(([value, label]) => `
+      <div class="segments" role="group" aria-label="Maaltijd">${Object.entries(MEAL_TAB).map(([value, label]) => `
         <button data-action="log-meal" data-meal="${value}" aria-pressed="${value === view.meal}">${label}</button>`).join('')}
       </div>
       <h2>Tik een favoriet aan</h2>
@@ -2835,7 +2838,7 @@ const VIEWS = {
       ${view.message ? `<div class="notice">${esc(view.message)}</div>` : ''}
       <button class="btn primary" data-action="discover" data-meal="alles">${iconSvg('zoek')} Gerechten ontdekken</button>
       <div class="row">
-        <button class="btn" data-action="nav" data-view="world">${iconSvg('wereld')} Wereldkeuken</button>
+        <button class="btn" data-action="nav" data-view="world">${iconSvg('wereld')} Wereld­keuken</button>
         <button class="btn" data-action="edit-dish">+ Zelf toevoegen</button>
       </div>
       ${count > SEARCH_FROM ? `

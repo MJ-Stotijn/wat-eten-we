@@ -153,7 +153,7 @@ svg.ic .s-w { stroke: #fff6e6; stroke-width: 1.5; }
 .back { flex: none; min-height: 44px; padding: 0 16px 0 12px; border: 1px solid var(--border); border-radius: 999px; background: var(--card); font: 600 0.94rem var(--sans); white-space: nowrap; cursor: pointer; }
 /* Op het startscherm: je foto of voorletter met de begroeting ernaast */
 .hi { flex: 1; min-width: 0; line-height: 1.25; }
-.hi small { display: block; font-size: 0.82rem; color: var(--muted); }
+.hi small { display: block; overflow: hidden; font-size: 0.82rem; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
 .hi b { display: block; overflow: hidden; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ---------- Knoppen ---------- */
@@ -180,6 +180,9 @@ button, input, select, textarea { font: inherit; color: inherit; }
   cursor: pointer;
   transition: transform 0.12s;
 }
+/* Past een woord niet op de regel (smal scherm, grote letters), dan breekt het af in plaats van buiten de
+   knop te steken */
+.btn, .segments button, #nav button { overflow-wrap: anywhere; }
 .btn.primary { min-height: 56px; margin-bottom: 12px; border: none; background: var(--accent) linear-gradient(160deg, var(--accent), var(--accent-deep)); color: var(--accent-text); font-size: 1.06rem; box-shadow: 0 14px 22px -16px var(--accent-deep); }
 .btn.big { flex-direction: column; gap: 2px; min-height: 64px; font-size: 1.12rem; }
 .btn.big small { font-size: 0.88rem; font-weight: 400; opacity: 0.95; }
@@ -240,7 +243,7 @@ form.row { align-items: flex-end; margin-bottom: 12px; }
 
 /* Een keuze uit een paar: ontbijt, middageten of avondeten, de tabbladen van de instellingen, de avondstand */
 .segments { display: flex; margin: 6px 0 16px; padding: 4px; border-radius: 26px; background: var(--tint); }
-.segments button { flex: 1; min-width: 0; min-height: 44px; padding: 0 6px; border: none; border-radius: 999px; background: none; font: 600 0.88rem/1.1 var(--sans); color: var(--muted); cursor: pointer; }
+.segments button { flex: 1; min-width: 0; min-height: 44px; padding: 0 2px; border: none; border-radius: 999px; background: none; font: 600 0.88rem/1.1 var(--sans); color: var(--muted); cursor: pointer; }
 .segments button[aria-pressed="true"],
 .segments button[aria-selected="true"] { background: var(--card); color: var(--text); box-shadow: 0 1px 3px rgba(70, 40, 10, 0.22); }
 /* Vijf tabbladen passen niet altijd naast elkaar: dan gaan ze verder op een tweede rij */
@@ -375,16 +378,22 @@ form.row { align-items: flex-end; margin-bottom: 12px; }
 /* De grote knop: in de steunkleur, met drie van je gerechten als bolletjes */
 .hero-card { position: relative; overflow: hidden; display: block; width: 100%; margin: 0 0 12px; padding: 22px 22px 20px; border: none; border-radius: 28px; background: var(--accent) linear-gradient(160deg, var(--accent), var(--accent-deep)); color: var(--accent-text); text-align: left; cursor: pointer; box-shadow: 0 20px 30px -20px var(--accent-deep); transition: transform 0.12s; }
 .hero-card:active { transform: scale(0.985); }
-.hero-card b { display: block; max-width: calc(100% - 96px); font: 400 1.65rem/1.1 var(--serif); }
-.hero-card small { display: block; max-width: calc(100% - 92px); margin: 5px 0 18px; font-size: 0.92rem; }
+/* De kop is op een smal scherm een klein beetje kleiner, zodat hij daar naast het grote bolletje blijft passen */
+.hero-card b { display: block; font: 400 1.65rem/1.1 var(--serif); }
+@media (max-width: 399px) { .hero-card b { font-size: 1.5rem; } }
+@media (max-width: 339px) { .hero-card b { font-size: 1.35rem; } }
+.hero-card small { display: block; margin: 5px 0 18px; font-size: 0.92rem; }
 .hero-card .go { display: inline-block; padding: 10px 18px; border-radius: 999px; background: var(--accent-text); font-size: 0.94rem; font-weight: 700; color: var(--pill-ink, var(--accent-ink)); }
+/* De bolletjes hebben een eigen hoek rechtsboven en de tekst loopt daar omheen: bovenin naast het grote
+   bolletje, lager naast de twee kleine. Hoe smal het scherm of hoe groot de letters ook zijn, een regel tekst
+   komt zo nooit onder een bolletje terecht; past ze er niet naast, dan gaat ze naar de volgende regel. */
+.bubs { position: relative; float: right; width: 120px; height: 108px; shape-outside: polygon(40px 0, 100% 0, 100% 100%, 0 100%, 0 58px, 40px 58px); }
 /* De bolletjes houden hun eigen lichte kleur, ook in de avondstand: de tekeningen hebben donkere lijnen */
 .bub { position: absolute; display: grid; place-items: center; border-radius: 50%; background: #fff8ee; color: #33261b; box-shadow: 0 10px 18px -8px rgba(40, 10, 0, 0.55); }
-.bub.b1 { right: 18px; top: 16px; width: 74px; height: 74px; font-size: 3rem; }
-.bub.b2 { right: 78px; top: 88px; width: 54px; height: 54px; font-size: 2.2rem; }
-.bub.b3 { right: 14px; top: 104px; width: 46px; height: 46px; font-size: 1.9rem; }
-/* Op een smal scherm staat de tekst op twee regels; dan blijft er rechts meer vrij voor de bolletjes */
-@media (max-width: 350px) { .hero-card small { max-width: calc(100% - 136px); } }
+/* (De tekening heeft een vaste maat, net als het bolletje: bij grotere letters groeit ze er niet uit.) */
+.bub.b1 { right: -4px; top: -6px; width: 74px; height: 74px; font-size: 48px; }
+.bub.b2 { right: 56px; top: 66px; width: 54px; height: 54px; font-size: 35px; }
+.bub.b3 { right: -8px; top: 82px; width: 46px; height: 46px; font-size: 30px; }
 /* Twee kleurige tegels naast elkaar */
 .duo { display: flex; gap: 12px; }
 .tile { flex: 1; min-width: 0; padding: 14px 14px 15px; border: none; border-radius: 24px; text-align: left; cursor: pointer; transition: transform 0.12s; }
@@ -539,9 +548,9 @@ html.modal, html.modal body { overflow: hidden; }
   cursor: pointer;
 }
 .avatar img { display: block; width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
-.avatar-badge { position: absolute; right: -6px; bottom: -6px; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--card); box-shadow: 0 0 0 1px var(--border); font-size: 1.05rem; color: var(--text); }
+.avatar-badge { position: absolute; right: -6px; bottom: -6px; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--card); box-shadow: 0 0 0 1px var(--border); font-size: min(1.05rem, 20px); color: var(--text); }
 /* De kleine versie linksboven op het startscherm */
-.avatar.mini { flex: none; width: 46px; height: 46px; margin: 0; box-shadow: 0 0 0 1px var(--border), 0 8px 16px -10px rgba(70, 40, 10, 0.5); font-size: 1.4rem; }
+.avatar.mini { flex: none; width: 46px; height: 46px; margin: 0; box-shadow: 0 0 0 1px var(--border), 0 8px 16px -10px rgba(70, 40, 10, 0.5); font-size: min(1.4rem, 30px); }
 
 /* Samen kiezen: een rondje per persoon */
 .people { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin: 18px 0 22px; }
@@ -710,11 +719,17 @@ span.person.on i { background: var(--card); box-shadow: 0 0 0 2px var(--accent),
 .badge-info > :not(svg) { min-width: 0; overflow-wrap: anywhere; }
 
 /* Kleurkiezer: elk vakje draagt zijn eigen data-theme en toont dus zijn eigen kleur */
-.themes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 12px; }
+/* Twee naast elkaar; op een heel smal scherm onder elkaar, zodat de naam altijd in het vakje past */
+.themes { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 9.25rem), 1fr)); gap: 10px; margin-bottom: 12px; }
 .theme { display: flex; align-items: center; gap: 12px; min-height: 62px; padding: 10px 14px; border: none; border-radius: 20px; background: var(--card); box-shadow: 0 0 0 1px var(--border), var(--lift); font-weight: 600; text-align: left; color: var(--text); cursor: pointer; }
 .theme[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--text), var(--lift); }
-.theme[aria-pressed="true"]::after { content: "✓"; margin-left: auto; font-size: 1.1rem; color: var(--accent-ink); }
-.theme-dot { flex: none; width: 36px; height: 36px; border-radius: 50%; background: var(--accent) linear-gradient(160deg, var(--accent), var(--accent-deep)); }
+/* Het vinkje van de gekozen kleur staat in het bolletje zelf, zodat het de naam geen ruimte kost */
+.theme-dot { flex: none; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: var(--accent) linear-gradient(160deg, var(--accent), var(--accent-deep)); font-size: 1.1rem; line-height: 1; color: #fff8ee; }
+.theme[aria-pressed="true"] .theme-dot::after { content: "✓"; }
+.theme[data-theme="mosterd"] .theme-dot { color: #2b2118; }
+/* Tomaat is de kleur waar de app mee begint en heeft bovenaan geen eigen regel; zonder deze regel zou het
+   bolletje de kleur tonen die je nu gekozen hebt */
+.theme[data-theme="tomaat"] { --accent: #c5432a; --accent-deep: #ad3620; }
 
 /* ---------- De menubalk ----------
    Elk onderdeel heeft een pictogram met de naam eronder. Waar je bent, komt als een bolletje in de steunkleur
@@ -727,15 +742,21 @@ span.person.on i { background: var(--card); box-shadow: 0 0 0 2px var(--accent),
   /* Begrensd op de schermbreedte, zodat alle knoppen ook bij grote letters in beeld blijven */
   min-width: 0;
   min-height: 76px;
-  padding: 12px 1px 10px;
+  /* Van boven af opgebouwd: breekt een naam bij grote letters af naar twee regels, dan blijven de pictogrammen
+     toch op één lijn */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 15px 1px 10px;
   border: none;
   background: none;
   font: 600 min(0.72rem, 3.5vw)/1.2 var(--sans);
+  text-align: center;
   color: var(--muted);
   cursor: pointer;
 }
-#nav button.active { font-weight: 700; color: var(--accent-ink); }
-.nav-icon { display: grid; place-items: center; width: 30px; height: 30px; margin: 0 auto 4px; font-size: min(1.5rem, 7vw); }
+#nav button.active { padding-top: 16px; font-weight: 700; color: var(--accent-ink); }
+.nav-icon { flex: none; display: grid; place-items: center; width: 30px; height: 30px; margin: 0 auto 4px; font-size: min(1.5rem, 7vw); }
 .nav-icon svg.ic { stroke-width: 1.8; }
 #nav button.active .nav-icon { width: 56px; height: 56px; margin-top: -28px; border-radius: 50%; background: var(--accent) linear-gradient(160deg, var(--accent), var(--accent-deep)); color: var(--accent-text); font-size: min(1.7rem, 7.6vw); box-shadow: 0 0 0 5px var(--bg), 0 12px 16px -8px var(--accent-deep); }
 /* Op het bolletje zijn de gekleurde vlakjes van een pictogram licht in plaats van in de steunkleur */
