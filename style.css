@@ -463,6 +463,61 @@ summary::-webkit-details-marker { display: none; }
 /* Welkom */
 .cover { padding-top: 34px; }
 .title { margin: 10px 0 0; font-size: 3rem; line-height: 1.02; text-align: center; }
+/* Onder de omslag: in drie regels wat de app doet */
+.intro { margin: 4px 0 18px; padding: 4px 16px; list-style: none; border-radius: 24px; background: var(--card); box-shadow: 0 0 0 1px var(--border), var(--lift); }
+.intro li { display: flex; align-items: center; gap: 14px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+.intro li:last-child { border-bottom: none; }
+.intro li > span:last-child { flex: 1; min-width: 0; line-height: 1.3; overflow-wrap: anywhere; }
+.intro strong { display: block; font-weight: 600; }
+.intro .small { display: block; color: var(--muted); }
+.notice .btn.link { justify-content: flex-start; width: auto; min-height: 44px; margin: 0; padding: 0; }
+
+/* De kennismaking: een venster dat van onderaf over het scherm schuift. Bovenaan bolletjes die laten zien hoe
+   ver je bent, in het midden de vraag (dat deel schuift als het niet past), onderaan de knop. */
+html.modal, html.modal body { overflow: hidden; }
+.sheet-back { position: fixed; left: 0; top: 0; right: 0; bottom: 0; z-index: 60; display: flex; align-items: flex-end; justify-content: center; background: rgba(30, 20, 10, 0.55); }
+.sheet { display: flex; flex-direction: column; width: 100%; max-width: 480px; max-height: 94vh; max-height: 94dvh; border-radius: 28px 28px 0 0; background: var(--bg); box-shadow: 0 -18px 40px -22px rgba(0, 0, 0, 0.6); }
+/* Past het bij grote letters niet op één regel, dan gaat "Overslaan" naar de regel eronder */
+.sheet-top { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 0 8px; padding: 12px 14px 4px; }
+.sheet-top .dots { flex: 1 0 auto; justify-content: center; margin: 0; }
+.sheet-top .dots i { flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--border); }
+.sheet-top .dots .on { background: var(--accent); }
+.sheet-top .btn.link { flex: none; width: auto; margin: 0 0 0 auto; padding: 0 6px; }
+/* Op de eerste stap is er geen knop terug; dit houdt de bolletjes in het midden */
+.back-space { flex: none; width: 84px; }
+.sheet-body { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 14px 10px; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+.sheet h2 { display: block; margin: 10px 6px 6px; font-size: 1.8rem; line-height: 1.12; overflow-wrap: anywhere; }
+/* De tekst staat iets verder van de rand dan de bolletjes, die de volle breedte nodig hebben */
+.sheet-body > p, .sheet-body > form, .sheet-body > .notice { margin-left: 6px; margin-right: 6px; }
+.sheet h2 em { color: var(--accent-ink); }
+.sheet h2:focus { outline: none; }
+.sheet-foot { flex: none; padding: 10px 20px calc(12px + env(safe-area-inset-bottom)); border-top: 1px solid var(--border); }
+.sheet-foot .btn { margin-bottom: 0; }
+.sheet-foot .btn.link { margin-top: 2px; }
+/* De bolletjes om aan te tikken, om en om wat lager zodat het geen strak rooster wordt. Gekozen: een zacht
+   vlak met een rand in de steunkleur en een vinkje. */
+.bubbles { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: center; gap: 8px; margin: 14px 0 10px; padding-bottom: 16px; }
+.bubble {
+  position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  width: 6.4rem; height: 6.4rem; margin: 0; padding: 6px 9px; border: none; border-radius: 50%;
+  background: var(--card); box-shadow: 0 0 0 1px var(--border), var(--lift);
+  font-size: 0.82rem; font-weight: 600; line-height: 1.15; text-align: center; color: var(--text);
+  overflow-wrap: anywhere; cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.bubble:nth-child(3n+2) { margin-top: 16px; }
+.bubble-icon { font-size: 2rem; }
+.bubble-name, .bubble-hint { display: block; max-width: 100%; }
+.bubble-hint { font-size: 0.75rem; font-weight: 400; line-height: 1.15; color: var(--muted); }
+.bubble.plain { font-size: 0.86rem; }
+.bubbles.dishes .bubble { width: 6.5rem; height: 6.5rem; font-size: 0.75rem; -webkit-hyphens: auto; hyphens: auto; }
+.bubbles.dishes .bubble-icon { font-size: 1.5rem; }
+/* Een lange naam van een gerecht krijgt hooguit drie regels */
+.bubbles.dishes .bubble-name { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
+.bubble[aria-pressed="true"] { background: var(--soft); box-shadow: 0 0 0 3px var(--accent), var(--lift); }
+.bubble[aria-pressed="true"]::after {
+  content: "✓"; position: absolute; right: 0; top: 0; display: grid; place-items: center; width: 1.6rem; height: 1.6rem;
+  border-radius: 50%; background: var(--accent); color: var(--accent-text); font-size: 0.85rem; font-weight: 700;
+}
 
 /* De profielfoto: een rondje met de foto (of je voorletter) en een cameraatje in de hoek */
 .avatar {
@@ -647,6 +702,8 @@ span.person.on i { background: var(--card); box-shadow: 0 0 0 2px var(--accent),
 /* De uitleg bij de badge die je hebt aangetikt */
 .notice.badge-info { display: flex; align-items: center; gap: 14px; text-align: left; font-weight: 400; }
 .badge-info > svg.ic { font-size: 2.1rem; }
+/* De tekst mag smaller worden dan haar langste woord; anders steekt ze bij grote letters uit het vak */
+.badge-info > :not(svg) { min-width: 0; overflow-wrap: anywhere; }
 
 /* Kleurkiezer: elk vakje draagt zijn eigen data-theme en toont dus zijn eigen kleur */
 .themes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 12px; }
@@ -740,6 +797,16 @@ span.person.on i { background: var(--card); box-shadow: 0 0 0 2px var(--accent),
   #nav button.active .nav-icon { animation: hop 0.4s cubic-bezier(0.3, 1.6, 0.5, 1); }
   /* Zolang de kaart laadt */
   .map-status.muted { animation: pulse 1.4s ease-in-out infinite; }
+  /* De kennismaking: het venster schuift omhoog als het opengaat, en elke nieuwe vraag komt rustig in beeld.
+     De bolletjes deinen zachtjes, elk op zijn eigen moment, en veren in als je ze aantikt. */
+  .sheet-back.opening { animation: fade-in 0.25s; }
+  .sheet-back.opening .sheet { animation: sheet-up 0.38s cubic-bezier(0.2, 0.8, 0.3, 1); }
+  .sheet-body > * { animation: rise 0.32s cubic-bezier(0.2, 0.8, 0.3, 1) backwards; }
+  .bubble { animation: bob 6s ease-in-out infinite; transition: scale 0.15s, box-shadow 0.15s, background-color 0.15s; }
+  .bubble:nth-child(2n) { animation-delay: -2s; }
+  .bubble:nth-child(3n) { animation-delay: -4s; }
+  .bubble:active { scale: 0.93; }
+  .bubble[aria-pressed="true"]::after { animation: pop 0.3s cubic-bezier(0.3, 1.6, 0.5, 1); }
   /* De staven van je calorieën groeien van onderaf */
   #app.enter .stack { animation: bar-up 0.55s 0.2s cubic-bezier(0.2, 0.8, 0.3, 1) backwards; }
   /* Knoppen veren in onder je vinger */
@@ -758,6 +825,9 @@ span.person.on i { background: var(--card); box-shadow: 0 0 0 2px var(--accent),
 @keyframes hop { 45% { transform: translateY(-6px) scale(1.12); } }
 @keyframes pulse { 50% { opacity: 0.45; } }
 @keyframes bar-up { from { transform: scaleY(0); } }
+@keyframes fade-in { from { opacity: 0; } }
+@keyframes sheet-up { from { transform: translateY(60%); opacity: 0; } }
+@keyframes bob { 50% { transform: translateY(-5px); } }
 
 /* Snippers bij een nieuwe badge: een laag over het hele scherm waar je doorheen kunt tikken */
 .confetti { position: fixed; inset: 0; z-index: 5; overflow: hidden; pointer-events: none; }

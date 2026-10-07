@@ -172,6 +172,50 @@ const CATALOG_GROUPS = [
 ];
 // Zoveel gerechten van een groepje zie je voordat je om meer vraagt.
 const CATALOG_PREVIEW = 4;
+// Zoveel gerechten staan er hooguit in het groepje "Past bij jouw smaak".
+const CATALOG_TASTY = 8;
+// Bij de kennismaking vraagt de app wat je lekker vindt (zie "Kennismaken"). Deze twee lijsten staan hier
+// bovenaan omdat het inlezen van de bewaarde gegevens ze al bij het starten nodig heeft.
+// Een keuken is [sleutel, naam, pictogram, de landen uit de wereldkeuken die erbij horen, de gerechten uit de
+// lijst hierboven die erbij horen]. In een lange naam staat een zacht afbreekstreepje (­): daar mag de
+// naam in een bolletje afbreken.
+const CUISINES = [
+  ['hollands', 'Hollands', 'stamppot', ['NL', 'BE'], ['Stamppot boerenkool', 'Hutspot', 'Zuurkoolstamppot', 'Andijviestamppot', 'Hachee', 'Stoofvlees met rode kool', 'Erwtensoep', 'Pannenkoeken', 'Poffertjes', 'Kibbeling met friet', 'Gehaktbal met sperziebonen', 'Witlof met ham en kaas', 'Uitsmijter', 'Kip met broccoli en aardappelen', 'Ovenschotel met gehakt', 'Boterham met kaas', 'Tosti', 'Tomatensoep']],
+  ['italiaans', 'Itali­aans', 'spaghetti', ['IT'], ['Spaghetti bolognese', 'Pasta met champignons', 'Pasta pesto met kip', 'Pasta met zalm en spinazie', 'Macaroni met ham en kaas', 'Lasagne', 'Groentelasagne', 'Pizza', 'Risotto met paddenstoelen']],
+  ['frans', 'Frans', 'croissant', ['FR'], ['Quiche met groenten', 'Ratatouille met rijst', 'Croissant met jam', 'Omelet']],
+  ['spaans', 'Spaans', 'paella', ['ES', 'PT'], ['Vis uit de oven met groenten']],
+  ['grieks', 'Grieks', 'spies', ['GR'], ['Salade met kikkererwten en feta']],
+  ['turks', 'Turks', 'kebab', ['TR', 'LB'], ['Shoarma met pita']],
+  ['marokkaans', 'Marok­kaans', 'tajine', ['MA'], ['Couscous met kip en groenten', 'Couscoussalade']],
+  ['indiaas', 'Indiaas', 'curry', ['IN'], ['Kipcurry met rijst', 'Kip kerrie met rijst en boontjes', 'Groentecurry', 'Pompoencurry']],
+  ['chinees', 'Chinees', 'wok', ['CN'], ['Roerbak met kip en groenten', 'Roerbak met tofu', 'Bami goreng']],
+  ['japans', 'Japans', 'sushi', ['JP', 'KR'], ['Pokébowl met zalm', 'Zalm met rijst']],
+  ['thais', 'Thais', 'noedels', ['TH', 'VN'], ['Groentecurry', 'Roerbak met tofu']],
+  ['indonesisch', 'Indo­nesisch', 'rijst', ['ID'], ['Nasi goreng', 'Bami goreng', 'Kipsaté met rijst', 'Gado gado']],
+  ['surinaams', 'Suri­naams', 'platbrood', ['SR'], ['Surinaamse nasi met kip']],
+  ['mexicaans', 'Mexi­caans', 'taco', ['MX'], ['Chili con carne', 'Chili sin carne', 'Wraps met gehakt', 'Wrap met kip en groenten']],
+  ['amerikaans', 'Ameri­kaans', 'hamburger', ['US'], ['Hamburger met friet']],
+];
+// Waar je vaak trek in hebt: [sleutel, naam, pictogram, de pictogrammen van gerechten die erbij horen, de
+// soort die erbij hoort (of niets), woorden in de naam van een gerecht die erbij horen].
+const CRAVINGS = [
+  ['pasta', 'Pasta', 'spaghetti', ['spaghetti', 'lasagne'], '', ['pasta', 'macaroni']],
+  ['rijst', 'Rijst', 'rijst', ['rijst', 'paella', 'sushi'], '', ['rijst', 'nasi', 'risotto']],
+  ['noedels', 'Noedels en wok', 'noedels', ['noedels', 'wok'], '', ['bami', 'roerbak']],
+  ['aardappel', 'Aard­appelen', 'aardappel', ['aardappel', 'stamppot', 'friet'], '', ['aardappel', 'friet', 'hutspot']],
+  ['soep', 'Soep', 'soep', ['soep'], '', []],
+  ['salade', 'Salade', 'salade', ['salade'], '', []],
+  ['brood', 'Brood en wraps', 'sandwich', ['brood', 'stokbrood', 'sandwich', 'tosti', 'wrap', 'pita', 'platbrood', 'croissant'], '', ['boterham']],
+  ['curry', 'Curry en stoof', 'curry', ['curry', 'stoofpot', 'tajine', 'chili'], '', []],
+  ['snack', 'Pizza en burgers', 'pizza', ['pizza', 'hamburger', 'kebab', 'taco', 'kroket', 'loempia'], '', []],
+  ['vis', 'Vis', 'vis', [], 'vis', []],
+  ['kip', 'Kip', 'kip', ['kip'], '', ['kip']],
+  ['vlees', 'Vlees', 'vlees', [], 'vlees', []],
+  ['vega', 'Vegeta­risch', 'broccoli', [], 'vega', []],
+  ['ei', 'Ei', 'ei', ['ei', 'omelet'], '', []],
+  ['pap', 'Pap en yoghurt', 'pap', ['pap', 'smoothie'], '', []],
+  ['zoet', 'Pannen­koeken', 'pannenkoek', ['pannenkoek', 'poffertjes', 'wafel'], '', []],
+];
 // Tijdzones van landen waar veel Nederlands wordt gesproken, om het land van de gebruiker te raden.
 const ZONE_COUNTRY = {
   'Europe/Amsterdam': 'NL', 'Europe/Brussels': 'BE', 'America/Paramaribo': 'SR',
@@ -370,6 +414,8 @@ function emptyState() {
     allergies: [], otherAllergies: [],
     // Hoeveel calorieën de gebruiker per dag wil eten; leeg zolang er geen doel is gekozen.
     kcalGoal: null,
+    // Wat de gebruiker lekker vindt, uit de kennismaking: sleutels uit CUISINES en CRAVINGS.
+    tastes: { cuisines: [], cravings: [] },
   };
 }
 
@@ -416,6 +462,13 @@ function squarePhoto(file) {
 
 function cleanName(name) {
   return typeof name === 'string' ? name.trim().slice(0, 30) : '';
+}
+
+// Alleen bekende keukens en trek, in vaste volgorde.
+function cleanTastes(tastes) {
+  const source = tastes && typeof tastes === 'object' ? tastes : {};
+  const known = (choices, picked) => choices.map(choice => choice[0]).filter(key => Array.isArray(picked) && picked.includes(key));
+  return { cuisines: known(CUISINES, source.cuisines), cravings: known(CRAVINGS, source.cravings) };
 }
 
 // De begroeting die bij het tijdstip past.
@@ -507,6 +560,7 @@ function sanitize(data) {
     allergies: cleanAllergens(data.allergies),
     otherAllergies: cleanTerms(data.otherAllergies),
     kcalGoal: cleanGoal(data.kcalGoal),
+    tastes: cleanTastes(data.tastes),
     dishes,
     history: list(data.history).map(h => {
       if (!h || isNaN(new Date(h.date).getTime())) return null;
@@ -1386,6 +1440,12 @@ window.addEventListener('popstate', () => {
     return syncHistory();
   }
   if (!state.onboarded || view.name === 'home') return;
+  // Staat het venster van de kennismaking open, dan sluit de terugknop alleen dat venster.
+  if (view.quiz) {
+    delete view.quiz;
+    render();
+    return syncHistory();
+  }
   backward = true;
   if (view.name === 'ask' && view.step > 0) ACTIONS['ask-back']();
   else if (view.name === 'log') go('week', { offset: view.offset, day: view.day });
@@ -1427,7 +1487,10 @@ function render() {
   // Alleen een nieuw scherm komt met beweging in beeld (zie enterScreen); de opmaak kan per scherm verschillen.
   app.classList.remove('enter');
   app.dataset.view = view.name;
-  app.innerHTML = VIEWS[view.name]();
+  // De kennismaking ligt als venster over het scherm heen; wat eronder staat, doet dan even niet mee.
+  const screen = VIEWS[view.name]();
+  app.innerHTML = view.quiz ? `<div class="behind" inert aria-hidden="true">${screen}</div>${quizHtml()}` : screen;
+  document.documentElement.classList.toggle('modal', Boolean(view.quiz));
   if (document.getElementById('catalog')) filterCatalog();
   if (document.getElementById('favorites-list')) filterFavorites();
   if (document.getElementById('map-host')) {
@@ -1559,11 +1622,19 @@ function catalogHtml(defaultMeal) {
         : `<button class="icon-btn" ${add} aria-label="Zet ${esc(name)} bij je favorieten">+</button>`}</li>`;
   };
   const country = COUNTRIES[state.country][0];
+  // Bovenaan wat het best bij je smaak past (zie "Kennismaken"), als je die hebt verteld.
+  const tasty = (state.tastes.cuisines.length + state.tastes.cravings.length ? tasteCandidates(state.tastes, true) : [])
+    .filter(dish => dish.score > 0 && fits(dish.meals)).sort((a, b) => b.score - a.score || a.order - b.order)
+    .map(dish => ({ dish, html: row(dish.name, dish.icon, dish.text, `data-action="add-taste" data-key="${dish.key}"`) }))
+    .filter(item => item.html).slice(0, CATALOG_TASTY);
+  // Een gerecht dat al hoger in de lijst staat, komt niet nog eens bij het land of in een groepje.
+  const localNames = new Set(tasty.map(({ dish }) => dish.name.toLowerCase()));
   const local = countryDishes(state.country).map((line, index) => ({ dish: worldDish(line), index }))
-    .filter(({ dish }) => fits(dish.meals) && localSuitable(dish));
-  // Een gerecht dat al bij het land staat, komt niet nog eens in een groepje.
-  const localNames = new Set(local.map(({ dish }) => dish.name.toLowerCase()));
+    .filter(({ dish }) => fits(dish.meals) && localSuitable(dish) && !localNames.has(dish.name.toLowerCase()));
+  for (const { dish } of local) localNames.add(dish.name.toLowerCase());
   const sections = [{
+    id: 'group-taste', title: 'Past bij jouw smaak', short: 'Jouw smaak', rows: tasty.map(item => item.html),
+  }, {
     id: 'group-local', title: `Veel gegeten in ${country}`, short: `${flag(state.country)} ${country}`,
     rows: local.map(({ dish, index }) => row(dish.name, dish.icon, dish.text, `data-action="add-local" data-index="${index}"`)),
   }, ...CATALOG_GROUPS.map(([title, names], n) => ({
@@ -1649,7 +1720,7 @@ function filterCatalog() {
   for (const section of document.querySelectorAll('#catalog section')) {
     const rows = [...section.querySelectorAll('li')];
     const matches = rows.filter(row => row.dataset.name.includes(query));
-    const limit = query || section.id === 'group-local' || open.includes(section.id) ? Infinity : CATALOG_PREVIEW;
+    const limit = query || section.id === 'group-local' || section.id === 'group-taste' || open.includes(section.id) ? Infinity : CATALOG_PREVIEW;
     const shown = matches.slice(0, limit);
     for (const row of rows) {
       row.hidden = !shown.includes(row);
@@ -1695,8 +1766,296 @@ function barHtml(item) {
     </button>`;
 }
 
+// ---------- Kennismaken: wat vind je lekker? ----------
+
+// De stappen van de kennismaking. De eerste keer gaat het ook om je naam, je dieet en je allergieën; later,
+// vanuit de instellingen, alleen om je smaak.
+const QUIZ_STEPS = { first: ['naam', 'keuken', 'trek', 'dieet', 'allergie', 'klaar'], again: ['keuken', 'trek', 'klaar'] };
+// Zoveel gerechten stelt de app eerst voor, en zoveel komen erbij als je om meer vraagt.
+const QUIZ_BATCH = 12;
+const QUIZ_MORE = 6;
+// Van elke twaalf voorstellen zijn er zoveel voor elke maaltijd.
+const TASTE_SHARE = { avond: 6, middag: 3, ontbijt: 3 };
+
+// Lange namen van diëten en allergenen met een zacht afbreekstreepje, zodat ze in een bolletje netjes afbreken.
+const BUBBLE_NAMES = {
+  Vegetarisch: 'Vegeta­risch', Veganistisch: 'Veganis­tisch', Glutenvrij: 'Gluten­vrij', Lactosevrij: 'Lactose­vrij',
+  Koolhydraatarm: 'Kool­hydraat­arm', Eiwitrijk: 'Eiwit­rijk', Schaaldieren: 'Schaal­dieren', Weekdieren: 'Week­dieren',
+};
+
+// De toelichting bij een allergeen, ingekort tot wat in een bolletje past: de eerste twee voorbeelden, of één.
+function briefHint(hint) {
+  const parts = hint.split(', ');
+  const two = parts.slice(0, 2).join(', ');
+  return two.length <= 20 ? two : parts[0];
+}
+
+// Een naam uit CUISINES of CRAVINGS zonder afbreekstreepjes, voor in een zin.
+function plainName(name) {
+  return name.replace(/­/g, '');
+}
+
+// Hoe goed een gerecht bij een smaak past: drie punten voor elke keuken die klopt, twee voor elke trek.
+function tasteScore(dish, tastes) {
+  const words = plainWords(dish.name);
+  const cuisines = CUISINES.filter(([key, , , countries, names]) =>
+    tastes.cuisines.includes(key) && (names.includes(dish.name) || countries.includes(dish.country)));
+  const cravings = CRAVINGS.filter(([key, , , icons, type, terms]) =>
+    tastes.cravings.includes(key) && (icons.includes(dish.icon) || type === dish.type || terms.some(term => mentions(words, term))));
+  return cuisines.length * 3 + cravings.length * 2;
+}
+
+// Alles wat de app kan aanbieden en bij de gebruiker past: de gerechten uit de lijst, en die uit de wereldkeuken
+// van het eigen land en van de gekozen keukens. Elk gerecht krijgt een sleutel waaraan het terug te vinden is
+// (zie tasteEntry) en een score (zie tasteScore). Met `owned` staat er ook bij wat je al bij je favorieten hebt.
+function tasteCandidates(tastes, owned) {
+  const have = new Set(owned ? [] : state.dishes.map(d => d.name.toLowerCase()));
+  const found = [];
+  const add = dish => {
+    const name = dish.name.toLowerCase();
+    if (have.has(name)) return;
+    have.add(name);
+    found.push({ ...dish, score: tasteScore(dish, tastes), order: found.length });
+  };
+  CATALOG.forEach((item, index) => {
+    const [name, meals, time, type] = item;
+    if (suitable(catalogDish(item))) add({ key: `c${index}`, name, meals, time, type, icon: iconKey(name, '', type), text: dishMeta({ time, type }), country: '' });
+  });
+  // Van een gerecht uit de wereldkeuken kent de app de allergenen en de diëten niet. Wie daarop let, krijgt
+  // zo'n gerecht hier niet voorgesteld.
+  if (!hasAllergy() && !state.diet.length) {
+    const codes = [...new Set([state.country, ...CUISINES.filter(([key]) => tastes.cuisines.includes(key)).flatMap(cuisine => cuisine[3])])];
+    for (const code of codes) {
+      countryDishes(code).forEach((line, index) => {
+        const dish = worldDish(line);
+        // "Pizza margherita" hoeft er niet bij als "Pizza" er al staat.
+        const name = dish.name.toLowerCase();
+        if ([...have].some(other => name.startsWith(`${other} `) || other.startsWith(`${name} `))) return;
+        add({ key: `w${code}${index}`, name: dish.name, meals: dish.meals, time: dish.time, type: dish.type, icon: dish.icon, text: dish.text, country: code });
+      });
+    }
+  }
+  return found;
+}
+
+// Het gerecht bij een sleutel uit tasteCandidates, klaar om bij de favorieten te zetten. Niets als de sleutel niet klopt.
+function tasteEntry(key) {
+  const listed = /^c(\d+)$/.exec(key);
+  if (listed) return CATALOG[listed[1]] ? catalogEntry(CATALOG[listed[1]]) : null;
+  const world = /^w([A-Z]{2})(\d+)$/.exec(key);
+  const line = world && countryDishes(world[1])[world[2]];
+  return line ? worldEntry(worldDish(line)) : null;
+}
+
+// De gerechten die de app voorstelt: per maaltijd de best passende, zodat er voor elk moment van de dag iets
+// bij zit. Wat bij je smaak past gaat voor, en daarbinnen komen er eerst hooguit twee met hetzelfde pictogram
+// (anders krijgt een liefhebber van pasta zes keer pasta).
+function tasteSuggestions(tastes, count) {
+  const all = tasteCandidates(tastes, false);
+  const picked = [];
+  for (const meal of Object.keys(TASTE_SHARE)) {
+    const seen = {};
+    const pool = all.filter(dish => dish.meals[0] === meal).sort((a, b) => b.score - a.score || a.order - b.order)
+      .map(dish => ({ dish, extra: (seen[dish.icon] = (seen[dish.icon] || 0) + 1) > 2 }))
+      .sort((a, b) => (b.dish.score > 0) - (a.dish.score > 0) || a.extra - b.extra || b.dish.score - a.dish.score || a.dish.order - b.dish.order);
+    picked.push(...pool.slice(0, Math.round(count * TASTE_SHARE[meal] / QUIZ_BATCH)).map(item => item.dish));
+  }
+  return picked;
+}
+
+// In een paar zinnen wat de app nu van de gebruiker weet: de keukens, de trek, het dieet en de allergieën.
+function tasteSummary(tastes) {
+  const names = (choices, keys) => choices.filter(choice => keys.includes(choice[0])).map(choice => plainName(choice[1]));
+  const cuisines = names(CUISINES, tastes.cuisines);
+  const cravings = names(CRAVINGS, tastes.cravings).map(name => name.toLowerCase());
+  const parts = [];
+  if (cuisines.length) parts.push(`Je houdt van ${listText(cuisines)} eten.`);
+  // Namen als "curry en stoof" hebben zelf al een "en"; daarom hier alleen komma's.
+  if (cravings.length) parts.push(`Je hebt vaak trek in ${cravings.join(', ')}.`);
+  if (!parts.length) parts.push('Je lust van alles. Dan begin ik met wat veel mensen lekker vinden.');
+  if (state.diet.length) parts.push(`Je eet ${listText(state.diet.map(key => DIETS[key].toLowerCase()))}.`);
+  if (allergyNames().length) parts.push(`Gerechten waar meestal ${listText(allergyNames())} in zit, laat ik weg.`);
+  return parts.join(' ');
+}
+
+// Opent de kennismaking als venster over het scherm heen. `mode` is 'first' (de eerste keer) of 'again'.
+function openQuiz(mode) {
+  view.quiz = {
+    mode, from: view.name, step: 0, name: state.name, cuisines: [...state.tastes.cuisines], cravings: [...state.tastes.cravings],
+    diet: [...state.diet], allergies: [...state.allergies], offer: [], picked: [], shown: QUIZ_BATCH,
+    // Alleen bij het openen schuift het venster omhoog; bij een volgende stap blijft het staan.
+    opening: true,
+  };
+  render();
+  delete view.quiz.opening;
+  focusQuiz();
+}
+
+// Zet de aanwijzer op de vraag en het venster bovenaan, zodat een schermlezer de nieuwe stap voorleest.
+function focusQuiz() {
+  const title = document.getElementById('quiz-title');
+  if (!title) return;
+  title.closest('.sheet').querySelector('.sheet-body').scrollTop = 0;
+  title.focus({ preventScroll: true });
+}
+
+// Naar een andere stap. Bij het voorstel aan het eind tellen het dieet en de allergieën al mee, zodat het
+// erbij past; bewaard wordt er pas als de gebruiker klaar is.
+function quizGo(step) {
+  const quiz = view.quiz;
+  quiz.step = step;
+  if (QUIZ_STEPS[quiz.mode][step] === 'klaar') {
+    if (quiz.mode === 'first') {
+      state.diet = cleanDiets(quiz.diet, true);
+      state.allergies = cleanAllergens(quiz.allergies);
+    }
+    quiz.shown = QUIZ_BATCH;
+    quiz.offer = tasteSuggestions(quiz, quiz.shown).map(dish => dish.key);
+    // De eerste keer staat alles al aan: weghalen wat je niet lust gaat sneller dan alles aantikken.
+    quiz.picked = quiz.mode === 'first' ? [...quiz.offer] : [];
+  }
+  render();
+  focusQuiz();
+}
+
+// Legt vast wat er in de kennismaking is gekozen. Met `dishes` komen ook de aangetikte gerechten bij de
+// favorieten; het antwoord is hoeveel dat er waren.
+function quizApply(dishes) {
+  const quiz = view.quiz;
+  state.tastes = cleanTastes(quiz);
+  if (quiz.mode === 'first') {
+    state.name = cleanName(quiz.name);
+    state.diet = cleanDiets(quiz.diet, true);
+    state.allergies = cleanAllergens(quiz.allergies);
+    state.welcomed = true;
+  }
+  let added = 0;
+  for (const key of dishes ? quiz.picked : []) {
+    const dish = tasteEntry(key);
+    if (!dish || state.dishes.some(d => d.name.toLowerCase() === dish.name.toLowerCase())) continue;
+    state.dishes.push(dish);
+    added++;
+  }
+  save();
+  return added;
+}
+
+// Werkt het venster bij na een tik op een bolletje, zonder het opnieuw te tekenen: zo blijft de aanwijzer
+// staan en begint de beweging van de bolletjes niet opnieuw.
+function quizSync() {
+  const quiz = view.quiz;
+  for (const bubble of document.querySelectorAll('.sheet .bubble')) {
+    const list = quiz[bubble.dataset.list];
+    bubble.setAttribute('aria-pressed', bubble.dataset.key ? list.includes(bubble.dataset.key) : list.length === 0);
+  }
+  const done = document.getElementById('quiz-done');
+  if (done) done.textContent = quizDoneText();
+}
+
+// Wat er op de grote knop onder het voorstel staat.
+function quizDoneText() {
+  const quiz = view.quiz;
+  const count = quiz.picked.length;
+  if (quiz.mode === 'again') return count ? `Bewaar en zet ${count === 1 ? 'dit gerecht' : `deze ${count}`} erbij` : 'Bewaar mijn smaak';
+  const left = MIN_DISHES - count;
+  return !count ? 'Kies zelf uit de hele lijst' : left > 0 ? `Zet ${count === 1 ? 'dit gerecht' : `deze ${count}`} erin en kies er nog ${left} bij`
+    : `Zet deze ${count} in mijn kookboek`;
+}
+
+// Een bolletje om aan te tikken. Zonder `key` is het het bolletje voor "geen van deze".
+function bubbleHtml(list, key, label, icon, hint) {
+  const picked = view.quiz[list];
+  return `
+    <button class="bubble${icon ? '' : ' plain'}" data-action="quiz-toggle" data-list="${list}"${key ? ` data-key="${key}"` : ''} aria-pressed="${key ? picked.includes(key) : picked.length === 0}">
+      ${icon ? `<span class="bubble-icon" aria-hidden="true">${iconSvg(icon)}</span>` : ''}<span class="bubble-name">${label}</span>${hint ? `<span class="bubble-hint">${hint}</span>` : ''}
+    </button>`;
+}
+
+// Het venster van de kennismaking: bovenaan de bolletjes die laten zien hoe ver je bent, dan de vraag met de
+// bolletjes om aan te tikken, en onderaan de knop naar de volgende stap.
+function quizHtml() {
+  const quiz = view.quiz;
+  const steps = QUIZ_STEPS[quiz.mode];
+  const step = steps[quiz.step];
+  const next = '<button class="btn primary" data-action="quiz-next">Volgende</button>';
+  let body = '';
+  let foot = next;
+  if (step === 'naam') {
+    body = `
+      <h2 id="quiz-title" tabindex="-1">Leuk dat je er <em>bent!</em></h2>
+      <p class="sub">Ik stel je een paar korte vragen. Dan weet ik wat je lekker vindt en waar ik rekening mee moet houden.</p>
+      <form data-form="quiz-name" id="quiz-form">
+        <label for="f-yourname">Hoe mag ik je noemen? <span class="muted">(mag je overslaan)</span></label>
+        <input id="f-yourname" name="name" type="text" maxlength="30" autocomplete="given-name" placeholder="Je voornaam" value="${esc(quiz.name)}">
+        <label for="f-country">In welk land woon je?</label>
+        ${countrySelectHtml('')}
+        <p class="small muted" style="margin-top:6px">Dan laat ik ook zien wat daar veel wordt gegeten.</p>
+      </form>`;
+    foot = '<button class="btn primary" type="submit" form="quiz-form">Volgende</button>';
+  } else if (step === 'keuken') {
+    body = `
+      <h2 id="quiz-title" tabindex="-1">Welke keukens vind je <em>lekker?</em></h2>
+      <p class="sub">Tik aan wat je lekker vindt. Je mag er zoveel kiezen als je wilt.</p>
+      <div class="bubbles" role="group" aria-label="Keukens">${CUISINES.map(([key, label, icon]) => bubbleHtml('cuisines', key, label, icon)).join('')}</div>`;
+  } else if (step === 'trek') {
+    body = `
+      <h2 id="quiz-title" tabindex="-1">Waar heb je vaak <em>trek</em> in?</h2>
+      <p class="sub">Kies alles waar je blij van wordt.</p>
+      <div class="bubbles" role="group" aria-label="Trek">${CRAVINGS.map(([key, label, icon]) => bubbleHtml('cravings', key, label, icon)).join('')}</div>`;
+  } else if (step === 'dieet') {
+    body = `
+      <h2 id="quiz-title" tabindex="-1">Eet je op een bepaalde <em>manier?</em></h2>
+      <p class="sub">Dan stel ik alleen voor wat daarbij past.</p>
+      <div class="bubbles" role="group" aria-label="Dieet">
+        ${bubbleHtml('diet', '', 'Ik eet alles')}${Object.entries(DIETS).map(([key, label]) => bubbleHtml('diet', key, BUBBLE_NAMES[label] || label)).join('')}
+      </div>
+      <p class="small muted">Je kunt dit later aanpassen bij de instellingen.</p>`;
+  } else if (step === 'allergie') {
+    body = `
+      <h2 id="quiz-title" tabindex="-1">Ben je ergens <em>allergisch</em> voor?</h2>
+      <p class="sub">Tik aan waar je allergisch voor bent. Gerechten waar dat meestal in zit, stel ik niet voor.</p>
+      <div class="bubbles" role="group" aria-label="Allergieën">
+        ${bubbleHtml('allergies', '', 'Nergens voor')}${Object.entries(ALLERGENS).map(([key, [label, hint]]) => bubbleHtml('allergies', key, BUBBLE_NAMES[label] || label, '', briefHint(hint))).join('')}
+      </div>
+      <p class="small muted">Staat jouw allergie er niet bij? Die voeg je later toe bij de instellingen.</p>
+      <p class="small muted">${ALLERGY_WARNING}</p>`;
+  } else {
+    const all = tasteCandidates(quiz, false);
+    const byKey = new Map(all.map(dish => [dish.key, dish]));
+    const offer = quiz.offer.map(key => byKey.get(key)).filter(Boolean);
+    const chosen = quiz.cuisines.length + quiz.cravings.length > 0;
+    const fitting = chosen ? all.filter(dish => dish.score > 0).length : all.length;
+    body = `
+      <h2 id="quiz-title" tabindex="-1">Dit past bij <em>jou</em>${quiz.mode === 'first' && cleanName(quiz.name) ? `, ${esc(cleanName(quiz.name))}` : ''}</h2>
+      <p class="sub">${tasteSummary(quiz)}</p>
+      ${offer.length ? `
+        <p>Ik heb <strong>${dishCount(fitting)}</strong> ${chosen ? 'die bij je smaak passen' : 'voor je klaarstaan'}. ${quiz.mode === 'first'
+          ? `Dit zijn de eerste ${offer.length}: tik weg wat je niet lust.` : 'Deze heb je nog niet: tik aan wat je erbij wilt.'}</p>
+        <div class="bubbles dishes" role="group" aria-label="Gerechten die bij je passen">${offer.map(dish => bubbleHtml('picked', dish.key, esc(dish.name), dish.icon)).join('')}</div>
+        ${all.length > offer.length ? '<button class="btn link" data-action="quiz-more">Laat er meer zien</button>' : ''}`
+        : `<div class="notice">${quiz.mode === 'first' ? 'Met deze keuzes heb ik nog geen gerechten voor je. Kies ze zelf uit de lijst, of voeg je eigen gerechten toe.'
+          : 'Alles wat bij je past, staat al bij je favorieten.'}</div>`}
+      ${hasAllergy() || state.diet.length ? '<p class="small muted">Wat hier staat, past volgens mijn gegevens bij je dieet en je allergieën. Dat is een schatting: controleer bij een allergie altijd zelf de ingrediënten.</p>' : ''}`;
+    foot = `<button class="btn primary" id="quiz-done" data-action="quiz-done">${quizDoneText()}</button>
+      ${quiz.mode === 'first' ? '<button class="btn link" data-action="quiz-list">Liever zelf kiezen uit de hele lijst</button>' : ''}`;
+  }
+  return `
+    <div class="sheet-back${quiz.opening ? ' opening' : ''}">
+      <section class="sheet" role="dialog" aria-modal="true" aria-labelledby="quiz-title">
+        <div class="sheet-top">
+          ${quiz.step > 0 ? '<button class="back" data-action="quiz-back">‹ Terug</button>' : '<span class="back-space"></span>'}
+          <span class="dots" role="img" aria-label="Stap ${quiz.step + 1} van ${steps.length}">${steps.map((name, i) => `<i${i <= quiz.step ? ' class="on"' : ''}></i>`).join('')}</span>
+          <button class="btn link" data-action="quiz-skip">${quiz.mode === 'first' ? 'Overslaan' : 'Sluiten'}</button>
+        </div>
+        <div class="sheet-body">${body}</div>
+        <div class="sheet-foot">${foot}</div>
+      </section>
+    </div>`;
+}
+
 const VIEWS = {
-  // De eerste keer openen: de omslag van het kookboek.
+  // De eerste keer openen: de omslag van het kookboek met een korte uitleg van wat de app doet. De knop
+  // opent de kennismaking (zie quizHtml).
   welcome() {
     return `
       <div class="cover">
@@ -1704,30 +2063,20 @@ const VIEWS = {
         <h1 class="title">Wat eten<br><em>we?</em></h1>
         <div class="orn"><i></i></div>
         <div class="hero"><div class="emoji">${iconSvg('bord')}</div>
-          <p class="sub">Weet je vaak niet wat je moet eten? Ik help je kiezen uit je eigen favorieten.</p></div>
-        <form data-form="welcome">
-          <label for="f-yourname">Hoe mag ik je noemen? <span class="muted">(mag je overslaan)</span></label>
-          <input id="f-yourname" name="name" type="text" maxlength="30" autocomplete="given-name" placeholder="Je voornaam">
-          <label for="f-country">In welk land woon je?</label>
-          ${countrySelectHtml('')}
-          <p class="small muted" style="margin-top:6px">Dan laat ik eerst zien wat daar veel wordt gegeten.</p>
-          <details>
-            <summary><span>Dieet of allergie <span class="muted">(mag je overslaan)</span></span></summary>
-            <fieldset>
-              <legend>Volg je een dieet?</legend>
-              ${dietChecksHtml(false)}
-            </fieldset>
-            <p class="small muted" style="margin-top:6px">Dan stel ik alleen gerechten voor die erbij passen. Je kunt dit later aanpassen bij de instellingen.</p>
-            <fieldset>
-              <legend>Heb je een voedselallergie?</legend>
-              <p class="small muted">Vink aan waar je allergisch voor bent. Andere allergieën voeg je later toe bij de instellingen.</p>
-              ${allergenChecksHtml('allergies', state.allergies, 'welcome')}
-            </fieldset>
-            <p class="small muted" style="margin-top:8px">${ALLERGY_WARNING}</p>
-          </details>
-          <p></p>
-          <button class="btn primary big sticky" type="submit">Aan de slag</button>
-        </form>
+          <p class="sub">Weet je vaak niet wat je moet eten? Ik help je kiezen, elke dag opnieuw.</p></div>
+        <ul class="intro">
+          <li><span class="icon" aria-hidden="true">${iconSvg('ster')}</span>
+            <span><strong>Jouw eigen favorieten</strong><span class="small">Je vertelt wat je lekker vindt. Daar kies ik uit.</span></span></li>
+          <li><span class="icon" aria-hidden="true">${iconSvg('dobbelsteen')}</span>
+            <span><strong>Kiezen zonder gedoe</strong><span class="small">Drie korte vragen en je weet wat je eet. Of laat je verrassen.</span></span></li>
+          <li><span class="icon" aria-hidden="true">${iconSvg('kalender')}</span>
+            <span><strong>Je week in beeld</strong><span class="small">Wat je at, je boodschappen, je badges en je calorieën.</span></span></li>
+        </ul>
+        <button class="btn primary big sticky" data-action="quiz-open">Maak kennis<small>een minuutje, dan weet ik wat je lekker vindt</small></button>
+        <p class="small muted center">Wat je invult, blijft op je eigen telefoon.</p>
+        <button class="btn link" data-action="import-pick">Ik heb al een back-up</button>
+        <input id="import-file" type="file" accept="application/json,.json" data-change="import" hidden>
+        ${view.message ? `<div class="notice">${esc(view.message)}</div>` : ''}
       </div>`;
   },
 
@@ -1786,6 +2135,7 @@ const VIEWS = {
         <button class="icon-btn" data-action="nav" data-view="more" aria-label="Instellingen">${iconSvg('tandwiel')}</button>
       </div>
       ${saveWarningHtml()}
+      ${view.hello ? `<div class="notice reward">Je kookboek staat klaar met ${dishCount(state.dishes.length)}. Tik op "Help mij kiezen" en ik stel iets voor.</div>` : ''}
       <h1>Zin in iets <em>lekkers?</em></h1>
       <p class="sub">${current && !none ? `Je ${MEALS[meal].toLowerCase()} is gekozen. Liever iets anders? Kies gerust opnieuw.`
         : `${manualMeal ? `Je kiest nu voor ${MEALS[meal].toLowerCase()}.` : `Tijd voor ${MEALS[meal].toLowerCase()}.`} Ik help je kiezen uit je favorieten.`}</p>
@@ -2258,6 +2608,9 @@ const VIEWS = {
       ${topHtml('Gerechten ontdekken')}
       <h1>Wat vind je <em>lekker</em>?</h1>
       <p class="sub">Tik op de plus bij wat je lekker vindt, dan zet ik het bij je favorieten.</p>
+      ${state.tastes.cuisines.length + state.tastes.cravings.length ? '' : `
+        <div class="notice">Zal ik bovenaan zetten wat bij jou past?
+          <button class="btn link" data-action="quiz-open" data-mode="again">Vertel wat je lekker vindt</button></div>`}
       ${catalogHtml('alles')}
       <button class="btn link" data-action="nav" data-view="world">${iconSvg('wereld')} Of kijk in de wereldkeuken</button>
       <button class="btn primary sticky above-nav" data-action="nav" data-view="favorites">Klaar · ${state.dishes.length} favorieten</button>`;
@@ -2326,7 +2679,12 @@ const VIEWS = {
         </form>
         <h2><label for="f-country" style="margin:0">Je land</label></h2>
         ${countrySelectHtml(' data-change="set-country"')}
-        <p class="muted small" style="margin-top:6px">Bij "Gerechten ontdekken" zie je eerst wat er in dit land veel wordt gegeten.</p>`,
+        <p class="muted small" style="margin-top:6px">Bij "Gerechten ontdekken" zie je eerst wat er in dit land veel wordt gegeten.</p>
+        <h2>Je smaak</h2>
+        ${view.tasteSaved ? `<div class="notice" role="status">${esc(view.tasteSaved)}</div>` : ''}
+        <p class="muted small">${state.tastes.cuisines.length + state.tastes.cravings.length ? tasteSummary(state.tastes)
+          : 'Vertel welke keukens je lekker vindt en waar je vaak trek in hebt. Dan zet ik bij "Gerechten ontdekken" bovenaan wat bij je past.'}</p>
+        <button class="btn" data-action="quiz-open" data-mode="again">${state.tastes.cuisines.length + state.tastes.cravings.length ? 'Kies je smaak opnieuw' : 'Vertel wat je lekker vindt'}</button>`,
 
       allergie: () => `
         <p class="muted small">Vink aan waar je allergisch voor bent. Gerechten waar dat in zit, stel ik niet meer voor.</p>
@@ -2434,6 +2792,85 @@ const ACTIONS = {
     save();
     keepStorage();
     go('home');
+  },
+
+  // De kennismaking openen: de eerste keer vanaf de omslag, later vanuit de instellingen of de lijst met gerechten.
+  'quiz-open'(el) { openQuiz(el.dataset.mode === 'again' ? 'again' : 'first'); },
+
+  // Een bolletje aan- of uittikken. Het bolletje zonder sleutel ("ik eet alles", "nergens voor") maakt de lijst leeg.
+  'quiz-toggle'(el) {
+    const quiz = view.quiz;
+    const { list, key } = el.dataset;
+    if (!quiz || !Array.isArray(quiz[list])) return;
+    quiz[list] = !key ? [] : quiz[list].includes(key) ? quiz[list].filter(item => item !== key) : [...quiz[list], key];
+    quizSync();
+  },
+
+  'quiz-next'() { quizGo(Math.min(view.quiz.step + 1, QUIZ_STEPS[view.quiz.mode].length - 1)); },
+
+  'quiz-back'() { quizGo(Math.max(view.quiz.step - 1, 0)); },
+
+  // Nog een paar voorstellen erbij, onder wat er al stond. Het venster blijft staan waar het stond.
+  'quiz-more'() {
+    const quiz = view.quiz;
+    const body = document.querySelector('.sheet-body');
+    const at = body.scrollTop;
+    quiz.shown += QUIZ_MORE;
+    const more = tasteSuggestions(quiz, quiz.shown).map(dish => dish.key).filter(key => !quiz.offer.includes(key));
+    quiz.offer.push(...more);
+    render();
+    document.querySelector('.sheet-body').scrollTop = at;
+    const first = more.length && document.querySelector(`.sheet .bubble[data-key="${more[0]}"]`);
+    (first || document.getElementById('quiz-done')).focus({ preventScroll: true });
+  },
+
+  // De kennismaking afbreken. De eerste keer blijft bewaard wat er al is ingevuld (een allergie raakt zo niet
+  // zoek) en kies je daarna zelf uit de lijst; later verandert er niets.
+  'quiz-skip'() {
+    const quiz = view.quiz;
+    if (quiz.mode === 'again') {
+      delete view.quiz;
+      render();
+      const opener = app.querySelector('[data-action="quiz-open"]');
+      if (opener) opener.focus();
+      return;
+    }
+    const name = document.getElementById('f-yourname');
+    const country = document.getElementById('f-country');
+    if (name) quiz.name = name.value;
+    if (country && Object.hasOwn(COUNTRIES, country.value)) state.country = country.value;
+    quizApply(false);
+    go('onboarding');
+  },
+
+  // De eerste keer zelf kiezen uit de hele lijst, zonder de voorstellen.
+  'quiz-list'() {
+    quizApply(false);
+    go('onboarding');
+  },
+
+  // Klaar: alles wordt bewaard en de aangetikte gerechten komen bij de favorieten. Zijn het er genoeg, dan
+  // kan de app meteen beginnen; anders kies je er in de lijst nog een paar bij.
+  'quiz-done'() {
+    const first = view.quiz.mode === 'first';
+    const from = view.quiz.from;
+    const added = quizApply(true);
+    if (!first) {
+      // Terug naar waar je vandaan kwam: de lijst met gerechten (waar nu bovenaan staat wat bij je past) of de instellingen.
+      if (from === 'discover') return go('discover', { catalogMeal: 'alles' });
+      return go('more', { tab: 'profiel', tasteSaved: added ? `Je smaak is bewaard, en er ${added === 1 ? 'staat 1 gerecht' : `staan ${added} gerechten`} bij je favorieten.` : 'Je smaak is bewaard.' });
+    }
+    if (state.dishes.length < MIN_DISHES) return go('onboarding');
+    state.onboarded = true;
+    save();
+    keepStorage();
+    go('home', { hello: true });
+  },
+
+  // Een gerecht dat bij je smaak past, bovenaan de lijst waaruit je kiest.
+  'add-taste'(el) {
+    const dish = tasteEntry(el.dataset.key);
+    if (dish && !state.dishes.some(d => d.name.toLowerCase() === dish.name.toLowerCase())) keepFresh(dish);
   },
 
   discover(el) { go('discover', { catalogMeal: el.dataset.meal }); },
@@ -2813,15 +3250,13 @@ const FORMS = {
     else go('onboarding', { ownOpen: true, catalogMeal: view.catalogMeal, catalogQuery: view.catalogQuery, catalogOpen: view.catalogOpen });
   },
 
-  welcome(form) {
+  // De eerste stap van de kennismaking: de naam en het land. Het land telt meteen mee voor de voorstellen;
+  // bewaard wordt alles pas aan het eind.
+  'quiz-name'(form) {
     const data = new FormData(form);
-    state.name = cleanName(data.get('name'));
+    view.quiz.name = cleanName(data.get('name'));
     if (Object.hasOwn(COUNTRIES, data.get('country'))) state.country = data.get('country');
-    state.diet = cleanDiets(data.getAll('diet'), true);
-    state.allergies = cleanAllergens(data.getAll('allergies'));
-    state.welcomed = true;
-    save();
-    go('onboarding');
+    quizGo(view.quiz.step + 1);
   },
 
   // Een eigen allergie toevoegen, naast de veertien uit de lijst.
@@ -2979,6 +3414,11 @@ document.addEventListener('submit', event => {
   if (!form) return;
   event.preventDefault();
   FORMS[form.dataset.form](form);
+});
+
+// Escape sluit het venster van de kennismaking, behalve de eerste keer: dan zou je er per ongeluk uit vallen.
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && view.quiz && view.quiz.mode === 'again') ACTIONS['quiz-skip']();
 });
 
 // Tussen tabbladen wissel je ook met de pijltjestoetsen, zoals bij tabbladen gebruikelijk is.
