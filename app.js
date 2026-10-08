@@ -1463,8 +1463,20 @@ function buildQueue(answers) {
   return groups.flatMap((group, i) => weightedShuffle(group).map(dish => ({ id: dish.id, exact: i === 0 })));
 }
 
+// Terug naar de voorstellen waar je vandaan kwam. Wat intussen is verwijderd of niet meer bij je past, staat
+// er niet meer tussen; blijft er niets over, dan ga je naar het startscherm.
+function showResults(results) {
+  const queue = results.queue.filter(item => {
+    const dish = dishById(item.id);
+    return dish && dish.meals.includes(meal) && suitable(dish);
+  });
+  if (!queue.length) return go('home');
+  go('results', { ...results, queue, page: Math.min(results.page, Math.ceil(queue.length / PER_PAGE) - 1), wrapped: false });
+}
+
 // `mealKey` is de maaltijd waarvoor gekozen wordt: meestal die van dit moment, bij het weekmenu het avondeten.
-function choose(id, note, mealKey = meal) {
+// `results` zijn de voorstellen waaruit is gekozen; wie op de keuze terugkomt, ziet die dan weer.
+function choose(id, note, mealKey = meal, results) {
   const today = dayKey(new Date());
   // Een nieuwe keuze voor dezelfde maaltijd vervangt de vorige keuze van vandaag.
   // Wat je zelf in het weekoverzicht hebt genoteerd, blijft staan.
@@ -1473,7 +1485,7 @@ function choose(id, note, mealKey = meal) {
   const entry = logEntry(dishById(id), today, mealKey, true);
   const reward = rewardFor(entry);
   save();
-  go('chosen', { id, note, entryId: entry.id, replaced, reward, meal: mealKey });
+  go('chosen', { id, note, entryId: entry.id, replaced, reward, meal: mealKey, results });
 }
 
 // ---------- Weekmenu ----------
@@ -1663,6 +1675,7 @@ window.addEventListener('popstate', () => {
   else if (view.name === 'kcal') go('week', { offset: view.offset });
   else if (view.name === 'plan') go('week');
   else if (view.name === 'country') go('world');
+  else if (view.name === 'peek') showResults(view.results);
   // Een recept, het aanpassen van een gerecht en de lijst om uit te kiezen gaan terug naar waar je vandaan
   // kwam, net als de knop op het scherm zelf.
   else if (view.name === 'chosen' && view.back && view.back !== 'home') go(view.back);
@@ -1989,6 +2002,18 @@ function filterFavorites() {
 }
 
 // Een voorstel als kaart.
+// De ingrediënten en de bereiding van een gerecht, zoals ze bij een recept en bij een voorstel staan.
+// `between` komt onder de ingrediënten.
+function recipeHtml(dish, between = '') {
+  const { ingredients, recipe, own } = recipeOf(dish);
+  return `
+    ${ingredients.length ? `
+      <h2>Ingrediënten${own ? '' : ` <span>voor ${RECIPE_SERVES} personen</span>`}</h2>
+      <ul class="ing">${ingredients.map(i => `<li>${esc(i)}</li>`).join('')}</ul>${between}` : ''}
+    ${recipe ? `<h2>Bereiding</h2>
+      ${own ? `<p class="recipe">${esc(recipe)}</p>` : `<ol class="steps">${recipe.split('\n').map(step => `<li>${esc(step)}</li>`).join('')}</ol>`}` : ''}`;
+}
+
 function barHtml(item) {
   const dish = dishById(item.id);
   return `
@@ -2910,7 +2935,7 @@ const VIEWS = {
     return `
       ${topHtml(group ? `Persoon ${group.votes.length + 1} van ${group.count}` : 'Voorstellen', backHtml('Stoppen', 'data-action="nav" data-view="home"'))}
       <h1>${group ? `Persoon ${group.votes.length + 1}, wat` : 'Wat'} lijkt je <em>lekker</em>?</h1>
-      <p class="sub">Tik op waar je zin in hebt.</p>
+      <p class="sub">${group ? 'Tik op waar je zin in hebt.' : 'Tik op een gerecht om het eerst te bekijken.'}</p>
       ${notices.map(n => `<div class="notice">${n}</div>`).join('')}
       ${items.map(barHtml).join('')}
       ${legend.length ? `<p class="legend small muted">${legend.join(' · ')}: dat telt mee voor je badges.</p>` : ''}
@@ -2951,11 +2976,30 @@ const VIEWS = {
       <p class="sub">${dishMeta(dish)}${dish.kcal == null ? '' : ' · ' + kcalLabel(dish)}</p>`;
   },
 
+  // Een voorstel eerst bekijken: wat het is en wat je ervoor nodig hebt. Er is dan nog niets gekozen.
+  peek() {
+    const dish = dishById(view.id);
+    const { ingredients, recipe } = recipeOf(dish);
+    const pick = '<button class="btn primary" data-action="peek-pick">Dit wordt het</button>';
+    return `
+      ${topHtml('Voorstel', backHtml('Voorstellen', 'data-action="peek-back"'))}
+      <div class="hero"><div class="emoji">${iconSvg(dishIcon(dish))}</div>
+        <h1>${esc(dish.name)}</h1>
+        <p class="sub">${dishMeta(dish)}${dish.kcal == null ? '' : ' · ' + kcalLabel(dish)}</p>
+        ${dish.about ? `<p class="small muted">${esc(dish.about)}</p>` : ''}
+        ${allergenLine(dish) ? `<p class="small muted">${allergenLine(dish).replace('Bevat:', 'Bevat meestal:')}</p>` : ''}</div>
+      ${pick}
+      ${recipeHtml(dish)}
+      ${ingredients.length || recipe ? `<div class="orn"><i></i></div>${pick}`
+        : '<div class="notice">Van dit gerecht heb ik nog geen recept. Kies je het, dan kun je er een opzoeken of je eigen recept erbij zetten.</div>'}
+      <button class="btn link" data-action="peek-back">Terug naar de voorstellen</button>`;
+  },
+
   // Het recept van een gerecht. Net gekozen: met een felicitatie en de mogelijkheid om terug te komen op je
   // keuze. Later opnieuw geopend (view.back zegt vanaf welk scherm): alleen het recept.
   chosen() {
     const dish = dishById(view.id);
-    const { ingredients, recipe, own } = recipeOf(dish);
+    const { ingredients, recipe } = recipeOf(dish);
     const hasRecipe = ingredients.length || recipe;
     const back = view.back;
     const open = openShopping(dish);
@@ -2971,14 +3015,10 @@ const VIEWS = {
         ${allergenLine(dish) ? `<p class="small muted">${allergenLine(dish).replace('Bevat:', 'Bevat meestal:')}</p>` : ''}</div>
       ${rewardHtml(view.reward)}
       ${view.note ? `<div class="notice">${esc(view.note)}</div>` : ''}
-      ${ingredients.length ? `
-        <h2>Ingrediënten${own ? '' : ` <span>voor ${RECIPE_SERVES} personen</span>`}</h2>
-        <ul class="ing">${ingredients.map(i => `<li>${esc(i)}</li>`).join('')}</ul>
+      ${recipeHtml(dish, `
         <button class="btn" data-action="add-to-shopping"${view.added || onList ? ' disabled' : ''}>
-          ${view.added ? '✓ Op de boodschappenlijst gezet' : onList ? '✓ Staat al op je boodschappenlijst' : `${iconSvg('mand')} Zet op de boodschappenlijst`}</button>` : ''}
-      ${recipe ? `<h2>Bereiding</h2>
-        ${own ? `<p class="recipe">${esc(recipe)}</p>` : `<ol class="steps">${recipe.split('\n').map(step => `<li>${esc(step)}</li>`).join('')}</ol>`}` : ''}
-      ${hasRecipe ? '' : '<div class="notice">Van dit gerecht heb ik nog geen recept. Zoek er een op internet, of zet je eigen recept erbij.</div>'}
+          ${view.added ? '✓ Op de boodschappenlijst gezet' : onList ? '✓ Staat al op je boodschappenlijst' : `${iconSvg('mand')} Zet op de boodschappenlijst`}</button>`)}
+      ${hasRecipe ? '' :'<div class="notice">Van dit gerecht heb ik nog geen recept. Zoek er een op internet, of zet je eigen recept erbij.</div>'}
       <div class="orn"><i></i></div>
       <a class="btn" href="https://www.google.com/search?q=${encodeURIComponent(`recept ${dish.name}`)}" target="_blank" rel="noopener noreferrer">${iconSvg('zoek')} ${hasRecipe ? 'Zoek een ander recept op internet' : 'Zoek een recept op internet'}</a>
       <button class="btn" data-action="edit-dish" data-id="${dish.id}">${iconSvg('potlood')} ${hasRecipe ? 'Recept aanpassen' : 'Eigen recept toevoegen'}</button>
@@ -3491,18 +3531,21 @@ const ACTIONS = {
     const pool = (exact.length ? exact : queue).map(item => dishById(item.id));
     const id = weightedShuffle(pool)[0].id;
     const note = 'Deze heb ik voor je uitgekozen.';
+    const results = inResults ? view : undefined;
     // Wie geen beweging wil, ziet meteen het gerecht. Anders draait eerst de kring met je gerechten; loop je
     // intussen weg van dat scherm, dan is er niets gekozen.
-    if (motionOff()) return choose(id, note);
+    if (motionOff()) return choose(id, note, meal, results);
     go('spin', { id });
     setTimeout(() => {
-      if (view.name === 'spin' && view.id === id) choose(id, note);
+      if (view.name === 'spin' && view.id === id) choose(id, note, meal, results);
     }, SPIN_TIME);
   },
 
+  // Alleen kiezen: een tik laat het gerecht eerst zien, er is dan nog niets gekozen. Samen kiezen: een tik
+  // is je stem.
   pick(el) {
     const group = view.group;
-    if (!group) return choose(el.dataset.id);
+    if (!group) return go('peek', { id: el.dataset.id, results: view });
     group.votes.push(el.dataset.id);
     if (group.votes.length < group.count) return go('pass', { results: view, group });
 
@@ -3518,6 +3561,13 @@ const ACTIONS = {
   },
 
   'pass-continue'() { go('results', view.results); },
+
+  'peek-pick'() { choose(view.id, undefined, meal, view.results); },
+
+  'peek-back'() {
+    backward = true;
+    showResults(view.results);
+  },
 
   // Wat al op de lijst staat en nog niet is afgevinkt, komt er niet nog een keer bij.
   'add-to-shopping'() {
@@ -3596,14 +3646,17 @@ const ACTIONS = {
     if (dish) choose(dish.id, 'Dit stond op je weekmenu.', 'avond');
   },
 
-  // Haalt de notitie van deze keuze weg en zet terug wat ze verving.
+  // Haalt de notitie van deze keuze weg en zet terug wat ze verving. Wie uit de voorstellen koos, ziet die
+  // weer; anders ga je naar het startscherm.
   'undo-choice'() {
     state.history = state.history.filter(h => h.id !== view.entryId).concat(view.replaced || []);
     // Badges die deze keuze opleverde vervallen, tenzij je ze ook zonder deze keuze had verdiend.
     for (const id of view.reward ? view.reward.badges : []) delete state.badges[id];
     checkBadges();
     save();
-    go('home');
+    if (!view.results) return go('home');
+    backward = true;
+    showResults(view.results);
   },
 
   'week-move'(el) {
