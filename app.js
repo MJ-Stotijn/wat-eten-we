@@ -197,6 +197,17 @@ const CUISINES = [
   ['mexicaans', 'Mexi­caans', 'taco', ['MX'], ['Chili con carne', 'Chili sin carne', 'Wraps met gehakt', 'Wrap met kip en groenten']],
   ['amerikaans', 'Ameri­kaans', 'hamburger', ['US'], ['Hamburger met friet']],
 ];
+// Bij de kennismaking staan de keukens met vier tegelijk in beeld, de bekendste eerst: zo staat er weinig op
+// het scherm en zit wat de meeste mensen zoeken vooraan. Bij elke keuken horen twee gerechten waar je haar
+// aan herkent.
+const CUISINE_PAGE = 4;
+const CUISINE_FIRST = ['hollands', 'italiaans', 'chinees', 'indonesisch', 'mexicaans', 'japans', 'grieks', 'turks', 'indiaas', 'thais', 'spaans', 'frans', 'marokkaans', 'surinaams', 'amerikaans'];
+const CUISINE_KNOWN = {
+  hollands: 'stamppot, hutspot', italiaans: 'pasta, pizza', chinees: 'roerbak, bami', indonesisch: 'nasi, saté',
+  mexicaans: 'wraps, taco\'s', japans: 'sushi, pokébowl', grieks: 'gyros, souvlaki', turks: 'shoarma, kebab',
+  indiaas: 'curry, naan', thais: 'noedels, pad thai', spaans: 'paella, tapas', frans: 'quiche, ratatouille',
+  marokkaans: 'couscous, tajine', surinaams: 'roti, pom', amerikaans: 'hamburger, friet',
+};
 // Waar je vaak trek in hebt: [sleutel, naam, pictogram, de pictogrammen van gerechten die erbij horen, de
 // soort die erbij hoort (of niets), woorden in de naam van een gerecht die erbij horen].
 const CRAVINGS = [
@@ -2111,7 +2122,7 @@ function tasteSummary(tastes) {
 // Opent de kennismaking als venster over het scherm heen. `mode` is 'first' (de eerste keer) of 'again'.
 function openQuiz(mode) {
   view.quiz = {
-    mode, from: view.name, step: 0, name: state.name, cuisines: [...state.tastes.cuisines], cravings: [...state.tastes.cravings],
+    mode, from: view.name, step: 0, page: 0, name: state.name, cuisines: [...state.tastes.cuisines], cravings: [...state.tastes.cravings],
     dislikes: [...state.dislikes], time: state.weekdayTime ? [state.weekdayTime] : [],
     diet: [...state.diet], allergies: [...state.allergies], offer: [], picked: [], shown: QUIZ_BATCH,
     // Wat er gold voor het venster openging, voor als het wordt gesloten zonder te bewaren (zie closeQuiz).
@@ -2164,6 +2175,13 @@ function quizGo(step) {
   focusQuiz();
 }
 
+// Een bladzijde verder of terug bij de keukens.
+function quizTurn(step) {
+  view.quiz.page += step;
+  render();
+  focusQuiz();
+}
+
 // Legt vast wat er in de kennismaking is gekozen. Met `dishes` komen ook de aangetikte gerechten bij de
 // favorieten; het antwoord is hoeveel dat er waren.
 function quizApply(dishes) {
@@ -2210,6 +2228,14 @@ function quizDoneText() {
     : `Zet deze ${count} bij mijn favorieten`;
 }
 
+// De keukens in de volgorde van de kennismaking, verdeeld over bladzijden van vier. Een keuken die niet in
+// CUISINE_FIRST staat, komt achteraan.
+function cuisinePages() {
+  const rank = key => (CUISINE_FIRST.indexOf(key) + 1) || CUISINE_FIRST.length + 1;
+  const sorted = [...CUISINES].sort((a, b) => rank(a[0]) - rank(b[0]));
+  return Array.from({ length: Math.ceil(sorted.length / CUISINE_PAGE) }, (unused, i) => sorted.slice(i * CUISINE_PAGE, (i + 1) * CUISINE_PAGE));
+}
+
 // Een bolletje om aan te tikken. Zonder `key` is het het bolletje voor "geen van deze".
 function bubbleHtml(list, key, label, icon, hint) {
   const picked = view.quiz[list];
@@ -2241,10 +2267,17 @@ function quizHtml() {
       </form>`;
     foot = '<button class="btn primary" type="submit" form="quiz-form">Volgende</button>';
   } else if (step === 'keuken') {
+    // Vier bolletjes tegelijk, op een paar bladzijden; de streepjes laten zien op welke je bent. De knop
+    // onderaan zegt wat er nog komt, en gaat pas na de laatste bladzijde naar de volgende vraag.
+    const pages = cuisinePages();
+    const page = Math.min(quiz.page, pages.length - 1);
+    const coming = page < pages.length - 1 ? pages[page + 1].length : 0;
     body = `
       <h2 id="quiz-title" tabindex="-1">Welke keukens vind je <em>lekker?</em></h2>
-      <p class="sub">Tik aan wat je lekker vindt. Je mag er zoveel kiezen als je wilt.</p>
-      <div class="bubbles" role="group" aria-label="Keukens">${CUISINES.map(([key, label, icon]) => bubbleHtml('cuisines', key, label, icon)).join('')}</div>`;
+      <p class="sub">Tik aan wat je lekker vindt.</p>
+      <div class="pager"><span class="dots" role="img" aria-label="Bladzijde ${page + 1} van ${pages.length}">${pages.map((unused, i) => `<i${i <= page ? ' class="on"' : ''}></i>`).join('')}</span><span aria-hidden="true">${page + 1} van ${pages.length}</span></div>
+      <div class="bubbles four" role="group" aria-label="Keukens">${pages[page].map(([key, label, icon]) => bubbleHtml('cuisines', key, label, icon, CUISINE_KNOWN[key])).join('')}</div>`;
+    if (coming) foot = `<button class="btn primary" data-action="quiz-next">${coming === CUISINE_PAGE ? 'Volgende vier' : ['', 'De laatste', 'De laatste twee', 'De laatste drie'][coming] || 'Volgende'}</button>`;
   } else if (step === 'trek') {
     body = `
       <h2 id="quiz-title" tabindex="-1">Waar heb je vaak <em>trek</em> in?</h2>
@@ -2306,7 +2339,7 @@ function quizHtml() {
     <div class="sheet-back${quiz.opening ? ' opening' : ''}">
       <section class="sheet" role="dialog" aria-modal="true" aria-labelledby="quiz-title">
         <div class="sheet-top">
-          ${quiz.step > 0 ? '<button class="back" data-action="quiz-back">‹ Terug</button>' : '<span class="back-space"></span>'}
+          ${quiz.step > 0 || (step === 'keuken' && quiz.page > 0) ? '<button class="back" data-action="quiz-back">‹ Terug</button>' : '<span class="back-space"></span>'}
           <span class="dots" role="img" aria-label="Stap ${quiz.step + 1} van ${steps.length}">${steps.map((name, i) => `<i${i <= quiz.step ? ' class="on"' : ''}></i>`).join('')}</span>
           <button class="btn link" data-action="quiz-skip">${quiz.mode === 'first' ? 'Overslaan' : 'Sluiten'}</button>
         </div>
@@ -3148,9 +3181,19 @@ const ACTIONS = {
     quizSync();
   },
 
-  'quiz-next'() { quizGo(Math.min(view.quiz.step + 1, QUIZ_STEPS[view.quiz.mode].length - 1)); },
+  // Verder en terug. Bij de keukens blader je eerst door de bladzijden met vier bolletjes; pas na de laatste
+  // (of voor de eerste) ga je naar een andere vraag.
+  'quiz-next'() {
+    const quiz = view.quiz;
+    if (QUIZ_STEPS[quiz.mode][quiz.step] === 'keuken' && quiz.page < cuisinePages().length - 1) return quizTurn(1);
+    quizGo(Math.min(quiz.step + 1, QUIZ_STEPS[quiz.mode].length - 1));
+  },
 
-  'quiz-back'() { quizGo(Math.max(view.quiz.step - 1, 0)); },
+  'quiz-back'() {
+    const quiz = view.quiz;
+    if (QUIZ_STEPS[quiz.mode][quiz.step] === 'keuken' && quiz.page > 0) return quizTurn(-1);
+    quizGo(Math.max(quiz.step - 1, 0));
+  },
 
   // Nog een paar voorstellen erbij, onder wat er al stond. Het venster blijft staan waar het stond.
   'quiz-more'() {
