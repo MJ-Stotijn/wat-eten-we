@@ -200,7 +200,6 @@ const CUISINES = [
 // Bij de kennismaking staan de keukens met vier tegelijk in beeld, de bekendste eerst: zo staat er weinig op
 // het scherm en zit wat de meeste mensen zoeken vooraan. Bij elke keuken horen twee gerechten waar je haar
 // aan herkent.
-const CUISINE_PAGE = 4;
 const CUISINE_FIRST = ['hollands', 'italiaans', 'chinees', 'indonesisch', 'mexicaans', 'japans', 'grieks', 'turks', 'indiaas', 'thais', 'spaans', 'frans', 'marokkaans', 'surinaams', 'amerikaans'];
 const CUISINE_KNOWN = {
   hollands: 'stamppot, hutspot', italiaans: 'pasta, pizza', chinees: 'roerbak, bami', indonesisch: 'nasi, saté',
@@ -256,7 +255,7 @@ const DISLIKES = [
   ['pittig', 'Pittig eten', 'chili', ['pittig', 'chili', 'sambal', 'curry', 'kerrie'], ''],
 ];
 // Hoeveel tijd iemand doordeweeks heeft om te koken: [waarde, naam, toelichting]. Leeg betekent alle tijd.
-const WEEKDAY_TIMES = [['snel', 'Weinig', 'tot 20 minuten'], ['normaal', 'Een beetje', 'tot 45 minuten'], ['', 'Alle tijd', 'uitgebreid mag ook']];
+const WEEKDAY_TIMES = [['snel', 'Weinig', 'tot 20 minuten'], ['normaal', 'Een beetje', 'tot 45 minuten'], ['', 'Alle tijd', 'ook uitgebreid']];
 // Het weekmenu loopt over zoveel dagen, te beginnen bij vandaag.
 const PLAN_DAYS = 7;
 // Tijdzones van landen waar veel Nederlands wordt gesproken, om het land van de gebruiker te raden.
@@ -1700,6 +1699,11 @@ document.addEventListener('visibilitychange', () => {
   tickMeal();
 });
 
+// Draait de telefoon of verandert het venster van maat, dan passen de bolletjes van de kennismaking zich aan.
+window.addEventListener('resize', () => {
+  if (view.quiz) fitBubbles();
+});
+
 // Welk tabblad onderin oplicht bij een scherm. De instellingen open je vanaf het startscherm.
 const NAV_TAB = {
   week: 'week', log: 'week', kcal: 'week', plan: 'week', favorites: 'favorites', edit: 'favorites', discover: 'favorites',
@@ -1717,6 +1721,7 @@ function render() {
   const screen = VIEWS[view.name]();
   app.innerHTML = view.quiz ? `<div class="behind" inert aria-hidden="true">${screen}</div>${quizHtml()}` : screen;
   document.documentElement.classList.toggle('modal', Boolean(view.quiz));
+  if (view.quiz) fitBubbles();
   if (document.getElementById('catalog')) filterCatalog();
   if (document.getElementById('favorites-list')) filterFavorites();
   if (document.getElementById('map-host')) {
@@ -2005,7 +2010,33 @@ function barHtml(item) {
 const QUIZ_STEPS = { first: ['naam', 'keuken', 'trek', 'lust', 'tijd', 'dieet', 'allergie', 'klaar'], again: ['keuken', 'trek', 'lust', 'tijd', 'klaar'] };
 // Zoveel gerechten stelt de app eerst voor, en zoveel komen erbij als je om meer vraagt.
 const QUIZ_BATCH = 12;
-const QUIZ_MORE = 6;
+const QUIZ_MORE = 4;
+// Hooguit zoveel bolletjes staan er tegelijk in beeld; wat er meer is, staat op een volgende bladzijde.
+const QUIZ_PAGE = 4;
+// Vragen die beginnen met een voorvraag van twee bolletjes ("Ik lust alles" of "Ja, ik kies"), zodat wie niets
+// te kiezen heeft niet door de bladzijden hoeft: de lijst in het venster waar de keuze in komt.
+const QUIZ_GATES = { lust: 'dislikes', dieet: 'diet', allergie: 'allergies' };
+// De voorvraag: [vraag, uitleg, het bolletje voor niets, het bolletje om te kiezen, wat daar klein onder staat,
+// het zinnetje onder de bolletjes].
+const QUIZ_GATE_ASK = {
+  lust: ['Is er iets wat je <em>niet</em> lust?', 'Gerechten waar dat in zit, sla ik over. Het hoeft geen allergie te zijn.', 'Ik lust alles', 'Ja, ik kies', 'spruitjes, vis, pittig…',
+    'Je kunt dit later aanpassen bij de instellingen, op het tabblad Dieet.'],
+  dieet: ['Eet je op een bepaalde <em>manier?</em>', 'Dan stel ik alleen voor wat daarbij past.', 'Ik eet alles', 'Ja, ik kies', 'vegetarisch, glutenvrij…',
+    'Je kunt dit later aanpassen bij de instellingen.'],
+  allergie: ['Ben je ergens <em>allergisch</em> voor?', 'Gerechten waar dat meestal in zit, stel ik niet voor.', 'Nergens voor', 'Ja, ik kies', 'gluten, noten, melk…',
+    'Staat jouw allergie er niet bij? Die voeg je later toe bij de instellingen.'],
+};
+// De vraag boven de bolletjes: [vraag, uitleg, de naam van het groepje voor een schermlezer].
+const QUIZ_ASK = {
+  keuken: ['Welke keukens vind je <em>lekker?</em>', 'Tik aan wat je lekker vindt.', 'Keukens'],
+  trek: ['Waar heb je vaak <em>trek</em> in?', 'Tik aan waar je blij van wordt.', 'Trek'],
+  lust: ['Wat lust je <em>niet?</em>', 'Tik aan wat ik moet overslaan.', 'Wat je niet lust'],
+  tijd: ['Hoeveel <em>tijd</em> heb je doordeweeks?', 'Op werkdagen zet ik vooraan wat daarbij past.', 'Tijd om te koken op een werkdag'],
+  dieet: ['Hoe <em>eet</em> je?', 'Tik aan wat bij je past.', 'Dieet'],
+  allergie: ['Waar ben je <em>allergisch</em> voor?', 'Tik aan waar je allergisch voor bent.', 'Allergieën'],
+};
+// Het pictogram bij elke keuze voor je tijd doordeweeks, dezelfde als bij "Help mij kiezen".
+const TIME_ICONS = { snel: 'bliksem', normaal: 'klok', '': 'stoofpot' };
 // Van elke twaalf voorstellen zijn er zoveel voor elke maaltijd.
 const TASTE_SHARE = { avond: 6, middag: 3, ontbijt: 3 };
 
@@ -2122,7 +2153,9 @@ function tasteSummary(tastes) {
 // Opent de kennismaking als venster over het scherm heen. `mode` is 'first' (de eerste keer) of 'again'.
 function openQuiz(mode) {
   view.quiz = {
-    mode, from: view.name, step: 0, page: 0, name: state.name, cuisines: [...state.tastes.cuisines], cravings: [...state.tastes.cravings],
+    // `page` is de bladzijde met bolletjes binnen de vraag (-1 is de voorvraag), `seen` onthoudt per vraag waar
+    // je was voor als je teruggaat, `dir` en `turn` zeggen hoe het volgende scherm in beeld komt.
+    mode, from: view.name, step: 0, page: 0, seen: {}, dir: 0, turn: false, name: state.name, cuisines: [...state.tastes.cuisines], cravings: [...state.tastes.cravings],
     dislikes: [...state.dislikes], time: state.weekdayTime ? [state.weekdayTime] : [],
     diet: [...state.diet], allergies: [...state.allergies], offer: [], picked: [], shown: QUIZ_BATCH,
     // Wat er gold voor het venster openging, voor als het wordt gesloten zonder te bewaren (zie closeQuiz).
@@ -2156,9 +2189,16 @@ function closeQuiz() {
 
 // Naar een andere stap. Bij het voorstel aan het eind telt alles wat is gekozen al mee (het dieet, de
 // allergieën, wat je niet lust), zodat het erbij past; bewaard wordt er pas als de gebruiker klaar is.
-function quizGo(step) {
+// De vraag opent op haar eerste bladzijde (of de voorvraag); wie teruggaat, komt uit waar hij was. Met `page`
+// kies je de bladzijde zelf.
+function quizGo(step, page) {
   const quiz = view.quiz;
+  const steps = QUIZ_STEPS[quiz.mode];
+  quiz.seen[steps[quiz.step]] = quiz.page;
+  quiz.dir = Math.sign(step - quiz.step);
+  quiz.turn = false;
   quiz.step = step;
+  quiz.page = page != null ? page : quiz.dir < 0 && quiz.seen[steps[step]] != null ? quiz.seen[steps[step]] : quizFirstPage(steps[step]);
   if (QUIZ_STEPS[quiz.mode][step] === 'klaar') {
     if (quiz.mode === 'first') {
       state.diet = cleanDiets(quiz.diet, true);
@@ -2171,15 +2211,100 @@ function quizGo(step) {
     // De eerste keer staat alles al aan: weghalen wat je niet lust gaat sneller dan alles aantikken.
     quiz.picked = quiz.mode === 'first' ? [...quiz.offer] : [];
   }
-  render();
-  focusQuiz();
+  quizShow();
 }
 
-// Een bladzijde verder of terug bij de keukens.
+// Een bladzijde met bolletjes verder of terug binnen dezelfde vraag: de vraag blijft staan, alleen de bolletjes
+// wisselen.
 function quizTurn(step) {
-  view.quiz.page += step;
+  const quiz = view.quiz;
+  quiz.page += step;
+  quiz.dir = step;
+  quiz.turn = true;
+  quizShow();
+}
+
+// Tekent het venster opnieuw na een stap of een bladzijde. Is het nieuwe scherm hoger of lager, dan groeit of
+// krimpt het venster vloeiend mee in plaats van te verspringen.
+function quizShow() {
+  const old = document.querySelector('.sheet');
+  const from = old ? old.offsetHeight : 0;
   render();
   focusQuiz();
+  const sheet = document.querySelector('.sheet');
+  if (!sheet || !from || motionOff() || !sheet.animate) return;
+  const to = sheet.offsetHeight;
+  if (Math.abs(to - from) > 2) sheet.animate([{ height: `${from}px` }, { height: `${to}px` }], { duration: 320, easing: 'cubic-bezier(0.2, 0.8, 0.3, 1)' });
+}
+
+// Past een scherm van de kennismaking niet zonder scrollen (een kort scherm, veel tekst boven de bolletjes),
+// dan worden de bolletjes kleiner tot het wel past, tot een ondergrens. De opmaak geeft de maat om mee te
+// beginnen (--four); hier komt er zo nodig een kleinere voor in de plaats. Bolletjes met de naam van een
+// gerecht blijven groter, anders past de naam er niet in; dan scroll je liever een klein stukje.
+const BUBBLE_MIN = 104;
+const DISH_BUBBLE_MIN = 128;
+function fitBubbles() {
+  const body = document.querySelector('.sheet-body');
+  const box = body && body.querySelector('.bubbles');
+  if (!box || !box.firstElementChild) return;
+  box.style.removeProperty('--four');
+  box.classList.remove('klein');
+  const over = body.scrollHeight - body.clientHeight;
+  if (over <= 0) return;
+  const columns = getComputedStyle(box).gridTemplateColumns.split(' ').length || 2;
+  const rows = Math.ceil(box.children.length / columns);
+  const least = box.classList.contains('dishes') ? DISH_BUBBLE_MIN : BUBBLE_MIN;
+  const size = Math.max(least, Math.floor(box.firstElementChild.offsetWidth - over / rows) - 1);
+  if (size >= box.firstElementChild.offsetWidth) return;
+  box.style.setProperty('--four', `${size}px`);
+  // In een klein bolletje is geen plaats voor de kleine regel onder de naam.
+  box.classList.toggle('klein', size < 118);
+}
+
+// De bladzijde waarop een vraag begint: -1 is de voorvraag.
+function quizFirstPage(step) {
+  return QUIZ_GATES[step] ? -1 : 0;
+}
+
+// De bolletjes van een vraag, verdeeld over bladzijden van hooguit vier: [lijst, sleutel, naam, pictogram,
+// toelichting]. Bij het voorstel zijn het de gerechten.
+function quizPages(step) {
+  const quiz = view.quiz;
+  let items = [];
+  if (step === 'keuken') return cuisinePages().map(page => page.map(([key, label, icon]) => ['cuisines', key, label, icon, CUISINE_KNOWN[key]]));
+  if (step === 'trek') items = CRAVINGS.map(([key, label, icon]) => ['cravings', key, label, icon]);
+  if (step === 'lust') items = DISLIKES.map(([key, label, icon]) => ['dislikes', key, label, icon]);
+  if (step === 'tijd') items = WEEKDAY_TIMES.map(([key, label, hint]) => ['time', key, label, TIME_ICONS[key], hint]);
+  if (step === 'dieet') items = Object.entries(DIETS).map(([key, label]) => ['diet', key, BUBBLE_NAMES[label] || label]);
+  if (step === 'allergie') items = Object.entries(ALLERGENS).map(([key, [label, hint]]) => ['allergies', key, BUBBLE_NAMES[label] || label, '', briefHint(hint)]);
+  if (step === 'klaar') {
+    const byKey = new Map(tasteCandidates(quiz, false).map(dish => [dish.key, dish]));
+    items = quiz.offer.map(key => byKey.get(key)).filter(Boolean).map(dish => ['picked', dish.key, esc(dish.name), dish.icon]);
+  }
+  return Array.from({ length: Math.ceil(items.length / QUIZ_PAGE) }, (unused, i) => items.slice(i * QUIZ_PAGE, (i + 1) * QUIZ_PAGE));
+}
+
+// Van welke kant de bolletjes binnenkomen: van rechts als je verder gaat, van links als je teruggaat.
+function quizSide() {
+  return view.quiz.dir < 0 ? ' back' : view.quiz.dir > 0 ? ' fwd' : '';
+}
+
+// De streepjes die laten zien op welke bladzijde met bolletjes je bent. Bij één bladzijde staat er niets.
+function pagerHtml(page, count) {
+  if (count < 2) return '';
+  return `<div class="pager${quizSide()}"><span class="dots" role="img" aria-label="Bladzijde ${page + 1} van ${count}">${
+    Array.from({ length: count }, (unused, i) => `<i${i <= page ? ` class="on${i === page ? ' now' : ''}"` : ''}></i>`).join('')}</span><span aria-hidden="true">${page + 1} van ${count}</span></div>`;
+}
+
+// De bolletjes van één bladzijde.
+function fourHtml(items, label, extra = '') {
+  return `<div class="bubbles four${extra}${quizSide()}" role="group" aria-label="${label}">${items.map(item => bubbleHtml(...item)).join('')}</div>`;
+}
+
+// Wat er op de knop onderaan staat: wat er op de volgende bladzijde nog komt, of gewoon "Volgende".
+function nextLabel(pages, page) {
+  const coming = page < pages.length - 1 ? pages[page + 1].length : 0;
+  return coming === QUIZ_PAGE ? 'Volgende vier' : ['Volgende', 'Nog één', 'De laatste twee', 'De laatste drie'][coming] || 'Volgende';
 }
 
 // Legt vast wat er in de kennismaking is gekozen. Met `dishes` komen ook de aangetikte gerechten bij de
@@ -2210,7 +2335,7 @@ function quizApply(dishes) {
 // staan en begint de beweging van de bolletjes niet opnieuw.
 function quizSync() {
   const quiz = view.quiz;
-  for (const bubble of document.querySelectorAll('.sheet .bubble')) {
+  for (const bubble of document.querySelectorAll('.sheet [data-action="quiz-toggle"]')) {
     const list = quiz[bubble.dataset.list];
     bubble.setAttribute('aria-pressed', bubble.dataset.key ? list.includes(bubble.dataset.key) : list.length === 0);
   }
@@ -2233,7 +2358,7 @@ function quizDoneText() {
 function cuisinePages() {
   const rank = key => (CUISINE_FIRST.indexOf(key) + 1) || CUISINE_FIRST.length + 1;
   const sorted = [...CUISINES].sort((a, b) => rank(a[0]) - rank(b[0]));
-  return Array.from({ length: Math.ceil(sorted.length / CUISINE_PAGE) }, (unused, i) => sorted.slice(i * CUISINE_PAGE, (i + 1) * CUISINE_PAGE));
+  return Array.from({ length: Math.ceil(sorted.length / QUIZ_PAGE) }, (unused, i) => sorted.slice(i * QUIZ_PAGE, (i + 1) * QUIZ_PAGE));
 }
 
 // Een bolletje om aan te tikken. Zonder `key` is het het bolletje voor "geen van deze".
@@ -2251,9 +2376,9 @@ function quizHtml() {
   const quiz = view.quiz;
   const steps = QUIZ_STEPS[quiz.mode];
   const step = steps[quiz.step];
-  const next = '<button class="btn primary" data-action="quiz-next">Volgende</button>';
+  const next = label => `<button class="btn primary" data-action="quiz-next">${label}</button>`;
   let body = '';
-  let foot = next;
+  let foot = next('Volgende');
   if (step === 'naam') {
     body = `
       <h2 id="quiz-title" tabindex="-1">Leuk dat je er <em>bent!</em></h2>
@@ -2266,84 +2391,63 @@ function quizHtml() {
         <p class="small muted" style="margin-top:6px">Dan laat ik ook zien wat daar veel wordt gegeten.</p>
       </form>`;
     foot = '<button class="btn primary" type="submit" form="quiz-form">Volgende</button>';
-  } else if (step === 'keuken') {
-    // Vier bolletjes tegelijk, op een paar bladzijden; de streepjes laten zien op welke je bent. De knop
-    // onderaan zegt wat er nog komt, en gaat pas na de laatste bladzijde naar de volgende vraag.
-    const pages = cuisinePages();
-    const page = Math.min(quiz.page, pages.length - 1);
-    const coming = page < pages.length - 1 ? pages[page + 1].length : 0;
-    body = `
-      <h2 id="quiz-title" tabindex="-1">Welke keukens vind je <em>lekker?</em></h2>
-      <p class="sub">Tik aan wat je lekker vindt.</p>
-      <div class="pager"><span class="dots" role="img" aria-label="Bladzijde ${page + 1} van ${pages.length}">${pages.map((unused, i) => `<i${i <= page ? ' class="on"' : ''}></i>`).join('')}</span><span aria-hidden="true">${page + 1} van ${pages.length}</span></div>
-      <div class="bubbles four" role="group" aria-label="Keukens">${pages[page].map(([key, label, icon]) => bubbleHtml('cuisines', key, label, icon, CUISINE_KNOWN[key])).join('')}</div>`;
-    if (coming) foot = `<button class="btn primary" data-action="quiz-next">${coming === CUISINE_PAGE ? 'Volgende vier' : ['', 'De laatste', 'De laatste twee', 'De laatste drie'][coming] || 'Volgende'}</button>`;
-  } else if (step === 'trek') {
-    body = `
-      <h2 id="quiz-title" tabindex="-1">Waar heb je vaak <em>trek</em> in?</h2>
-      <p class="sub">Kies alles waar je blij van wordt.</p>
-      <div class="bubbles" role="group" aria-label="Trek">${CRAVINGS.map(([key, label, icon]) => bubbleHtml('cravings', key, label, icon)).join('')}</div>`;
-  } else if (step === 'lust') {
-    body = `
-      <h2 id="quiz-title" tabindex="-1">Is er iets wat je <em>niet</em> lust?</h2>
-      <p class="sub">Gerechten waar dat in zit, sla ik over. Het hoeft geen allergie te zijn.</p>
-      <div class="bubbles" role="group" aria-label="Wat je niet lust">
-        ${bubbleHtml('dislikes', '', 'Ik lust alles')}${DISLIKES.map(([key, label, icon]) => bubbleHtml('dislikes', key, label, icon)).join('')}
-      </div>
-      <p class="small muted">Je kunt dit later aanpassen bij de instellingen, op het tabblad Dieet.</p>`;
-  } else if (step === 'tijd') {
-    body = `
-      <h2 id="quiz-title" tabindex="-1">Hoeveel <em>tijd</em> heb je doordeweeks?</h2>
-      <p class="sub">Dan zet ik op werkdagen vooraan wat daarbij past. In het weekend mag het uitgebreider.</p>
-      <div class="bubbles" role="group" aria-label="Tijd om te koken op een werkdag">
-        ${WEEKDAY_TIMES.map(([key, label, hint]) => bubbleHtml('time', key, label, '', hint)).join('')}
-      </div>`;
-  } else if (step === 'dieet') {
-    body = `
-      <h2 id="quiz-title" tabindex="-1">Eet je op een bepaalde <em>manier?</em></h2>
-      <p class="sub">Dan stel ik alleen voor wat daarbij past.</p>
-      <div class="bubbles" role="group" aria-label="Dieet">
-        ${bubbleHtml('diet', '', 'Ik eet alles')}${Object.entries(DIETS).map(([key, label]) => bubbleHtml('diet', key, BUBBLE_NAMES[label] || label)).join('')}
-      </div>
-      <p class="small muted">Je kunt dit later aanpassen bij de instellingen.</p>`;
-  } else if (step === 'allergie') {
-    body = `
-      <h2 id="quiz-title" tabindex="-1">Ben je ergens <em>allergisch</em> voor?</h2>
-      <p class="sub">Tik aan waar je allergisch voor bent. Gerechten waar dat meestal in zit, stel ik niet voor.</p>
-      <div class="bubbles" role="group" aria-label="Allergieën">
-        ${bubbleHtml('allergies', '', 'Nergens voor')}${Object.entries(ALLERGENS).map(([key, [label, hint]]) => bubbleHtml('allergies', key, BUBBLE_NAMES[label] || label, '', briefHint(hint))).join('')}
-      </div>
-      <p class="small muted">Staat jouw allergie er niet bij? Die voeg je later toe bij de instellingen.</p>
-      <p class="small muted">${ALLERGY_WARNING}</p>`;
-  } else {
+  } else if (step === 'klaar') {
+    // Het voorstel: de gerechten die bij je passen, ook vier tegelijk. Op de eerste bladzijde staat wat ik van
+    // je begrepen heb; de knop om te bewaren staat op de laatste.
     const all = tasteCandidates(quiz, false);
-    const byKey = new Map(all.map(dish => [dish.key, dish]));
-    const offer = quiz.offer.map(key => byKey.get(key)).filter(Boolean);
-    const chosen = quiz.cuisines.length + quiz.cravings.length > 0;
-    const fitting = chosen ? all.filter(dish => dish.score > 0).length : all.length;
+    const pages = quizPages(step);
+    const page = Math.min(Math.max(quiz.page, 0), Math.max(pages.length - 1, 0));
+    const last = page >= pages.length - 1;
+    const first = quiz.mode === 'first';
     body = `
-      <h2 id="quiz-title" tabindex="-1">Dit past bij <em>jou</em>${quiz.mode === 'first' && cleanName(quiz.name) ? `, ${esc(cleanName(quiz.name))}` : ''}</h2>
-      <p class="sub">${tasteSummary(quiz)}</p>
-      ${offer.length ? `
-        <p>Ik heb <strong>${dishCount(fitting)}</strong> ${chosen ? 'die bij je smaak passen' : 'voor je klaarstaan'}. ${quiz.mode === 'first'
-          ? `Dit zijn de eerste ${offer.length}: tik weg wat je niet lust.` : 'Deze heb je nog niet: tik aan wat je erbij wilt.'}</p>
-        <div class="bubbles dishes" role="group" aria-label="Gerechten die bij je passen">${offer.map(dish => bubbleHtml('picked', dish.key, esc(dish.name), dish.icon)).join('')}</div>
-        ${all.length > offer.length ? '<button class="btn link" data-action="quiz-more">Laat er meer zien</button>' : ''}`
-        : `<div class="notice">${quiz.mode === 'first' ? 'Met deze keuzes heb ik nog geen gerechten voor je. Kies ze zelf uit de lijst, of voeg je eigen gerechten toe.'
+      <h2 id="quiz-title" tabindex="-1">Dit past bij <em>jou</em>${first && cleanName(quiz.name) ? `, ${esc(cleanName(quiz.name))}` : ''}</h2>
+      ${page === 0 ? `<p class="sub">${tasteSummary(quiz)}</p>` : ''}
+      ${pages.length ? `
+        <p${page === 0 ? '' : ' class="sub"'}>${page > 0 ? '' : first ? `Ik heb <strong>${dishCount(quiz.offer.length)}</strong> voor je uitgezocht. ` : `Deze <strong>${quiz.offer.length}</strong> heb je nog niet. `}${first ? 'Tik weg wat je niet lust.' : 'Tik aan wat je erbij wilt.'}</p>
+        ${pagerHtml(page, pages.length)}
+        ${fourHtml(pages[page], 'Gerechten die bij je passen', ' dishes')}
+        ${last && all.length > quiz.offer.length ? '<button class="btn link" data-action="quiz-more">Laat er meer zien</button>' : ''}`
+        : `<div class="notice">${first ? 'Met deze keuzes heb ik nog geen gerechten voor je. Kies ze zelf uit de lijst, of voeg je eigen gerechten toe.'
           : 'Alles wat bij je past, staat al bij je favorieten.'}</div>`}
-      ${hasAllergy() || state.diet.length ? '<p class="small muted">Wat hier staat, past volgens mijn gegevens bij je dieet en je allergieën. Dat is een schatting: controleer bij een allergie altijd zelf de ingrediënten.</p>' : ''}`;
-    foot = `<button class="btn primary" id="quiz-done" data-action="quiz-done">${quizDoneText()}</button>
-      ${quiz.mode === 'first' ? '<button class="btn link" data-action="quiz-list">Liever zelf kiezen uit de hele lijst</button>' : ''}`;
+      ${page === 0 && (hasAllergy() || state.diet.length) ? '<p class="small muted">Wat hier staat, past volgens mijn gegevens bij je dieet en je allergieën. Dat is een schatting: controleer bij een allergie altijd zelf de ingrediënten.</p>' : ''}`;
+    foot = last ? `<button class="btn primary" id="quiz-done" data-action="quiz-done">${quizDoneText()}</button>
+      ${first ? '<button class="btn link" data-action="quiz-list">Liever zelf kiezen uit de hele lijst</button>' : ''}` : next(nextLabel(pages, page));
+  } else if (QUIZ_GATES[step] && quiz.page < 0) {
+    // De voorvraag: twee bolletjes. Wie niets te kiezen heeft, is met één tik klaar; "Ja, ik kies" opent de
+    // bladzijden. De knop onderaan laat alles zoals het is en gaat naar de volgende vraag.
+    const [title, sub, none, pick, hint, note] = QUIZ_GATE_ASK[step];
+    const count = quiz[QUIZ_GATES[step]].length;
+    body = `
+      <h2 id="quiz-title" tabindex="-1">${title}</h2>
+      <p class="sub">${sub}</p>
+      <div class="bubbles four${quizSide()}" role="group" aria-label="${QUIZ_ASK[step][2]}">
+        <button class="bubble plain" data-action="quiz-gate" data-go="none" aria-pressed="${!count}"><span class="bubble-name">${none}</span></button>
+        <button class="bubble plain" data-action="quiz-gate" data-go="pick" aria-pressed="${count > 0}"><span class="bubble-name">${pick}</span><span class="bubble-hint">${count ? `${count} gekozen` : hint}</span></button>
+      </div>
+      <p class="small muted">${note}</p>`;
+  } else {
+    // Een vraag met bolletjes: hooguit vier tegelijk, met streepjes die laten zien op welke bladzijde je bent.
+    // De knop onderaan zegt wat er nog komt, en gaat pas na de laatste bladzijde naar de volgende vraag.
+    const pages = quizPages(step);
+    const page = Math.min(Math.max(quiz.page, 0), pages.length - 1);
+    const [title, sub, label] = QUIZ_ASK[step];
+    body = `
+      <h2 id="quiz-title" tabindex="-1">${title}</h2>
+      <p class="sub">${sub}</p>
+      ${pagerHtml(page, pages.length)}
+      ${fourHtml(pages[page], label)}
+      ${step === 'allergie' ? '<p class="small muted">Let op: wat bij een gerecht staat, is een schatting. Controleer altijd zelf de ingrediënten en de etiketten.</p>' : ''}`;
+    foot = next(nextLabel(pages, page));
   }
   return `
     <div class="sheet-back${quiz.opening ? ' opening' : ''}">
       <section class="sheet" role="dialog" aria-modal="true" aria-labelledby="quiz-title">
         <div class="sheet-top">
-          ${quiz.step > 0 || (step === 'keuken' && quiz.page > 0) ? '<button class="back" data-action="quiz-back">‹ Terug</button>' : '<span class="back-space"></span>'}
+          ${quiz.step > 0 || quiz.page > quizFirstPage(step) ? '<button class="back" data-action="quiz-back">‹ Terug</button>' : '<span class="back-space"></span>'}
           <span class="dots" role="img" aria-label="Stap ${quiz.step + 1} van ${steps.length}">${steps.map((name, i) => `<i${i <= quiz.step ? ' class="on"' : ''}></i>`).join('')}</span>
           <button class="btn link" data-action="quiz-skip">${quiz.mode === 'first' ? 'Overslaan' : 'Sluiten'}</button>
         </div>
-        <div class="sheet-body">${body}</div>
+        <div class="sheet-body${quiz.turn ? ' turn' : ''}">${body}</div>
         <div class="sheet-foot">${foot}</div>
       </section>
     </div>`;
@@ -3179,34 +3283,53 @@ const ACTIONS = {
     if (list === 'time') quiz.time = !key || quiz.time.includes(key) ? [] : [key];
     else quiz[list] = !key ? [] : quiz[list].includes(key) ? quiz[list].filter(item => item !== key) : [...quiz[list], key];
     quizSync();
+    // Het aangetikte bolletje veert even op (zie "tik" in de opmaak). Opnieuw aantikken begint de beweging opnieuw.
+    if (motionOff()) return;
+    el.classList.remove('tik');
+    void el.offsetWidth;
+    el.classList.add('tik');
   },
 
-  // Verder en terug. Bij de keukens blader je eerst door de bladzijden met vier bolletjes; pas na de laatste
-  // (of voor de eerste) ga je naar een andere vraag.
+  // Verder en terug. Een vraag met bolletjes blader je eerst door: pas na de laatste bladzijde (of voor de
+  // eerste) ga je naar een andere vraag. Op een voorvraag gaat "Volgende" meteen door.
   'quiz-next'() {
     const quiz = view.quiz;
-    if (QUIZ_STEPS[quiz.mode][quiz.step] === 'keuken' && quiz.page < cuisinePages().length - 1) return quizTurn(1);
+    const pages = quizPages(QUIZ_STEPS[quiz.mode][quiz.step]).length;
+    if (quiz.page >= 0 && quiz.page < pages - 1) return quizTurn(1);
     quizGo(Math.min(quiz.step + 1, QUIZ_STEPS[quiz.mode].length - 1));
   },
 
   'quiz-back'() {
     const quiz = view.quiz;
-    if (QUIZ_STEPS[quiz.mode][quiz.step] === 'keuken' && quiz.page > 0) return quizTurn(-1);
+    if (quiz.page > quizFirstPage(QUIZ_STEPS[quiz.mode][quiz.step])) return quizTurn(-1);
     quizGo(Math.max(quiz.step - 1, 0));
   },
 
-  // Nog een paar voorstellen erbij, onder wat er al stond. Het venster blijft staan waar het stond.
+  // De voorvraag: "Ik lust alles" maakt de lijst leeg en gaat naar de volgende vraag; "Ja, ik kies" opent de
+  // bladzijden met bolletjes.
+  'quiz-gate'(el) {
+    const quiz = view.quiz;
+    const list = quiz && QUIZ_GATES[QUIZ_STEPS[quiz.mode][quiz.step]];
+    if (!list || quiz.page >= 0) return;
+    if (el.dataset.go === 'pick') return quizTurn(1);
+    quiz[list] = [];
+    quizGo(quiz.step + 1);
+  },
+
+  // Nog een bladzijde met voorstellen erbij; je komt meteen op die bladzijde uit.
   'quiz-more'() {
     const quiz = view.quiz;
-    const body = document.querySelector('.sheet-body');
-    const at = body.scrollTop;
     quiz.shown += QUIZ_MORE;
     const more = tasteSuggestions(quiz, quiz.shown).map(dish => dish.key).filter(key => !quiz.offer.includes(key));
+    if (!more.length) return;
+    const page = Math.floor(quiz.offer.length / QUIZ_PAGE);
     quiz.offer.push(...more);
-    render();
-    document.querySelector('.sheet-body').scrollTop = at;
-    const first = more.length && document.querySelector(`.sheet .bubble[data-key="${more[0]}"]`);
-    (first || document.getElementById('quiz-done')).focus({ preventScroll: true });
+    quiz.page = page;
+    quiz.dir = 1;
+    quiz.turn = true;
+    quizShow();
+    const first = document.querySelector(`.sheet .bubble[data-key="${more[0]}"]`);
+    if (first) first.focus({ preventScroll: true });
   },
 
   // De kennismaking afbreken. De eerste keer blijft bewaard wat er al is ingevuld (een allergie raakt zo niet

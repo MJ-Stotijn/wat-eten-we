@@ -509,61 +509,58 @@ html.modal, html.modal body { overflow: hidden; }
 .sheet-foot { flex: none; padding: 10px 20px calc(12px + env(safe-area-inset-bottom)); border-top: 1px solid var(--border); }
 .sheet-foot .btn { margin-bottom: 0; }
 .sheet-foot .btn.link { margin-top: 2px; }
-/* De bolletjes om aan te tikken, om en om wat lager zodat het geen strak rooster wordt. Gekozen: een zacht
-   vlak met een rand in de steunkleur en een vinkje. */
-.bubbles { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: center; gap: 8px; margin: 14px 0 10px; padding-bottom: 16px; }
-.bubble {
-  position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
-  width: 6.4rem; height: 6.4rem; margin: 0; padding: 6px 9px; border: none; border-radius: 50%;
-  background: var(--card); box-shadow: 0 0 0 1px var(--border), var(--lift);
-  font-size: 0.82rem; font-weight: 600; line-height: 1.15; text-align: center; color: var(--text);
-  overflow-wrap: anywhere; cursor: pointer; -webkit-tap-highlight-color: transparent;
-}
-.bubble:nth-child(3n+2) { margin-top: 16px; }
-.bubble-icon { font-size: 2rem; }
-.bubble-name, .bubble-hint { display: block; max-width: 100%; }
-.bubble-hint { font-size: 0.75rem; font-weight: 400; line-height: 1.15; color: var(--muted); }
-.bubble.plain { font-size: 0.86rem; }
-.bubbles.dishes .bubble { width: 6.5rem; height: 6.5rem; font-size: 0.75rem; -webkit-hyphens: auto; hyphens: auto; }
-.bubbles.dishes .bubble-icon { font-size: 1.5rem; }
-/* Een lange naam van een gerecht krijgt hooguit drie regels */
-.bubbles.dishes .bubble-name { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
-.bubble[aria-pressed="true"] { background: var(--soft); box-shadow: 0 0 0 3px var(--accent), var(--lift); }
-.bubble[aria-pressed="true"]::after {
-  content: "✓"; position: absolute; right: 0; top: 0; display: grid; place-items: center; width: 1.6rem; height: 1.6rem;
-  border-radius: 50%; background: var(--accent); color: var(--accent-text); font-size: 0.85rem; font-weight: 700;
-}
-/* De keukens: vier grote bolletjes tegelijk, twee bij twee, elk in een eigen zachte kleur (net als de tegels
-   op het startscherm). Erboven staat op welke bladzijde je bent. Staan er op de laatste bladzijde drie, dan
-   komt het derde in het midden. Een bolletje is hooguit 9,4 rem en verder zo groot als het scherm toelaat, in
-   de breedte en in de hoogte: op een kort scherm worden ze kleiner (tot 6,9 rem), zodat alle vier in beeld
-   blijven zonder te scrollen. Past de tekst er bij heel grote letters niet in, dan wordt een bolletje hoger
-   in plaats van dat de tekst eruit steekt. */
+/* De bolletjes van de kennismaking: hooguit vier tegelijk, twee bij twee, elk in een eigen zachte kleur (net
+   als de tegels op het startscherm). Wat er meer is, staat op een volgende bladzijde; de streepjes erboven
+   laten zien op welke je bent. Staan er drie, dan komt het derde in het midden. Gekozen: een rand in de
+   steunkleur en een vinkje.
+   Een bolletje is hooguit 9,4 rem en verder zo groot als het scherm toelaat, in de breedte en in de hoogte:
+   op een kort scherm worden ze kleiner (tot 6,9 rem), zodat ze in beeld blijven zonder te scrollen. Past de
+   tekst er bij heel grote letters niet in, dan wordt een bolletje hoger in plaats van dat de tekst eruit
+   steekt. */
 .pager { display: flex; align-items: center; gap: 12px; margin: 14px 6px 0; font-size: 0.84rem; font-weight: 600; color: var(--muted); }
 .pager .dots { flex: 1; margin: 0; }
-.bubbles.four { --four: min(9.4rem, calc((100vw - 48px) / 2), max(6.9rem, calc((100vh - 380px) / 2))); display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 8px; justify-items: center; margin: 18px 6px 4px; padding-bottom: 12px; }
+.pager .dots .now { background: var(--tint) linear-gradient(var(--accent), var(--accent)) left / 100% 100% no-repeat; }
+.bubbles { --four: min(9.4rem, calc((100vw - 48px) / 2), max(6.9rem, calc((100vh - 380px) / 2))); display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 8px; justify-items: center; margin: 18px 6px 4px; padding-bottom: 12px; }
 @supports (height: 100dvh) {
-  .bubbles.four { --four: min(9.4rem, calc((100vw - 48px) / 2), max(6.9rem, calc((100dvh - 380px) / 2))); }
+  .bubbles { --four: min(9.4rem, calc((100vw - 48px) / 2), max(6.9rem, calc((100dvh - 380px) / 2))); }
 }
-.bubbles.four .bubble { width: var(--four); height: auto; min-height: var(--four); margin: 0; padding: 10px; box-shadow: var(--lift); font-size: 1rem; }
-.bubbles.four .bubble:nth-child(1) { background: var(--butter); }
-.bubbles.four .bubble:nth-child(2) { background: var(--peach); }
-.bubbles.four .bubble:nth-child(3) { background: var(--sage); }
-.bubbles.four .bubble:nth-child(4) { background: var(--tint); }
-.bubbles.four .bubble:last-child:nth-child(odd) { grid-column: 1 / -1; }
-.bubbles.four .bubble-icon { margin-bottom: 2px; font-size: calc(var(--four) * 0.34); line-height: 1; }
-.bubbles.four .bubble-hint { font-size: 0.78rem; }
-.bubbles.four .bubble[aria-pressed="true"] { box-shadow: 0 0 0 3px var(--accent), var(--lift); }
-.bubbles.four .bubble[aria-pressed="true"]::after { right: 7px; top: 7px; box-shadow: 0 0 0 2.5px var(--bg); }
-/* Op een kort scherm zijn de bolletjes klein: dan vervallen de twee gerechten onder de naam. Ligt de telefoon
-   op zijn kant, dan staan de vier naast elkaar. */
+.bubble {
+  position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  width: var(--four); min-height: var(--four); margin: 0; padding: 10px; border: none; border-radius: 50%;
+  background: var(--card); box-shadow: var(--lift);
+  font-size: 1rem; font-weight: 600; line-height: 1.15; text-align: center; color: var(--text);
+  overflow-wrap: anywhere; cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.bubble:nth-child(1) { background: var(--butter); }
+.bubble:nth-child(2) { background: var(--peach); }
+.bubble:nth-child(3) { background: var(--sage); }
+.bubble:nth-child(4) { background: var(--tint); }
+.bubble:last-child:nth-child(odd) { grid-column: 1 / -1; }
+.bubble-icon { margin-bottom: 2px; font-size: calc(var(--four) * 0.34); line-height: 1; }
+.bubble-name, .bubble-hint { display: block; max-width: 100%; }
+.bubble-hint { font-size: 0.78rem; font-weight: 400; line-height: 1.15; color: var(--muted); }
+/* Een bolletje zonder plaatje heeft alleen tekst: die mag iets groter */
+.bubble.plain { font-size: 1.06rem; }
+/* De naam van een gerecht is langer: iets kleiner, en hooguit drie regels */
+.bubbles.dishes .bubble { font-size: max(0.75rem, calc(var(--four) * 0.096)); -webkit-hyphens: auto; hyphens: auto; }
+.bubbles.dishes .bubble-name { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
+.bubble[aria-pressed="true"] { box-shadow: 0 0 0 3px var(--accent), var(--lift); }
+.bubble[aria-pressed="true"]::after {
+  content: "✓"; position: absolute; right: 7px; top: 7px; display: grid; place-items: center; width: 1.6rem; height: 1.6rem;
+  border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2.5px var(--bg); color: var(--accent-text); font-size: 0.85rem; font-weight: 700;
+}
+/* Op een kort scherm zijn de bolletjes klein: dan vervalt de kleine regel onder de naam (ook als de app ze
+   zelf kleiner heeft gemaakt om alles in beeld te houden: "klein"). Ligt de telefoon op zijn kant, dan staan
+   de vier naast elkaar. */
+.bubbles.klein .bubble-hint { display: none; }
 @media (max-height: 620px) {
-  .bubbles.four .bubble { font-size: 0.9rem; }
-  .bubbles.four .bubble-hint { display: none; }
+  .bubble { font-size: 0.9rem; }
+  .bubble.plain { font-size: 0.96rem; }
+  .bubble-hint { display: none; }
 }
 @media (orientation: landscape) and (max-height: 500px) {
-  .bubbles.four { --four: 6.4rem; grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  .bubbles.four .bubble:last-child:nth-child(odd) { grid-column: auto; }
+  .bubbles { --four: 6.4rem; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .bubble:last-child:nth-child(odd) { grid-column: auto; }
 }
 
 /* De profielfoto: een rondje met de foto (of je voorletter) en een cameraatje in de hoek */
@@ -859,17 +856,33 @@ span.person.on i { background: var(--card); box-shadow: 0 0 0 2px var(--accent),
   /* Zolang de kaart laadt */
   .map-status.muted { animation: pulse 1.4s ease-in-out infinite; }
   /* De kennismaking: het venster schuift omhoog als het opengaat, en elke nieuwe vraag komt rustig in beeld.
-     De bolletjes deinen zachtjes, elk op zijn eigen moment, en veren in als je ze aantikt. */
+     Bij omslaan binnen dezelfde vraag blijft de vraag staan en wisselen alleen de bolletjes. */
   .sheet-back.opening { animation: fade-in 0.25s; }
   .sheet-back.opening .sheet { animation: sheet-up 0.38s cubic-bezier(0.2, 0.8, 0.3, 1); }
   .sheet-body > * { animation: rise 0.32s cubic-bezier(0.2, 0.8, 0.3, 1) backwards; }
-  .bubble { animation: bob 6s ease-in-out infinite; transition: scale 0.15s, box-shadow 0.15s, background-color 0.15s; }
-  .bubble:nth-child(2n) { animation-delay: -2s; }
-  .bubble:nth-child(3n) { animation-delay: -4s; }
-  /* De vier grote bolletjes van de keukens staan stil; een nieuwe bladzijde komt zacht in beeld */
-  .bubbles.four .bubble { animation: fade-in 0.3s ease-out backwards; }
+  .sheet-body.turn > * { animation: none; }
+  /* De bolletjes komen een voor een in beeld, van rechts als je verder gaat en van links als je teruggaat.
+     Daarna deinen ze zachtjes, elk op zijn eigen moment, en een bolletje dat je aantikt veert op ("tik"). De
+     drie bewegingen staan op vaste plekken in de rij, zodat het deinen doorloopt als de derde erbij komt. */
+  .bubbles.fwd { --from: 36px; }
+  .bubbles.back { --from: -36px; }
+  .bubble {
+    animation-name: bubble-in, bob, none;
+    animation-duration: 0.5s, 6s, 0.42s;
+    animation-timing-function: cubic-bezier(0.2, 1.3, 0.4, 1), ease-in-out, cubic-bezier(0.3, 1.5, 0.5, 1);
+    animation-fill-mode: backwards, none, none;
+    animation-iteration-count: 1, infinite, 1;
+    transition: scale 0.15s, box-shadow 0.2s;
+  }
+  .bubble:nth-child(1) { animation-delay: 0.04s, 0.7s, 0s; }
+  .bubble:nth-child(2) { animation-delay: 0.1s, 2.2s, 0s; }
+  .bubble:nth-child(3) { animation-delay: 0.16s, 3.7s, 0s; }
+  .bubble:nth-child(4) { animation-delay: 0.22s, 1.4s, 0s; }
+  .bubble.tik { animation-name: bubble-in, bob, tik; }
   .bubble:active { scale: 0.93; }
   .bubble[aria-pressed="true"]::after { animation: pop 0.3s cubic-bezier(0.3, 1.6, 0.5, 1); }
+  /* Het streepje van de bladzijde waar je naartoe gaat, loopt vol */
+  .pager.fwd .dots .now { animation: fill 0.45s ease-out backwards; }
   /* De staven van je calorieën groeien van onderaf */
   #app.enter .stack { animation: bar-up 0.55s 0.2s cubic-bezier(0.2, 0.8, 0.3, 1) backwards; }
   /* Knoppen veren in onder je vinger */
@@ -891,6 +904,9 @@ span.person.on i { background: var(--card); box-shadow: 0 0 0 2px var(--accent),
 @keyframes fade-in { from { opacity: 0; } }
 @keyframes sheet-up { from { transform: translateY(60%); opacity: 0; } }
 @keyframes bob { 50% { transform: translateY(-5px); } }
+@keyframes bubble-in { from { opacity: 0; scale: 0.6; translate: var(--from, 0px) 10px; } }
+@keyframes tik { 35% { scale: 0.9; } 70% { scale: 1.07; } }
+@keyframes fill { from { background-size: 0 100%; } }
 
 /* Snippers bij een nieuwe badge: een laag over het hele scherm waar je doorheen kunt tikken */
 .confetti { position: fixed; inset: 0; z-index: 5; overflow: hidden; pointer-events: none; }
