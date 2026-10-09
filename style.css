@@ -188,8 +188,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .btn.big small { font-size: 0.88rem; font-weight: 400; opacity: 0.95; }
 .btn.danger { border-color: var(--danger); color: var(--danger); }
 .btn.link { min-height: 44px; border: none; background: none; box-shadow: none; color: var(--accent-ink); }
-.btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.btn:active:not(:disabled) { transform: scale(0.985); }
+.btn:disabled, .btn[aria-disabled="true"] { opacity: 0.5; cursor: not-allowed; }
+.btn:active:not(:disabled):not([aria-disabled="true"]) { transform: scale(0.985); }
 
 /* Blijft onderin beeld, zodat je niet hoeft te zoeken naar de knop om verder te gaan */
 .btn.sticky { position: sticky; bottom: 12px; z-index: 2; }
@@ -768,7 +768,8 @@ span.person.on i { background: var(--card); box-shadow: 0 0 0 2px var(--accent),
    Elk onderdeel heeft een pictogram met de naam eronder. Waar je bent, komt als een bolletje in de steunkleur
    boven de balk uit. */
 
-#nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 3; display: flex; padding: 0 4px env(safe-area-inset-bottom); background: var(--card); box-shadow: 0 -1px 0 var(--border), 0 -14px 24px -18px rgba(70, 40, 10, 0.35); }
+/* Op een breed scherm (een computer) blijven de knoppen onder de kolom met de inhoud staan */
+#nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 3; display: flex; padding: 0 max(4px, calc((100% - 480px) / 2)) env(safe-area-inset-bottom); background: var(--card); box-shadow: 0 -1px 0 var(--border), 0 -14px 24px -18px rgba(70, 40, 10, 0.35); }
 #nav[hidden] { display: none; }
 #nav button {
   flex: 1;

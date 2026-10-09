@@ -438,6 +438,9 @@ const nav = document.getElementById('nav');
 // De teller voorkomt dubbele id's als er meerdere in dezelfde milliseconde worden gemaakt.
 // Staat hier omdat load() al id's aanmaakt.
 let idCounter = 0;
+// Wat dit venster het laatst in de opslag las of er zelf in zette (zie syncStorage). Staat hier omdat load()
+// het al invult.
+let storedText = null;
 let state = load();
 let view = { name: 'home' };
 // De maaltijd waarvoor je kiest volgt de klok. Kies je zelf een andere, dan staat die in manualMeal en
@@ -562,7 +565,8 @@ function applyTheme() {
 
 function load() {
   try {
-    const clean = sanitize(JSON.parse(localStorage.getItem(STORAGE_KEY)));
+    storedText = localStorage.getItem(STORAGE_KEY);
+    const clean = sanitize(JSON.parse(storedText));
     if (clean) return clean;
   } catch (e) { /* beschadigde of ontbrekende opslag: begin opnieuw */ }
   return emptyState();
@@ -666,11 +670,32 @@ function sanitize(data) {
 let saveFailed = false;
 function save() {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    const text = JSON.stringify(state);
+    localStorage.setItem(STORAGE_KEY, text);
+    storedText = text;
     saveFailed = false;
   } catch (e) {
     saveFailed = true;
   }
+}
+
+// Staat de app in twee vensters open (bijvoorbeeld als app op je beginscherm en ook in de browser), dan delen
+// die dezelfde opslag. Dit venster neemt daarom over wat het andere heeft bewaard; anders zou het bij de
+// eerstvolgende wijziging hier de nieuwere gegevens overschrijven. Wat op het scherm stond, kan dan niet meer
+// kloppen: je komt uit op hetzelfde hoofdscherm, of anders op het startscherm.
+const SAFE_VIEWS = ['home', 'week', 'favorites', 'shopping', 'rewards', 'plan'];
+function syncStorage() {
+  let text;
+  try {
+    text = localStorage.getItem(STORAGE_KEY);
+  } catch (e) {
+    return;
+  }
+  if (text === storedText) return;
+  state = load();
+  pendingImport = null;
+  applyTheme();
+  go(SAFE_VIEWS.includes(view.name) && !view.quiz ? view.name : 'home');
 }
 
 function saveWarningHtml() {
@@ -1501,10 +1526,19 @@ function planDays() {
   });
 }
 
-// Het gerecht dat voor een dag is gepland, of niets (ook als het gerecht intussen is verwijderd).
+// Het gerecht dat voor een dag is gepland, of niets: ook als het gerecht intussen is verwijderd of niet meer
+// bij je past (een nieuwe allergie, een ander dieet, iets wat je niet meer lust).
 function plannedDish(day) {
   const item = state.plan.find(planned => planned.day === day);
-  return item ? dishById(item.dishId) : undefined;
+  const dish = item && dishById(item.dishId);
+  return dish && suitable(dish) ? dish : undefined;
+}
+
+// De gerechten die voor deze week gepland stonden maar niet meer bij je passen. Hun dagen zijn daardoor leeg.
+function unfitPlanned() {
+  const days = planDays().map(day => day.key);
+  const dishes = state.plan.filter(item => days.includes(item.day)).map(item => dishById(item.dishId));
+  return [...new Set(dishes.filter(dish => dish && !suitable(dish)))];
 }
 
 // De gerechten waaruit het weekmenu kiest: je favorieten voor het avondeten die bij je passen.
@@ -1709,7 +1743,17 @@ document.addEventListener('visibilitychange', () => {
     return;
   }
   if (hiddenSince && Date.now() - hiddenSince > 30 * 60000) manualMeal = null;
+  // Eerst overnemen wat een ander venster intussen heeft bewaard.
+  syncStorage();
   tickMeal();
+});
+
+// Een ander venster van de app heeft iets bewaard, of dit venster komt terug uit het geheugen van de browser.
+window.addEventListener('storage', event => {
+  if (event.key === null || event.key === STORAGE_KEY) syncStorage();
+});
+window.addEventListener('pageshow', event => {
+  if (event.persisted) syncStorage();
 });
 
 // Draait de telefoon of verandert het venster van maat, dan passen de bolletjes van de kennismaking zich aan.
@@ -1725,14 +1769,51 @@ const NAV_TAB = {
 // De tekst op de knop linksboven bij een recept, naar het scherm waar je vandaan kwam.
 const BACK_LABEL = { home: 'Terug', favorites: 'Favorieten', plan: 'Weekmenu' };
 
+// Wat je kunt aantikken of invullen, en waaraan zo'n knop of vak te herkennen is nadat het scherm opnieuw is
+// getekend (zie focusMark).
+const FOCUSABLE = 'button:not(:disabled), a[href], input:not([type="hidden"]):not(:disabled), select, textarea, summary';
+function focusKey(el) {
+  return el.id ? `#${el.id}` : [el.tagName, el.name || '', el.type === 'checkbox' || el.type === 'radio' ? el.value : '', JSON.stringify(el.dataset)].join(' ');
+}
+
+// Wie met een toetsenbord of een schermlezer werkt, blijft bij de knop waar hij was als hetzelfde scherm
+// opnieuw wordt getekend; anders begint hij na elke tik weer bovenaan. focusMark onthoudt die knop en de
+// knoppen eromheen, focusBack zet de aanwijzer terug: op dezelfde knop, op wat er op die plek voor in de plaats
+// kwam, of op de dichtstbijzijnde knop die er nog is. Een invulvak doet hier niet aan mee: daar zou op een
+// telefoon het toetsenbord van open blijven of ineens openklappen. Waar dat wel de bedoeling is (nog een
+// boodschap intikken), regelt de actie het zelf.
+let drawn = null;
+const TYPING = 'input:not([type="checkbox"]):not([type="radio"]), select, textarea';
+function focusables() {
+  return [...app.querySelectorAll(FOCUSABLE)].filter(el => !el.matches(TYPING) && el.getClientRects().length);
+}
+function focusMark() {
+  const active = document.activeElement;
+  if (view !== drawn || !active || !app.contains(active) || active.matches(TYPING)) return null;
+  const all = focusables();
+  const at = all.indexOf(active);
+  const near = at < 0 ? [] : [...all.slice(at + 1, at + 4), ...all.slice(Math.max(0, at - 3), at).reverse()];
+  return { keys: [active, ...near].map(focusKey), at, count: all.length };
+}
+function focusBack(mark) {
+  if (!mark) return;
+  const all = focusables();
+  const target = all.find(el => focusKey(el) === mark.keys[0])
+    || (all.length === mark.count && all[mark.at])
+    || mark.keys.slice(1).map(key => all.find(el => focusKey(el) === key)).find(Boolean);
+  if (target) target.focus({ preventScroll: true });
+}
+
 function render() {
   if (!state.onboarded) view.name = state.welcomed ? 'onboarding' : 'welcome';
   // Alleen een nieuw scherm komt met beweging in beeld (zie enterScreen); de opmaak kan per scherm verschillen.
   app.classList.remove('enter');
   app.dataset.view = view.name;
+  const mark = focusMark();
   // De kennismaking ligt als venster over het scherm heen; wat eronder staat, doet dan even niet mee.
   const screen = VIEWS[view.name]();
   app.innerHTML = view.quiz ? `<div class="behind" inert aria-hidden="true">${screen}</div>${quizHtml()}` : screen;
+  drawn = view;
   document.documentElement.classList.toggle('modal', Boolean(view.quiz));
   if (view.quiz) fitBubbles();
   if (document.getElementById('catalog')) filterCatalog();
@@ -1741,6 +1822,7 @@ function render() {
     mountWorldMap();
     filterCountries();
   }
+  focusBack(mark);
   shownDay = dayKey(new Date());
   nav.hidden = !state.onboarded;
   // Onder het venster van de kennismaking doet ook de menubalk even niet mee.
@@ -1914,7 +1996,7 @@ function catalogHtml(defaultMeal) {
     </div>
     <p class="small muted" id="catalog-empty" hidden></p>
     ${state.diet.length ? `<p class="small muted">Je ziet alleen gerechten die passen bij je dieet: ${state.diet.map(key => DIETS[key].toLowerCase()).join(', ')}.</p>` : ''}
-    ${allergyNames().length ? `<p class="small muted">Gerechten waar meestal ${allergyNames().join(', ')} in zit, laat ik weg. Controleer bij een allergie altijd zelf de ingrediënten.</p>` : ''}
+    ${allergyNames().length ? `<p class="small muted">Gerechten die meestal ${listText(allergyNames())} bevatten, laat ik weg. Controleer bij een allergie altijd zelf de ingrediënten.</p>` : ''}
     ${state.dislikes.length ? `<p class="small muted">Ook wat je niet lust, laat ik weg: ${DISLIKES.filter(item => state.dislikes.includes(item[0])).map(item => plainName(item[1]).toLowerCase()).join(', ')}.</p>` : ''}
     <p class="small muted">Calorieën, het vinkje "gezond", de diëten en de allergenen zijn bij deze gerechten een schatting. Je kunt alles later aanpassen.</p>`;
 }
@@ -1922,6 +2004,11 @@ function catalogHtml(defaultMeal) {
 // De allergieën van de gebruiker als leesbare namen: de aangevinkte en de zelf toegevoegde.
 function allergyNames() {
   return [...state.allergies.map(key => ALLERGENS[key][0].toLowerCase()), ...state.otherAllergies.map(term => esc(term.toLowerCase()))];
+}
+
+// Waar de app bij het voorstellen rekening mee houdt, in woorden: "je dieet en je allergieën".
+function limitsText() {
+  return listText([state.diet.length && 'je dieet', allergyNames().length && 'je allergieën', state.dislikes.length && 'wat je lust'].filter(Boolean));
 }
 
 // Aanvinkbare allergenen. Voor de gebruiker zelf staat er uitleg bij; bij een gerecht alleen de naam.
@@ -2162,15 +2249,17 @@ function tasteSummary(tastes) {
   const names = (choices, keys) => choices.filter(choice => keys.includes(choice[0])).map(choice => plainName(choice[1]));
   const cuisines = names(CUISINES, tastes.cuisines);
   const cravings = names(CRAVINGS, tastes.cravings).map(name => name.toLowerCase());
+  // Een opsomming met "en" voor het laatste woord. Namen als "curry en stoof" hebben zelf al een "en"; staat
+  // er zo een tussen, dan komen er alleen komma's.
+  const sum = items => items.some(item => item.includes(' en ')) ? items.join(', ') : listText(items);
   const parts = [];
   if (cuisines.length) parts.push(`Je houdt van ${listText(cuisines)} eten.`);
-  // Namen als "curry en stoof" hebben zelf al een "en"; daarom hier alleen komma's.
-  if (cravings.length) parts.push(`Je hebt vaak trek in ${cravings.join(', ')}.`);
+  if (cravings.length) parts.push(`Je hebt vaak trek in ${sum(cravings)}.`);
   if (!parts.length) parts.push('Je lust van alles. Dan begin ik met wat veel mensen lekker vinden.');
   if (state.diet.length) parts.push(`Je eet ${listText(state.diet.map(key => DIETS[key].toLowerCase()))}.`);
-  if (allergyNames().length) parts.push(`Gerechten waar meestal ${listText(allergyNames())} in zit, laat ik weg.`);
+  if (allergyNames().length) parts.push(`Gerechten die meestal ${listText(allergyNames())} bevatten, laat ik weg.`);
   const disliked = names(DISLIKES, state.dislikes).map(name => name.toLowerCase());
-  if (disliked.length) parts.push(`Je lust geen ${disliked.join(', ')}: dat sla ik over.`);
+  if (disliked.length) parts.push(`Je lust geen ${sum(disliked)}: dat sla ik over.`);
   if (state.weekdayTime) parts.push(`Doordeweeks heb je ${state.weekdayTime === 'snel' ? 'weinig' : 'een beetje'} tijd om te koken.`);
   return parts.join(' ');
 }
@@ -2546,7 +2635,7 @@ const VIEWS = {
     const none = mealDishes().length === 0;
     // Zijn er wel gerechten voor deze maaltijd, maar passen ze niet bij het dieet of de allergieën?
     const dietBlocks = none && state.dishes.some(d => d.meals.includes(meal));
-    const limits = listText([state.diet.length && 'je dieet', allergyNames().length && 'je allergieën', state.dislikes.length && 'wat je lust'].filter(Boolean));
+    const limits = limitsText();
     // Wat er vandaag op het weekmenu staat, zolang er nog geen avondeten is genoteerd.
     const tonight = eaten.some(h => h.meal === 'avond') ? undefined : plannedDish(homeDay);
     // Is er niets voor deze maaltijd, dan kun je meteen overstappen naar een maaltijd waar wel iets voor is.
@@ -2644,7 +2733,7 @@ const VIEWS = {
         const future = day.key > today;
         const known = entries.filter(h => h.kcal != null);
         // Een plus achter het totaal betekent dat niet van alles de calorieën bekend zijn.
-        const total = known.length ? `${known.reduce((sum, h) => sum + h.kcal, 0)}${known.length < entries.length ? '+' : ''} kcal` : '';
+        const total = known.length ? `${kcalText(known.reduce((sum, h) => sum + h.kcal, 0))}${known.length < entries.length ? '+' : ''} kcal` : '';
         return `
           ${day.key === view.day ? rewardHtml(view.reward) : ''}
           ${view.removed && day.key === dayKey(view.removed.date) ? `
@@ -2790,11 +2879,14 @@ const VIEWS = {
     const pool = planPool().length;
     const eaten = entriesOn(today).some(h => h.meal === 'avond');
     const note = seasonNote();
+    // Wat er gepland stond en niet meer bij je past, staat er niet meer; hier lees je waarom een dag leeg is.
+    const unfit = unfitPlanned().map(dish => esc(dish.name));
     return `
       ${topHtml('Weekmenu', backHtml('Week', 'data-action="nav" data-view="week"'))}
       <h1>Je <em>weekmenu</em></h1>
       <p class="sub">Zeven avonden, gekozen uit je eigen favorieten: van vandaag tot en met ${days[6].label.toLowerCase()}.</p>
       ${view.message ? `<div class="notice" role="status">${esc(view.message)}</div>` : ''}
+      ${unfit.length ? `<div class="notice">${listText(unfit)} ${unfit.length === 1 ? 'past' : 'passen'} niet meer bij ${limitsText()}. Ik heb ${unfit.length === 1 ? 'het' : 'ze'} van je weekmenu gehaald; kies er iets anders voor.</div>` : ''}
       ${!pool ? `
         <div class="notice">Je hebt nog geen gerechten voor het avondeten die bij je passen. Voeg er eerst een paar toe.</div>
         <button class="btn primary" data-action="discover" data-meal="avond">${iconSvg('zoek')} Gerechten ontdekken</button>` : !count ? `
@@ -2821,7 +2913,7 @@ const VIEWS = {
             </div>
           </section>`).join('')}
         <p></p>
-        <button class="btn primary" data-action="plan-shop"${view.shopped ? ' disabled' : ''}>${view.shopped ? '✓ De boodschappen staan op je lijst' : `${iconSvg('mand')} Zet de boodschappen op mijn lijst`}</button>
+        <button class="btn primary" data-action="plan-shop"${view.shopped ? ' aria-disabled="true"' : ''}>${view.shopped ? '✓ De boodschappen staan op je lijst' : `${iconSvg('mand')} Zet de boodschappen op mijn lijst`}</button>
         ${view.shopped ? `<button class="btn" data-action="nav" data-view="shopping">Bekijk je boodschappenlijst</button>` : ''}
         ${count < PLAN_DAYS ? '<button class="btn" data-action="plan-fill">Vul de lege dagen</button>' : ''}
         <button class="btn" data-action="plan-fill" data-fresh="1">${iconSvg('wissel')} Maak een nieuw weekmenu</button>`}
@@ -3016,7 +3108,7 @@ const VIEWS = {
       ${rewardHtml(view.reward)}
       ${view.note ? `<div class="notice">${esc(view.note)}</div>` : ''}
       ${recipeHtml(dish, `
-        <button class="btn" data-action="add-to-shopping"${view.added || onList ? ' disabled' : ''}>
+        <button class="btn" data-action="add-to-shopping"${view.added || onList ? ' aria-disabled="true"' : ''}>
           ${view.added ? '✓ Op de boodschappenlijst gezet' : onList ? '✓ Staat al op je boodschappenlijst' : `${iconSvg('mand')} Zet op de boodschappenlijst`}</button>`)}
       ${hasRecipe ? '' :'<div class="notice">Van dit gerecht heb ik nog geen recept. Zoek er een op internet, of zet je eigen recept erbij.</div>'}
       <div class="orn"><i></i></div>
@@ -3079,7 +3171,7 @@ const VIEWS = {
       </div>
       <p class="small muted" id="country-empty" hidden></p>
       <p class="small muted">Kaartgegevens: Natural Earth.</p>
-      <button class="btn link" data-action="nav" data-view="home">Terug naar het begin</button>`;
+      <button class="btn link" data-action="nav" data-view="home">Terug naar het startscherm</button>`;
   },
 
   // De bekende gerechten van één land als menukaart, elk met een plus om het bij de favorieten te zetten.
@@ -3263,7 +3355,7 @@ const VIEWS = {
       </div>
       <h1>${titles[tab]}</h1>
       <div id="settings-panel" role="tabpanel" aria-labelledby="tab-${tab}">${panels[tab]()}</div>
-      <button class="btn link" data-action="nav" data-view="home">Terug naar het begin</button>`;
+      <button class="btn link" data-action="nav" data-view="home">Terug naar het startscherm</button>`;
   },
 };
 
@@ -3301,6 +3393,9 @@ const ACTIONS = {
   'log-all'() {
     view.logAll = true;
     render();
+    // De aanwijzer gaat naar het eerste gerecht dat erbij kwam.
+    const next = app.querySelectorAll('[data-action="log-dish"]')[LOG_PREVIEW];
+    if (next) next.focus({ preventScroll: true });
   },
 
   'finish-onboarding'() {
@@ -3430,8 +3525,13 @@ const ACTIONS = {
 
   // Klapt één groepje helemaal uit.
   'catalog-more'(el) {
+    const section = el.closest('section');
+    const shown = section.querySelectorAll('li:not([hidden])').length;
     view.catalogOpen = [...(view.catalogOpen || []), el.dataset.group];
     filterCatalog();
+    // De knop is nu weg; de aanwijzer gaat naar het eerste gerecht dat erbij kwam.
+    const next = [...section.querySelectorAll('li:not([hidden]) button')][shown];
+    if (next) next.focus({ preventScroll: true });
   },
 
   'catalog-jump'(el) {
@@ -4036,9 +4136,11 @@ const CHANGES = {
   },
 };
 
+// Een knop die al gedaan heeft wat hij moest doen ("✓ Staat op je lijst"), blijft aanwijsbaar maar doet niets
+// meer: zo hoort een schermlezer wat er is gebeurd (aria-disabled in plaats van disabled).
 document.addEventListener('click', event => {
   const el = event.target.closest('[data-action]');
-  if (el && !el.disabled) ACTIONS[el.dataset.action](el);
+  if (el && !el.disabled && el.getAttribute('aria-disabled') !== 'true') ACTIONS[el.dataset.action](el);
 });
 
 document.addEventListener('submit', event => {
