@@ -551,7 +551,8 @@ function repaint() {
     applyTheme();
     render();
   };
-  if (document.startViewTransition && !motionOff()) document.startViewTransition(change);
+  // Tik je snel achter elkaar op een andere kleur, dan slaat de browser een overgang over; dat is geen fout.
+  if (document.startViewTransition && !motionOff()) document.startViewTransition(change).ready.catch(() => {});
   else change();
 }
 
@@ -693,6 +694,8 @@ function syncStorage() {
   }
   if (text === storedText) return;
   state = load();
+  // Bestaat het gerecht waarmee je bezig was niet meer, dan stopt ook het koken.
+  if (cooking.dishId && !dishById(cooking.dishId)) stopCooking();
   pendingImport = null;
   applyTheme();
   go(SAFE_VIEWS.includes(view.name) && !view.quiz ? view.name : 'home');
@@ -711,6 +714,7 @@ function keepStorage() {
 function restoreBackup() {
   if (!pendingImport) return;
   state = { ...pendingImport, onboarded: true };
+  stopCooking();
   pendingImport = null;
   checkBadges();
   save();
@@ -1636,7 +1640,28 @@ function clockText(ms) {
 // welke wekkers er zijn, per stap: wanneer hij afgaat, hoe lang hij duurt, of hij is afgegaan en of je dat hebt
 // gezien. Het blijft staan als je even naar het recept kijkt; begin je aan een ander gerecht, dan begint het
 // opnieuw. Het wordt niet bewaard.
-let cooking = { dishId: null, step: 0, ready: [], timers: {} };
+let cooking = { dishId: null, recipe: '', step: 0, ready: [], timers: {} };
+
+// Het recept zoals het was toen je begon. Is het intussen aangepast (andere stappen, andere ingrediënten), dan
+// kloppen de stap en de vinkjes niet meer en begint het koken opnieuw.
+function cookRecipe(dish) {
+  const { ingredients, recipe } = recipeOf(dish);
+  return `${ingredients.join('\n')}\n--\n${recipe}`;
+}
+
+// Ben je dit gerecht al aan het koken, met het recept zoals het nu is?
+function cookingNow(dish) {
+  return cooking.dishId === dish.id && cooking.recipe === cookRecipe(dish);
+}
+
+// Stopt met koken: de wekkers gaan uit en alles begint opnieuw (na alles wissen, een back-up terugzetten of
+// het gerecht verwijderen).
+function stopCooking() {
+  if (ringing) silence();
+  if (cookTicker) clearInterval(cookTicker);
+  cookTicker = null;
+  cooking = { dishId: null, recipe: '', step: 0, ready: [], timers: {} };
+}
 
 // Een andere stap. Wie teruggaat, ziet het scherm van links komen.
 function cookStep(step) {
@@ -1657,7 +1682,7 @@ function keepAwake(on) {
     wakeLock = request;
     request.then(lock => {
       // Intussen al weg uit de kookstand: dan meteen weer loslaten.
-      if (wakeLock !== request) return lock.release();
+      if (wakeLock !== request) return lock.release().catch(() => {});
       wakeLock = lock;
       lock.addEventListener('release', () => {
         if (wakeLock === lock) wakeLock = null;
@@ -1683,7 +1708,7 @@ function wakeSound() {
   if (!Context) return;
   try {
     sound = sound || new Context();
-    if (sound.state === 'suspended') sound.resume();
+    if (sound.state === 'suspended') sound.resume().catch(() => {});
   } catch (e) {
     sound = null;
   }
@@ -2272,7 +2297,7 @@ function recipeHtml(dish, between = '', cook = '') {
 // De knop naar de kookstand. Ben je bij dit gerecht al bezig, dan ga je verder waar je was.
 function cookButtonHtml(dish) {
   if (!recipeSteps(dish).length) return '';
-  const busy = cooking.dishId === dish.id && cooking.step > cookFirstStep(dish);
+  const busy = cookingNow(dish) && cooking.step > cookFirstStep(dish);
   return `<button class="btn primary" data-action="cook-start" data-id="${dish.id}">${iconSvg('vlam')} ${busy ? `Verder met koken, stap ${cooking.step}` : 'Kook stap voor stap'}</button>`;
 }
 
@@ -3250,7 +3275,7 @@ const VIEWS = {
     const dish = dishById(view.id);
     const { ingredients } = recipeOf(dish);
     const steps = recipeSteps(dish);
-    const step = view.step;
+    const step = Math.min(view.step, steps.length);
     const now = Date.now();
     const back = backHtml('Recept', 'data-action="cook-close"');
     const foot = (left, right) => `<div class="cook-foot">${left}${right}</div>`;
@@ -3281,7 +3306,7 @@ const VIEWS = {
     return `
       ${topHtml(`Stap ${step} van ${steps.length}`, back)}
       <div class="dots" aria-hidden="true">${steps.map((one, i) => `<i${i < step ? ' class="on"' : ''}></i>`).join('')}</div>
-      ${ringingNow.length ? `<div class="notice cook-alarm" role="alert">${iconSvg('klok')} ${listText(ringingNow.map(at => `Stap ${at}`))} ${ringingNow.length === 1 ? 'is' : 'zijn'} klaar. Tik ergens om de wekker uit te zetten.</div>` : ''}
+      ${ringingNow.length ? `<div class="notice cook-alarm" role="alert">${iconSvg('klok')} ${listText(ringingNow.map((at, i) => `${i ? 'stap' : 'Stap'} ${at}`))} ${ringingNow.length === 1 ? 'is' : 'zijn'} klaar. Tik ergens om de wekker uit te zetten.</div>` : ''}
       ${others ? `<div class="cook-pills">${others}</div>` : ''}
       ${clock}
       <h1 class="cook-step${minutes ? '' : ' big'}">${esc(steps[step - 1])}</h1>
@@ -3889,7 +3914,10 @@ const ACTIONS = {
   'cook-start'(el) {
     const dish = dishById(el.dataset.id);
     if (!dish || !recipeSteps(dish).length) return;
-    if (cooking.dishId !== dish.id) cooking = { dishId: dish.id, step: cookFirstStep(dish), ready: [], timers: {} };
+    if (!cookingNow(dish)) {
+      stopCooking();
+      cooking = { dishId: dish.id, recipe: cookRecipe(dish), step: cookFirstStep(dish), ready: [], timers: {} };
+    }
     go('cook', { id: dish.id, step: cooking.step, from: view });
   },
 
@@ -4122,6 +4150,7 @@ const ACTIONS = {
     if (!view.confirm) { view.confirm = true; return render(); }
     const { name } = dishById(view.id);
     state.dishes = state.dishes.filter(d => d.id !== view.id);
+    if (cooking.dishId === view.id) stopCooking();
     // Wat je ervan hebt gegeten, blijft in je week staan; alleen de koppeling met het gerecht vervalt.
     for (const h of state.history) {
       if (h.dishId === view.id) h.dishId = null;
@@ -4181,6 +4210,7 @@ const ACTIONS = {
   reset() {
     if (!view.confirm) { view.confirm = true; return render(); }
     state = emptyState();
+    stopCooking();
     save();
     applyTheme();
     go('onboarding');
