@@ -1594,6 +1594,168 @@ function shopFor(dish) {
   return added;
 }
 
+// ---------- Koken, stap voor stap ----------
+
+// De stappen van een recept: elke regel is een stap.
+function recipeSteps(dish) {
+  return recipeOf(dish).recipe.split('\n').map(step => step.trim()).filter(Boolean);
+}
+
+// De kookstand begint met klaarzetten, behalve als er geen ingrediënten bij het recept staan.
+function cookFirstStep(dish) {
+  return recipeOf(dish).ingredients.length ? 0 : 1;
+}
+
+// De tijd die in een stap staat ("laat 15 minuten pruttelen", "2 tot 2,5 uur", "een uur rijzen"), in minuten;
+// zonder tijd 0. Staat er "3 tot 5 minuten", dan gaat de wekker bij de kortste tijd, zodat je op tijd kijkt.
+const TIME_WORDS = { 'een half': 0.5, anderhalf: 1.5, een: 1, twee: 2, drie: 3, vier: 4, vijf: 5, tien: 10 };
+const TIME_UNITS = { minuut: 1, minuten: 1, kwartier: 15, uur: 60 };
+function stepMinutes(step) {
+  const match = /\b(\d+(?:,\d+)?|een half|anderhalf|een|twee|drie|vier|vijf|tien)\s+(?:tot\s+\S+\s+)?(minuut|minuten|kwartier|uur)\b/i.exec(step);
+  if (!match) return 0;
+  const amount = Number(match[1].replace(',', '.')) || TIME_WORDS[match[1].toLowerCase()];
+  return Math.round(amount * TIME_UNITS[match[2].toLowerCase()]);
+}
+
+// "15 minuten", "1 minuut", "2,5 uur".
+function minutesText(minutes) {
+  if (minutes >= 60 && minutes % 30 === 0) return `${String(minutes / 60).replace('.', ',')} uur`;
+  return minutes === 1 ? '1 minuut' : `${minutes} minuten`;
+}
+
+// Hoe lang een wekker nog loopt: "12:41", of "1:05:00" vanaf een uur.
+function clockText(ms) {
+  const seconds = Math.max(0, Math.ceil(ms / 1000));
+  const two = n => String(n).padStart(2, '0');
+  const hours = Math.floor(seconds / 3600);
+  const rest = `${two(Math.floor(seconds / 60) % 60)}:${two(seconds % 60)}`;
+  return hours ? `${hours}:${rest}` : rest.replace(/^0(?=\d:)/, '');
+}
+
+// Waar je bent met koken: bij welk gerecht en welke stap, wat al klaarstaat (de nummers van de ingrediënten) en
+// welke wekkers er zijn, per stap: wanneer hij afgaat, hoe lang hij duurt, of hij is afgegaan en of je dat hebt
+// gezien. Het blijft staan als je even naar het recept kijkt; begin je aan een ander gerecht, dan begint het
+// opnieuw. Het wordt niet bewaard.
+let cooking = { dishId: null, step: 0, ready: [], timers: {} };
+
+// Een andere stap. Wie teruggaat, ziet het scherm van links komen.
+function cookStep(step) {
+  const dish = dishById(view.id);
+  const next = Math.min(Math.max(step, cookFirstStep(dish)), recipeSteps(dish).length);
+  if (next < view.step) backward = true;
+  cooking.step = next;
+  go('cook', { ...view, step: next });
+}
+
+// Het scherm blijft aan zolang de kookstand open is, op telefoons die dat kunnen. Gaat de app naar de
+// achtergrond, dan laat de telefoon dat los; bij terugkomen vraagt de app het opnieuw (zie visibilitychange).
+let wakeLock = null;
+function keepAwake(on) {
+  if (!navigator.wakeLock) return;
+  if (on && !wakeLock && !document.hidden) {
+    const request = navigator.wakeLock.request('screen');
+    wakeLock = request;
+    request.then(lock => {
+      // Intussen al weg uit de kookstand: dan meteen weer loslaten.
+      if (wakeLock !== request) return lock.release();
+      wakeLock = lock;
+      lock.addEventListener('release', () => {
+        if (wakeLock === lock) wakeLock = null;
+      });
+    }, () => {
+      if (wakeLock === request) wakeLock = null;
+    });
+  } else if (!on && wakeLock) {
+    const lock = wakeLock;
+    wakeLock = null;
+    if (lock.release) lock.release().catch(() => {});
+  }
+}
+
+// De wekker: drie piepjes en trillen, om de paar tellen opnieuw tot je ergens tikt, hooguit een minuut lang.
+// Een telefoon laat pas geluid toe na een tik; daarom gaat het geluid aan als je een wekker zet.
+const RING_EVERY = 3000;
+const RING_TIMES = 20;
+let sound = null;
+let ringing = null;
+function wakeSound() {
+  const Context = window.AudioContext || window.webkitAudioContext;
+  if (!Context) return;
+  try {
+    sound = sound || new Context();
+    if (sound.state === 'suspended') sound.resume();
+  } catch (e) {
+    sound = null;
+  }
+}
+function beep() {
+  if (navigator.vibrate) navigator.vibrate([300, 150, 300, 150, 300]);
+  if (!sound) return;
+  const start = sound.currentTime;
+  for (let i = 0; i < 3; i++) {
+    const tone = sound.createOscillator();
+    const volume = sound.createGain();
+    const at = start + i * 0.45;
+    tone.frequency.value = 880;
+    volume.gain.setValueAtTime(0.0001, at);
+    volume.gain.exponentialRampToValueAtTime(0.4, at + 0.02);
+    volume.gain.exponentialRampToValueAtTime(0.0001, at + 0.3);
+    tone.connect(volume).connect(sound.destination);
+    tone.start(at);
+    tone.stop(at + 0.32);
+  }
+}
+function ring() {
+  if (ringing) return;
+  let times = 1;
+  beep();
+  ringing = setInterval(() => {
+    if (times++ >= RING_TIMES) silence();
+    else beep();
+  }, RING_EVERY);
+}
+// Zet de wekker uit. De melding verdwijnt, maar het scherm wordt niet opnieuw getekend: de tik waarmee je de
+// wekker uitzet, doet dan gewoon wat hij moet doen.
+function silence() {
+  if (ringing) clearInterval(ringing);
+  ringing = null;
+  if (navigator.vibrate) navigator.vibrate(0);
+  for (const timer of Object.values(cooking.timers)) {
+    if (timer.done) timer.seen = true;
+  }
+  document.querySelectorAll('.cook-alarm').forEach(el => el.remove());
+}
+document.addEventListener('pointerdown', () => { if (ringing) silence(); }, true);
+document.addEventListener('keydown', () => { if (ringing) silence(); }, true);
+
+// Elke seconde: gaat er een wekker af, dan klinkt hij en komt dat in beeld; anders lopen alleen de getallen
+// door (het hele scherm opnieuw tekenen zou het scrollen en de aanwijzer verstoren). De tijd komt van de klok,
+// zodat een wekker ook klopt als de app even op de achtergrond stond.
+let cookTicker = null;
+function tickCook() {
+  const now = Date.now();
+  const timers = Object.values(cooking.timers);
+  const finished = timers.filter(timer => !timer.done && now >= timer.end);
+  for (const timer of finished) timer.done = true;
+  if (finished.length) {
+    ring();
+    if (view.name === 'cook') render();
+  } else {
+    for (const el of document.querySelectorAll('[data-left]')) {
+      const timer = cooking.timers[el.dataset.left];
+      if (timer) el.textContent = clockText(timer.end - now);
+    }
+    for (const el of document.querySelectorAll('.cook-clock[data-step]')) {
+      const timer = cooking.timers[el.dataset.step];
+      if (timer && !timer.done) el.style.setProperty('--left', ((timer.end - now) / timer.total).toFixed(4));
+    }
+  }
+  if (!timers.some(timer => !timer.done)) {
+    clearInterval(cookTicker);
+    cookTicker = null;
+  }
+}
+
 // ---------- Beweging ----------
 
 // Zoveel onderdelen van een scherm komen een voor een in beeld; de rest komt tegelijk met het laatste.
@@ -1710,6 +1872,7 @@ window.addEventListener('popstate', () => {
   else if (view.name === 'plan') go('week');
   else if (view.name === 'country') go('world');
   else if (view.name === 'peek') showResults(view.results);
+  else if (view.name === 'cook') ACTIONS['cook-close']();
   // Een recept, het aanpassen van een gerecht en de lijst om uit te kiezen gaan terug naar waar je vandaan
   // kwam, net als de knop op het scherm zelf.
   else if (view.name === 'chosen' && view.back && view.back !== 'home') go(view.back);
@@ -1743,7 +1906,10 @@ document.addEventListener('visibilitychange', () => {
     return;
   }
   if (hiddenSince && Date.now() - hiddenSince > 30 * 60000) manualMeal = null;
-  // Eerst overnemen wat een ander venster intussen heeft bewaard.
+  // In de kookstand blijft het scherm weer aan, en een wekker die intussen is afgelopen, gaat nu af. Daarna
+  // neemt de app over wat een ander venster intussen heeft bewaard.
+  keepAwake(view.name === 'cook');
+  if (cookTicker) tickCook();
   syncStorage();
   tickMeal();
 });
@@ -1824,7 +1990,9 @@ function render() {
   }
   focusBack(mark);
   shownDay = dayKey(new Date());
-  nav.hidden = !state.onboarded;
+  // In de kookstand is er geen menubalk: daar zijn de knoppen onderin voor de stappen. Het scherm blijft aan.
+  nav.hidden = !state.onboarded || view.name === 'cook';
+  keepAwake(view.name === 'cook');
   // Onder het venster van de kennismaking doet ook de menubalk even niet mee.
   nav.inert = Boolean(view.quiz);
   // Een recept dat je vanuit je favorieten opent, hoort bij het tabblad Favorieten.
@@ -2090,15 +2258,22 @@ function filterFavorites() {
 
 // Een voorstel als kaart.
 // De ingrediënten en de bereiding van een gerecht, zoals ze bij een recept en bij een voorstel staan.
-// `between` komt onder de ingrediënten.
-function recipeHtml(dish, between = '') {
+// `between` komt onder de ingrediënten, `cook` onder het kopje van de bereiding.
+function recipeHtml(dish, between = '', cook = '') {
   const { ingredients, recipe, own } = recipeOf(dish);
   return `
     ${ingredients.length ? `
       <h2>Ingrediënten${own ? '' : ` <span>voor ${RECIPE_SERVES} personen</span>`}</h2>
       <ul class="ing">${ingredients.map(i => `<li>${esc(i)}</li>`).join('')}</ul>${between}` : ''}
-    ${recipe ? `<h2>Bereiding</h2>
+    ${recipe ? `<h2>Bereiding</h2>${cook}
       ${own ? `<p class="recipe">${esc(recipe)}</p>` : `<ol class="steps">${recipe.split('\n').map(step => `<li>${esc(step)}</li>`).join('')}</ol>`}` : ''}`;
+}
+
+// De knop naar de kookstand. Ben je bij dit gerecht al bezig, dan ga je verder waar je was.
+function cookButtonHtml(dish) {
+  if (!recipeSteps(dish).length) return '';
+  const busy = cooking.dishId === dish.id && cooking.step > cookFirstStep(dish);
+  return `<button class="btn primary" data-action="cook-start" data-id="${dish.id}">${iconSvg('vlam')} ${busy ? `Verder met koken, stap ${cooking.step}` : 'Kook stap voor stap'}</button>`;
 }
 
 function barHtml(item) {
@@ -3068,6 +3243,52 @@ const VIEWS = {
       <p class="sub">${dishMeta(dish)}${dish.kcal == null ? '' : ' · ' + kcalLabel(dish)}</p>`;
   },
 
+  // Koken, stap voor stap: eerst zet je alles klaar, daarna komt elke stap groot in beeld. Staat er een tijd in
+  // een stap, dan staat er een grote klok boven die je als wekker aanzet. Wekkers van andere stappen staan
+  // klein bovenaan; een tik daarop brengt je terug naar die stap.
+  cook() {
+    const dish = dishById(view.id);
+    const { ingredients } = recipeOf(dish);
+    const steps = recipeSteps(dish);
+    const step = view.step;
+    const now = Date.now();
+    const back = backHtml('Recept', 'data-action="cook-close"');
+    const foot = (left, right) => `<div class="cook-foot">${left}${right}</div>`;
+    if (step === 0) {
+      return `
+        ${topHtml('Klaarzetten', back)}
+        <h1>Zet alles <em>klaar</em></h1>
+        <p class="sub">Tik aan wat al op het aanrecht staat.</p>
+        <ul class="cook-ready">${ingredients.map((item, i) => `
+          <li><button data-action="cook-ready" data-index="${i}" aria-pressed="${cooking.ready.includes(i)}">${esc(item)}</button></li>`).join('')}</ul>
+        ${navigator.wakeLock ? '<p class="small muted">Het scherm blijft aan zolang je kookt.</p>' : ''}
+        ${foot('<button class="btn" data-action="cook-skip">Sla over</button>', '<button class="btn primary" data-action="cook-next">Begin met koken ›</button>')}`;
+    }
+    const minutes = stepMinutes(steps[step - 1]);
+    const timer = cooking.timers[step];
+    const ringingNow = Object.keys(cooking.timers).filter(at => cooking.timers[at].done && !cooking.timers[at].seen);
+    // Wekkers van andere stappen die nog lopen; een wekker die afgaat, staat in de melding erboven.
+    const others = Object.keys(cooking.timers).filter(at => Number(at) !== step && !cooking.timers[at].done).map(at => `
+      <button class="cook-pill" data-action="cook-go" data-step="${at}">${iconSvg('klok')} Stap ${at} · nog <b data-left="${at}">${clockText(cooking.timers[at].end - now)}</b></button>`).join('');
+    const clock = !minutes ? '' : !timer ? `
+      <button class="cook-clock" data-action="cook-timer" data-step="${step}" aria-label="Zet een wekker op ${minutesText(minutes)}">
+        <span aria-hidden="true"><b>${clockText(minutes * 60000)}</b><small>Tik om te starten</small></span></button>` : timer.done ? `
+      <button class="cook-clock done" data-action="cook-timer" data-step="${step}" style="--left:0" aria-label="De wekker is klaar. Zet hem opnieuw op ${minutesText(minutes)}">
+        <span aria-hidden="true"><b>Klaar</b><small>Tik om opnieuw te starten</small></span></button>` : `
+      <div class="cook-clock" data-step="${step}" style="--left:${((timer.end - now) / timer.total).toFixed(4)}" role="timer" aria-label="Wekker van ${minutesText(minutes)}">
+        <span><b data-left="${step}">${clockText(timer.end - now)}</b><small>van ${minutesText(minutes)}</small></span></div>
+      <button class="btn link cook-stop" data-action="cook-timer-stop" data-step="${step}">Wekker uitzetten</button>`;
+    return `
+      ${topHtml(`Stap ${step} van ${steps.length}`, back)}
+      <div class="dots" aria-hidden="true">${steps.map((one, i) => `<i${i < step ? ' class="on"' : ''}></i>`).join('')}</div>
+      ${ringingNow.length ? `<div class="notice cook-alarm" role="alert">${iconSvg('klok')} ${listText(ringingNow.map(at => `Stap ${at}`))} ${ringingNow.length === 1 ? 'is' : 'zijn'} klaar. Tik ergens om de wekker uit te zetten.</div>` : ''}
+      ${others ? `<div class="cook-pills">${others}</div>` : ''}
+      ${clock}
+      <h1 class="cook-step${minutes ? '' : ' big'}">${esc(steps[step - 1])}</h1>
+      ${foot(step > cookFirstStep(dish) ? `<button class="btn" data-action="cook-prev">‹ Vorige</button>` : '',
+        step < steps.length ? '<button class="btn primary" data-action="cook-next">Volgende stap ›</button>' : '<button class="btn primary" data-action="cook-done">Klaar met koken ✓</button>')}`;
+  },
+
   // Een voorstel eerst bekijken: wat het is en wat je ervoor nodig hebt. Er is dan nog niets gekozen.
   peek() {
     const dish = dishById(view.id);
@@ -3109,7 +3330,7 @@ const VIEWS = {
       ${view.note ? `<div class="notice">${esc(view.note)}</div>` : ''}
       ${recipeHtml(dish, `
         <button class="btn" data-action="add-to-shopping"${view.added || onList ? ' aria-disabled="true"' : ''}>
-          ${view.added ? '✓ Op de boodschappenlijst gezet' : onList ? '✓ Staat al op je boodschappenlijst' : `${iconSvg('mand')} Zet op de boodschappenlijst`}</button>`)}
+          ${view.added ? '✓ Op de boodschappenlijst gezet' : onList ? '✓ Staat al op je boodschappenlijst' : `${iconSvg('mand')} Zet op de boodschappenlijst`}</button>`, cookButtonHtml(dish))}
       ${hasRecipe ? '' :'<div class="notice">Van dit gerecht heb ik nog geen recept. Zoek er een op internet, of zet je eigen recept erbij.</div>'}
       <div class="orn"><i></i></div>
       <a class="btn" href="https://www.google.com/search?q=${encodeURIComponent(`recept ${dish.name}`)}" target="_blank" rel="noopener noreferrer">${iconSvg('zoek')} ${hasRecipe ? 'Zoek een ander recept op internet' : 'Zoek een recept op internet'}</a>
@@ -3663,6 +3884,57 @@ const ACTIONS = {
   'pass-continue'() { go('results', view.results); },
 
   'peek-pick'() { choose(view.id, undefined, meal, view.results); },
+
+  // De kookstand openen vanaf een recept. Bij hetzelfde gerecht ga je verder waar je was.
+  'cook-start'(el) {
+    const dish = dishById(el.dataset.id);
+    if (!dish || !recipeSteps(dish).length) return;
+    if (cooking.dishId !== dish.id) cooking = { dishId: dish.id, step: cookFirstStep(dish), ready: [], timers: {} };
+    go('cook', { id: dish.id, step: cooking.step, from: view });
+  },
+
+  'cook-next'() { cookStep(view.step + 1); },
+  'cook-prev'() { cookStep(view.step - 1); },
+  'cook-skip'() { cookStep(1); },
+  'cook-go'(el) { cookStep(Number(el.dataset.step)); },
+
+  'cook-ready'(el) {
+    const index = Number(el.dataset.index);
+    cooking.ready = cooking.ready.includes(index) ? cooking.ready.filter(i => i !== index) : [...cooking.ready, index];
+    render();
+  },
+
+  // Een wekker zetten met de tijd uit de stap, of opnieuw na het aflopen.
+  'cook-timer'(el) {
+    const step = Number(el.dataset.step);
+    const minutes = stepMinutes(recipeSteps(dishById(view.id))[step - 1] || '');
+    if (!minutes) return;
+    wakeSound();
+    cooking.timers[step] = { end: Date.now() + minutes * 60000, total: minutes * 60000, done: false, seen: false };
+    if (!cookTicker) cookTicker = setInterval(tickCook, 1000);
+    render();
+    app.querySelector('[data-action="cook-timer-stop"]').focus({ preventScroll: true });
+  },
+
+  'cook-timer-stop'(el) {
+    delete cooking.timers[el.dataset.step];
+    render();
+    const again = app.querySelector('[data-action="cook-timer"]');
+    if (again) again.focus({ preventScroll: true });
+  },
+
+  // Terug naar het recept. Wekkers lopen door; bij de volgende keer koken ga je verder waar je was.
+  'cook-close'() {
+    backward = true;
+    go('chosen', view.from ? { ...view.from, reward: null } : { id: view.id, back: 'favorites' });
+  },
+
+  // Klaar met koken: terug naar het recept. Wekkers die nog lopen (zoals "laat 5 minuten rusten") lopen door.
+  'cook-done'() {
+    cooking.step = cookFirstStep(dishById(view.id));
+    cooking.ready = [];
+    ACTIONS['cook-close']();
+  },
 
   'peek-back'() {
     backward = true;

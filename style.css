@@ -371,6 +371,39 @@ form.row { align-items: flex-end; margin-bottom: 12px; }
 .steps { margin: 0 0 12px; padding: 0; list-style: none; counter-reset: step; }
 .steps li { display: flex; gap: 12px; margin-bottom: 12px; counter-increment: step; }
 .steps li::before { content: counter(step); flex: none; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--soft); font-size: 0.88rem; font-weight: 700; color: var(--accent-ink); }
+
+/* ---------- Koken, stap voor stap ---------- */
+
+/* Klaarzetten: de ingrediënten om af te vinken */
+.cook-ready { margin: 0 0 14px; padding: 4px 16px; border-radius: 22px; background: var(--card); box-shadow: 0 0 0 1px var(--border), var(--lift); list-style: none; }
+.cook-ready li { border-bottom: 1px solid var(--border); }
+.cook-ready li:last-child { border-bottom: none; }
+.cook-ready button { display: flex; align-items: center; gap: 14px; width: 100%; min-height: 48px; padding: 6px 0; border: none; background: none; font: 1rem/1.3 var(--sans); color: var(--text); text-align: left; overflow-wrap: anywhere; cursor: pointer; }
+.cook-ready button::before { content: ""; flex: none; display: grid; place-items: center; width: 24px; height: 24px; border: 2px solid var(--muted); border-radius: 50%; font-size: 0.8rem; font-weight: 700; }
+.cook-ready button[aria-pressed="true"] { color: var(--muted); text-decoration: line-through; }
+.cook-ready button[aria-pressed="true"]::before { content: "✓"; border-color: var(--accent); background: var(--accent); color: var(--accent-text); }
+/* Een stap: groot, en bij een tijd een klok die als wekker loopt. --left is het deel dat nog moet. */
+.cook-step { margin: 0 0 18px; font: 400 1.4rem/1.35 var(--serif); overflow-wrap: anywhere; }
+.cook-step.big { margin-top: 14px; font-size: 1.7rem; }
+.cook-clock { position: relative; display: grid; place-items: center; width: 190px; height: 190px; margin: 6px auto 16px; padding: 0; border: none; border-radius: 50%; background: conic-gradient(var(--accent) calc(var(--left, 1) * 1turn), var(--tint) 0); color: var(--text); text-align: center; }
+.cook-clock::before { content: ""; position: absolute; inset: 14px; border-radius: 50%; background: var(--bg); }
+button.cook-clock { cursor: pointer; }
+.cook-clock span { position: relative; }
+.cook-clock b { display: block; font: 700 2.6rem/1 var(--sans); font-variant-numeric: tabular-nums; }
+.cook-clock small { display: block; max-width: 130px; margin: 6px auto 0; font-size: 0.88rem; color: var(--muted); }
+.cook-clock.done b { color: var(--accent-ink); }
+.btn.link.cook-stop { margin: -10px 0 8px; }
+/* Wekkers van andere stappen, klein bovenaan */
+.cook-pills { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 12px; }
+.cook-pill { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px; border: none; border-radius: 999px; background: var(--butter); font: 600 0.9rem var(--sans); color: var(--text); cursor: pointer; }
+.cook-pill b { font-variant-numeric: tabular-nums; }
+.notice.cook-alarm { display: flex; align-items: center; gap: 10px; background: var(--accent); color: var(--accent-text); font-weight: 600; }
+.notice.cook-alarm .ic { flex: none; font-size: 1.4rem; }
+/* Vorige en volgende staan vast onderin, waar de menubalk anders staat */
+.cook-foot { position: fixed; left: 0; right: 0; bottom: 0; z-index: 3; display: flex; gap: 10px; padding: 12px max(20px, calc((100% - 440px) / 2)) calc(14px + env(safe-area-inset-bottom)); background: var(--bg); box-shadow: 0 -1px 0 var(--border); }
+.cook-foot .btn { width: auto; margin: 0; }
+.cook-foot .btn:not(.primary) { flex: 0 0 36%; }
+.cook-foot .btn.primary { flex: 1; }
 .recipe { white-space: pre-wrap; }
 
 /* ---------- Het startscherm ---------- */
@@ -821,6 +854,10 @@ span.person.on i { background: var(--card); box-shadow: 0 0 0 2px var(--accent),
   /* De vragen schuiven van rechts binnen, en een stap terug komt van links */
   #app.enter[data-view="ask"] > * { animation-name: from-right; }
   #app.enter[data-dir="back"] > * { animation-name: from-left; }
+  /* De stappen van de kookstand schuiven ook; de knoppen onderin blijven staan */
+  #app.enter[data-view="cook"] > * { animation-name: from-right; }
+  #app.enter[data-view="cook"][data-dir="back"] > * { animation-name: from-left; }
+  #app.enter > .cook-foot { animation: none; }
   /* De voorstellen schieten een voor een in beeld */
   #app.enter[data-view="results"] > .bar {
     animation: from-right 0.45s cubic-bezier(0.2, 1.3, 0.4, 1) backwards;
